@@ -1,7 +1,12 @@
 "use client";
 
+/* Camera previews are local object URLs, not public Next image hosts. */
+/* eslint-disable @next/next/no-img-element */
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
+import { SignaturePad, type SignaturePadHandle } from "@/components/fieldops/signature-pad";
+import { uploadJobFile } from "@/lib/job-files";
 import { MutationButton, useCanMutate } from "@/components/fieldops/mutation-control";
 import { ResponsiveDrawer } from "@/components/fieldops/responsive-drawer";
 import { SkeletonBlock } from "@/components/fieldops/skeleton-block";
@@ -15,12 +20,10 @@ import { resolveCurrentMembership } from "@/lib/current-org";
 import { priorityTone, statusLabel, statusTone } from "@/lib/jobs";
 import {
   addJobMaterial,
-  addJobPhoto,
   addJobSignature,
   addWorkUpdate,
   clockIn,
   clockOut,
-  fileToDataUrl,
   getMyDay,
   readGps,
   weekdayLabel,
@@ -514,8 +517,10 @@ function FieldSheets({
   const [signerTitle, setSignerTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawing = useRef(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoProgress, setPhotoProgress] = useState<number | null>(null);
+  const padRef = useRef<SignaturePadHandle>(null);
 
   const save = async () => {
     if (!organizationId || !job) return;
@@ -542,14 +547,13 @@ function FieldSheets({
         });
       }
       if (open === "signoff") {
-        const canvas = canvasRef.current;
-        if (!signerName.trim() || !canvas) {
+        if (!signerName.trim() || padRef.current?.isEmpty()) {
           throw new Error("Add the signer name and a signature.");
         }
         await addJobSignature(organizationId, job.id, {
           signerName: signerName.trim(),
           signerTitle: signerTitle.trim() || undefined,
-          imageBase64: canvas.toDataURL("image/png"),
+          imageBase64: padRef.current?.toPng() ?? "",
         });
       }
       await onSaved();
@@ -560,50 +564,30 @@ function FieldSheets({
     }
   };
 
-  const onPhoto = async (file: File | undefined) => {
-    if (!organizationId || !job || !file) return;
+  const onPhoto = async (file: File) => {
+    if (!organizationId || !job) return;
     if (!online) {
       setError("You’re offline. Reconnect to upload a photo.");
       return;
     }
     setSaving(true);
     setError(null);
+    setPhotoProgress(0);
     try {
-      await addJobPhoto(organizationId, job.id, {
-        fileName: file.name || "photo.jpg",
-        mimeType: file.type || "image/jpeg",
-        contentBase64: await fileToDataUrl(file),
+      await uploadJobFile(organizationId, job.id, file, {
+        category: "PHOTO",
+        onProgress: setPhotoProgress,
       });
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoProgress(null);
       await onSaved();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Photo upload failed.");
+      setPhotoProgress(null);
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Photo upload failed.");
     } finally {
       setSaving(false);
     }
-  };
-
-  const startDraw = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    drawing.current = true;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.strokeStyle = "#1a1f2c";
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(event.clientX - rect.left, event.clientY - rect.top);
-  };
-
-  const moveDraw = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(event.clientX - rect.left, event.clientY - rect.top);
-    ctx.stroke();
   };
 
   return (
@@ -642,19 +626,53 @@ function FieldSheets({
           </>
         ) : null}
         {open === "photo" ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <Label htmlFor="job-photo">Camera or library</Label>
             <Input
               id="job-photo"
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               capture="environment"
               className="h-12"
-              onChange={(event) => void onPhoto(event.target.files?.[0])}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                setPhotoFile(file);
+                setPhotoPreview(URL.createObjectURL(file));
+              }}
             />
-            <p className="text-xs text-muted-foreground">
-              Photos upload now. Offline capture is not available yet.
-            </p>
+            {photoPreview ? (
+              <img src={photoPreview} alt="Selected photo" className="max-h-48 rounded-md object-contain" />
+            ) : null}
+            {photoProgress !== null ? (
+              <p className="text-sm text-muted-foreground">Uploading {photoProgress}%</p>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                className="h-11 flex-1"
+                disabled={!photoFile || saving || !canMutate || !online}
+                onClick={() => photoFile && void onPhoto(photoFile)}
+              >
+                {saving ? "Uploading…" : "Upload"}
+              </Button>
+              {photoFile ? (
+                <Button
+                  className="h-11"
+                  variant="outline"
+                  onClick={() => {
+                    setPhotoFile(null);
+                    setPhotoPreview(null);
+                  }}
+                >
+                  Remove
+                </Button>
+              ) : null}
+              {error && photoFile ? (
+                <Button className="h-11" variant="outline" onClick={() => void onPhoto(photoFile)}>
+                  Retry
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : null}
         {open === "material" ? (
@@ -715,20 +733,7 @@ function FieldSheets({
             </div>
             <div className="grid gap-1.5">
               <Label>Signature</Label>
-              <canvas
-                ref={canvasRef}
-                width={360}
-                height={160}
-                className="h-40 w-full touch-none rounded-md border border-border bg-white"
-                onPointerDown={startDraw}
-                onPointerMove={moveDraw}
-                onPointerUp={() => {
-                  drawing.current = false;
-                }}
-                onPointerLeave={() => {
-                  drawing.current = false;
-                }}
-              />
+              <SignaturePad ref={padRef} />
             </div>
           </div>
         ) : null}

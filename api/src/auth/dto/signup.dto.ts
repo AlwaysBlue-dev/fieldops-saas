@@ -1,5 +1,15 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  Equals,
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export class SignupDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
@@ -27,4 +37,11 @@ export class SignupDto {
     message: 'timezone must be an IANA identifier such as America/Chicago',
   })
   timezone?: string;
+
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  @Equals(true, {
+    message: 'You must agree to the Terms of Service and Privacy Policy.',
+  })
+  acceptTerms!: boolean;
 }

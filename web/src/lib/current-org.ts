@@ -40,3 +40,11 @@ export function canCreateJobs(membership: OrganizationMembership | null) {
 export function isTechnician(membership: OrganizationMembership | null) {
   return membership?.role === "TECHNICIAN";
 }
+
+export function canApproveOvertime(membership: OrganizationMembership | null) {
+  return canEditSchedule(membership);
+}
+
+export function canApproveOperations(membership: OrganizationMembership | null) {
+  return canEditSchedule(membership);
+}

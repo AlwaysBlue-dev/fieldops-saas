@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -37,6 +38,7 @@ import { withTenant } from '../tenancy/tenant-scope.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
 import type { ScheduleJobDto } from './dto/schedule-job.dto.js';
 import type { ScheduleQueryDto } from './dto/schedule-query.dto.js';
+import { JobNotificationHook } from './job-events.js';
 import {
   canEditSchedule,
   canManageSchedule,
@@ -73,6 +75,7 @@ export class ScheduleService {
     private readonly audit: AuditService,
     private readonly teams: TeamsService,
     private readonly workflow: JobWorkflowService,
+    private readonly jobEvents: JobNotificationHook,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -286,8 +289,12 @@ export class ScheduleService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const job = await tx.job.update({
-        where: { id: existing.id },
+      const cas = await tx.job.updateMany({
+        where: {
+          id: existing.id,
+          organizationId: ctx.organizationId,
+          status: existing.status,
+        },
         data: {
           scheduledStart: nextStart,
           expectedFinish: nextFinish,
@@ -295,6 +302,12 @@ export class ScheduleService {
           supervisorUserId: nextSupervisorId,
           status: nextStatus,
         },
+      });
+      if (cas.count !== 1) {
+        throw new ConflictException('Job status changed concurrently');
+      }
+      const job = await tx.job.findFirstOrThrow({
+        where: { id: existing.id, organizationId: ctx.organizationId },
         include: JOB_INCLUDE,
       });
 
@@ -368,10 +381,55 @@ export class ScheduleService {
         );
       }
 
-      return fresh;
+      const newlyAssignedUserIds = nextTechIds.filter(
+        (userId) => !currentTechIds.includes(userId),
+      );
+      const rescheduleUserIds =
+        timesChanged && hadStart
+          ? [...new Set([...nextTechIds, nextSupervisorId].filter(Boolean))]
+          : [];
+      await this.jobEvents.emitScheduleChanges(
+        {
+          organizationId: ctx.organizationId,
+          organizationName: ctx.name,
+          orgSlug: ctx.slug,
+          jobId: existing.id,
+          jobNumber: fresh.jobNumber,
+          jobTitle: fresh.title,
+          actorUserId,
+          newlyAssignedUserIds,
+          rescheduleUserIds: rescheduleUserIds as string[],
+          scheduledStart: nextStart,
+          expectedFinish: nextFinish,
+          timezone: ctx.timezone,
+        },
+        tx,
+      );
+
+      return {
+        job: fresh,
+        newlyAssignedUserIds,
+        scheduledStart: nextStart,
+        expectedFinish: nextFinish,
+      };
     });
 
-    return serializeScheduleJob(updated);
+    await this.jobEvents.emailJobAssigned({
+      organizationId: ctx.organizationId,
+      organizationName: ctx.name,
+      orgSlug: ctx.slug,
+      jobId: updated.job.id,
+      jobNumber: updated.job.jobNumber,
+      jobTitle: updated.job.title,
+      actorUserId,
+      newlyAssignedUserIds: updated.newlyAssignedUserIds,
+      rescheduleUserIds: [],
+      scheduledStart: updated.scheduledStart,
+      expectedFinish: updated.expectedFinish,
+      timezone: ctx.timezone,
+    });
+
+    return serializeScheduleJob(updated.job);
   }
 
   private async buildLanes(

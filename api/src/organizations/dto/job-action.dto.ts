@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CancelJobDto {
   @IsOptional()
@@ -8,8 +8,8 @@ export class CancelJobDto {
 }
 
 export class ReturnJobDto {
-  @IsOptional()
   @IsString()
+  @MinLength(4)
   @MaxLength(400)
-  reason?: string;
+  reason!: string;
 }

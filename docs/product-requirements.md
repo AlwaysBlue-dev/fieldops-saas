@@ -27,7 +27,7 @@ Core promise:
 - Not a white-label of a previous client project.
 - Not a generic CRM, ERP, or project-management tool.
 - Not a consumer marketplace that matches random technicians to jobs.
-- Not a billing product in the first delivery phases (subscriptions are designed, not charged).
+- Not a self-serve checkout product. Commercial offer is FieldOps Cloud Professional at $499/year (14-day trial, 3-day grace, 10 users, 20 GB). Business pricing is by contact.
 
 ---
 

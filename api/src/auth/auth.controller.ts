@@ -21,6 +21,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { JwtOptionalGuard } from './jwt-optional.guard.js';
 
 @Controller('auth')
 export class AuthController {
@@ -62,16 +63,12 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtOptionalGuard)
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    let userId: string | undefined;
-    try {
-      userId = (request as Request & { user?: AuthUser }).user?.id;
-    } catch {
-      userId = undefined;
-    }
+    const userId = (request as Request & { user?: AuthUser }).user?.id;
     await this.auth.logout(request, userId);
     clearAuthCookies(response, this.config);
   }

@@ -1,7 +1,34 @@
 "use client";
 
-import { RequestActivationButton } from "./subscription-banners";
+import { Button } from "@/components/ui/button";
+import {
+  formatStorageBytes,
+  isNearExpiry,
+} from "@/lib/subscription";
+import { RequestActivationButton, RequestPlanChangeButton, RequestRenewalButton } from "./subscription-banners";
 import { useSubscription } from "./subscription-provider";
+
+const SUPPORT_INCLUDED = [
+  "Product usage assistance",
+  "Account help",
+  "Bug reporting",
+  "Technical product issues",
+  "Activation and renewal assistance",
+  "Product updates",
+];
+
+const SUPPORT_NOT_INCLUDED = [
+  "Custom development",
+  "Custom integrations",
+  "Custom workflows",
+  "Custom reports",
+  "Large migrations",
+  "Consulting engagements",
+];
+
+function statusLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
 
 export function SubscriptionPanel({
   organizationId,
@@ -17,53 +44,120 @@ export function SubscriptionPanel({
     );
   }
 
-  const ended =
-    subscription.effectiveStatus === "TRIAL_EXPIRED" ||
-    subscription.effectiveStatus === "SUSPENDED" ||
-    subscription.effectiveStatus === "CANCELLED";
+  const supportEmail = subscription.supportEmail ?? "sales@fieldops.local";
+  const users = subscription.usage?.users;
+  const storage = subscription.usage?.storage;
+  const nearExpiry = isNearExpiry(subscription);
 
   return (
-    <div className="flex flex-col gap-3">
-      <dl className="grid gap-2 text-sm sm:grid-cols-2">
+    <div className="flex flex-col gap-5">
+      <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-muted-foreground">Status</dt>
-          <dd className="font-medium">{subscription.effectiveStatus.replaceAll("_", " ")}</dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground">Plan</dt>
+          <dt className="text-muted-foreground">Current plan</dt>
           <dd className="font-medium">{subscription.plan.name}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Trial ends</dt>
-          <dd>
-            {subscription.trialEndsAt
-              ? new Date(subscription.trialEndsAt).toLocaleDateString()
-              : "—"}
+          <dt className="text-muted-foreground">Subscription status</dt>
+          <dd className="font-medium">
+            {statusLabel(subscription.effectiveStatus)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Grace ends</dt>
-          <dd>
-            {subscription.graceEndsAt
-              ? new Date(subscription.graceEndsAt).toLocaleDateString()
-              : "—"}
+          <dt className="text-muted-foreground">Price</dt>
+          <dd className="font-medium">{subscription.plan.priceLabel}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Team usage</dt>
+          <dd className="font-medium">
+            {users
+              ? `${users.used} / ${users.included} users`
+              : `${subscription.plan.maxUsers} users included`}
           </dd>
         </div>
-      </dl>
-      {ended && canManage ? (
-        <div className="rounded-md border border-border bg-muted/40 px-3 py-3">
-          <p className="text-sm font-semibold">Your trial has ended</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Contact us to activate your workspace. There is no online checkout.
-          </p>
-          <div className="mt-3">
-            <RequestActivationButton organizationId={organizationId} />
+        <div>
+          <dt className="text-muted-foreground">Storage usage</dt>
+          <dd className="font-medium">
+            {storage
+              ? `${formatStorageBytes(storage.usedBytes)} / ${formatStorageBytes(storage.includedBytes)}`
+              : formatStorageBytes(subscription.plan.maxStorageBytes)}
+          </dd>
+        </div>
+        {subscription.effectiveStatus === "TRIALING" ||
+        subscription.effectiveStatus === "GRACE" ? (
+          <div>
+            <dt className="text-muted-foreground">Trial end date</dt>
+            <dd>
+              {subscription.trialEndsAt
+                ? new Date(subscription.trialEndsAt).toLocaleDateString()
+                : "—"}
+            </dd>
           </div>
+        ) : null}
+        {subscription.effectiveStatus === "ACTIVE" ||
+        subscription.effectiveStatus === "PAID_GRACE" ? (
+          <div>
+            <dt className="text-muted-foreground">Renewal date</dt>
+            <dd>
+              {subscription.currentPeriodEnd
+                ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+                : "—"}
+            </dd>
+          </div>
+        ) : null}
+        <div>
+          <dt className="text-muted-foreground">Support</dt>
+          <dd className="font-medium">Standard Support Included</dd>
+        </div>
+      </dl>
+
+      {canManage ? (
+        <div className="flex flex-wrap gap-2">
+          {subscription.availableActions.requestActivation ? (
+            <RequestActivationButton organizationId={organizationId} />
+          ) : null}
+          {subscription.availableActions.requestRenewal ? (
+            <RequestRenewalButton
+              organizationId={organizationId}
+              label={nearExpiry ? "Renew Subscription" : "Request Renewal"}
+            />
+          ) : null}
+          {subscription.availableActions.requestPlanChange ? (
+            <RequestPlanChangeButton
+              organizationId={organizationId}
+              variant="outline"
+            />
+          ) : null}
+          {subscription.availableActions.contactSupport ? (
+            <Button asChild variant="outline" className="h-9 md:h-8">
+              <a href={`mailto:${supportEmail}`}>Contact Sales</a>
+            </Button>
+          ) : null}
         </div>
       ) : null}
-      {!ended && canManage && subscription.effectiveStatus !== "ACTIVE" ? (
-        <RequestActivationButton organizationId={organizationId} />
-      ) : null}
+
+      <section className="rounded-md border border-border px-3 py-3">
+        <h3 className="text-sm font-semibold">Standard support</h3>
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Included</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {SUPPORT_INCLUDED.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">
+              Not included automatically
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+              {SUPPORT_NOT_INCLUDED.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

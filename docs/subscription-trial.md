@@ -1,5 +1,7 @@
 # FieldOps Cloud — Free trial and manual activation
 
+The initial commercial model, paid renewal grace, catalog-driven pricing, and platform admin flow live in `docs/commercial-model.md`. This file keeps the trial math that still applies.
+
 No payment provider is connected. Access is decided on the API from subscription dates and operator-set statuses. The browser never authorizes writes.
 
 ## Policy
@@ -49,7 +51,7 @@ Statuses supported: `TRIALING`, `GRACE`, `ACTIVE`, `TRIAL_EXPIRED`, `SUSPENDED`,
 
 `ActivationRequest` stores a lightweight sales request: organization, requester, optional message, `OPEN` | `CONTACTED` | `CLOSED`, timestamps.
 
-Plans remain Starter, Professional, and Business. Trial evaluation always overlays Professional features.
+Published commercial offer is **FieldOps Cloud Professional** at **$499/year**: 14-day trial, no credit card, 3-day grace, 10 users, 20 GB, core field-service features, product updates, and standard support. Larger seat or storage needs are **Business** pricing by contact. Starter remains in the catalog for existing workspaces. Trial evaluation always overlays Professional features.
 
 ## Services and guards
 

@@ -57,6 +57,7 @@ describe('Clock and GPS evidence (e2e)', () => {
       fullName: `Clock Owner ${label}`,
       organizationName: `Clock Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return {

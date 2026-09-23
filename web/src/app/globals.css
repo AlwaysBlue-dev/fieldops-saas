@@ -191,6 +191,17 @@
     padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
 
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .scroll-x-pane {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
   .shadow-raise {
     box-shadow: var(--shadow-raise);
   }

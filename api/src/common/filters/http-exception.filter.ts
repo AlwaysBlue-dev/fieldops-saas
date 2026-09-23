@@ -23,6 +23,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
     let conflicts: unknown;
+    let validation: unknown;
+    let extras: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -35,6 +37,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
         message = (payload.message as string | string[]) ?? exception.message;
         error = (payload.error as string) ?? exception.name;
         conflicts = payload.conflicts;
+        validation = payload.validation;
+        for (const key of [
+          'code',
+          'limitType',
+          'used',
+          'limit',
+          'planCode',
+          'planName',
+        ] as const) {
+          if (payload[key] !== undefined) {
+            extras[key] = payload[key];
+          }
+        }
       }
     } else if (
       exception instanceof Prisma.PrismaClientKnownRequestError &&
@@ -55,6 +70,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message: isProduction && status === 500 ? 'Internal server error' : message,
       error,
       ...(conflicts !== undefined ? { conflicts } : {}),
+      ...(validation !== undefined ? { validation } : {}),
+      ...extras,
     });
   }
 }

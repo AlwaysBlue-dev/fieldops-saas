@@ -27,8 +27,13 @@ export function MutationButton({
   className,
   ...props
 }: ComponentProps<typeof Button>) {
-  const { canMutate } = useCanMutate();
+  const { canMutate, subscription } = useCanMutate();
   const blocked = !canMutate;
+  const blockedReason =
+    subscription?.effectiveStatus === "EXPIRED" ||
+    subscription?.effectiveStatus === "PAID_GRACE"
+      ? "Available after subscription renewal."
+      : ACTIVATION_UNAVAILABLE_MESSAGE;
   const button = (
     <Button
       {...props}
@@ -51,7 +56,7 @@ export function MutationButton({
           {button}
         </span>
       </TooltipTrigger>
-      <TooltipContent>{ACTIVATION_UNAVAILABLE_MESSAGE}</TooltipContent>
+      <TooltipContent>{blockedReason}</TooltipContent>
     </Tooltip>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { PwaRegister } from "@/components/fieldops/pwa-register";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -21,13 +22,29 @@ export const metadata: Metadata = {
   description:
     "Field-service operations for dispatch, jobs, crews, time, and approvals.",
   applicationName: "FieldOps Cloud",
+  appleWebApp: {
+    capable: true,
+    title: "FieldOps",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#1c2233",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#1c2233" },
+    { media: "(prefers-color-scheme: dark)", color: "#1c2233" },
+  ],
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -38,9 +55,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground">
         {children}
+        <PwaRegister />
         <Toaster
           richColors
-          position="top-right"
+          position="top-center"
           toastOptions={{ className: "font-sans" }}
         />
       </body>

@@ -13,8 +13,20 @@ import {
   Prisma,
   TimeEntrySource,
   TimeEntryStatus,
+  TimeEntryType,
 } from '../generated/prisma/client.js';
-import { AUDIT_CLOCK_IN, AUDIT_CLOCK_OUT, AUDIT_JOB_STARTED } from '../common/constants.js';
+import {
+  AUDIT_CLOCK_IN,
+  AUDIT_CLOCK_OUT,
+  AUDIT_JOB_STARTED,
+  CLOCK_OUT_IDEMPOTENT_MS,
+} from '../common/constants.js';
+import { formatYmdInZone } from '../common/timezone.js';
+import { durationMinutesFromRange } from './timesheet-validation.js';
+import {
+  persistValidation,
+  TimesheetValidationService,
+} from './timesheet-validation.service.js';
 import {
   assertCoordinatePair,
   DEFAULT_GPS_REVIEW_DISTANCE_METERS,
@@ -39,6 +51,7 @@ export class ClockService {
     private readonly audit: AuditService,
     private readonly workflow: JobWorkflowService,
     private readonly teams: TeamsService,
+    private readonly timesheetValidation: TimesheetValidationService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -102,22 +115,28 @@ export class ClockService {
           },
         });
         if (startedJob && jobId) {
-          await tx.job.update({
-            where: { id: jobId },
+          const progressed = await tx.job.updateMany({
+            where: {
+              id: jobId,
+              organizationId: ctx.organizationId,
+              status: JobStatus.DISPATCHED,
+            },
             data: { status: JobStatus.IN_PROGRESS },
           });
-          await this.audit.record(
-            {
-              action: AUDIT_JOB_STARTED,
-              entityType: 'Job',
-              entityId: jobId,
-              organizationId: ctx.organizationId,
-              actorUserId,
-              oldValues: { status: JobStatus.DISPATCHED },
-              newValues: { status: JobStatus.IN_PROGRESS },
-            },
-            tx,
-          );
+          if (progressed.count === 1) {
+            await this.audit.record(
+              {
+                action: AUDIT_JOB_STARTED,
+                entityType: 'Job',
+                entityId: jobId,
+                organizationId: ctx.organizationId,
+                actorUserId,
+                oldValues: { status: JobStatus.DISPATCHED },
+                newValues: { status: JobStatus.IN_PROGRESS },
+              },
+              tx,
+            );
+          }
         }
         await this.audit.record(
           {
@@ -156,19 +175,40 @@ export class ClockService {
   ) {
     const settings = await this.requireSettings(ctx.organizationId);
     const gps = this.readGps(dto, settings.requireGps);
+    const now = this.clock.now();
     const existing = await this.currentSession(ctx.organizationId, actorUserId);
     if (!existing) {
+      const replayed = await this.recentClosedSession(
+        ctx.organizationId,
+        actorUserId,
+        now,
+      );
+      if (replayed) {
+        return replayed;
+      }
       throw new BadRequestException('Not clocked in');
     }
 
     const site = existing.jobId
       ? await this.siteCoords(ctx.organizationId, existing.jobId)
       : { latitude: null, longitude: null };
-    const now = this.clock.now();
     const durationMinutes = Math.max(
       0,
-      Math.round((now.getTime() - existing.clockInAt.getTime()) / 60_000),
+      durationMinutesFromRange(existing.clockInAt, now),
     );
+    const workDate = formatYmdInZone(existing.clockInAt, settings.timezone);
+    const validation = await this.timesheetValidation.evaluate({
+      organizationId: ctx.organizationId,
+      userId: actorUserId,
+      source: TimeEntrySource.CLOCK_SESSION,
+      type: TimeEntryType.NORMAL,
+      startAt: existing.clockInAt,
+      endAt: now,
+      workDate,
+      description: null,
+      jobId: existing.jobId,
+      now,
+    });
     const outEvidence = locationEvidence({
       ...gps,
       siteLatitude: site.latitude,
@@ -209,17 +249,23 @@ export class ClockService {
           userId: actorUserId,
           jobId: existing.jobId,
           clockSessionId: existing.id,
+          workDate: new Date(`${workDate}T00:00:00.000Z`),
           startedAt: existing.clockInAt,
           endedAt: now,
           durationMinutes,
+          type: TimeEntryType.NORMAL,
           source: TimeEntrySource.CLOCK_SESSION,
           status: TimeEntryStatus.DRAFT,
+          validation: persistValidation(validation),
         },
         update: {
+          workDate: new Date(`${workDate}T00:00:00.000Z`),
           endedAt: now,
           durationMinutes,
           jobId: existing.jobId,
+          type: TimeEntryType.NORMAL,
           source: TimeEntrySource.CLOCK_SESSION,
+          validation: persistValidation(validation),
         },
       });
       await this.audit.record(
@@ -414,7 +460,57 @@ export class ClockService {
       requireGps: settings?.requireGps ?? false,
       gpsReviewDistanceMeters:
         settings?.gpsReviewDistanceMeters ?? DEFAULT_GPS_REVIEW_DISTANCE_METERS,
+      timezone: settings?.timezone ?? 'UTC',
     };
+  }
+
+  private async recentClosedSession(
+    organizationId: string,
+    technicianUserId: string,
+    now: Date,
+  ) {
+    const recent = await this.prisma.clockSession.findFirst({
+      where: {
+        organizationId,
+        technicianUserId,
+        status: ClockSessionStatus.CLOSED,
+        clockOutAt: { gte: new Date(now.getTime() - CLOCK_OUT_IDEMPOTENT_MS) },
+      },
+      orderBy: { clockOutAt: 'desc' },
+    });
+    if (!recent) return null;
+    const entry = await this.prisma.timeEntry.findFirst({
+      where: { clockSessionId: recent.id, organizationId },
+    });
+    if (!entry) return null;
+    const settings = await this.requireSettings(organizationId);
+    const site = recent.jobId
+      ? await this.siteCoords(organizationId, recent.jobId)
+      : { latitude: null, longitude: null };
+    const inEvidence = locationEvidence({
+      latitude: toFiniteNumber(recent.clockInLatitude),
+      longitude: toFiniteNumber(recent.clockInLongitude),
+      accuracyMeters: toFiniteNumber(recent.clockInAccuracyMeters),
+      siteLatitude: site.latitude,
+      siteLongitude: site.longitude,
+      reviewDistanceMeters: settings.gpsReviewDistanceMeters,
+    });
+    const outEvidence = recent.clockOutAt
+      ? locationEvidence({
+          latitude: toFiniteNumber(recent.clockOutLatitude),
+          longitude: toFiniteNumber(recent.clockOutLongitude),
+          accuracyMeters: toFiniteNumber(recent.clockOutAccuracyMeters),
+          siteLatitude: site.latitude,
+          siteLongitude: site.longitude,
+          reviewDistanceMeters: settings.gpsReviewDistanceMeters,
+        })
+      : null;
+    return this.serializeSession(
+      recent,
+      inEvidence,
+      outEvidence,
+      entry.durationMinutes,
+    );
   }
 
   private async siteCoords(organizationId: string, jobId: string) {

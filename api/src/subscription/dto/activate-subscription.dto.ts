@@ -9,9 +9,11 @@ export class ActivateSubscriptionDto {
   @IsString()
   planCode?: string;
 
+  @IsOptional()
   @IsDateString()
-  currentPeriodStart!: string;
+  currentPeriodStart?: string;
 
+  @IsOptional()
   @IsDateString()
-  currentPeriodEnd!: string;
+  currentPeriodEnd?: string;
 }

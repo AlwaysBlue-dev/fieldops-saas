@@ -5,13 +5,41 @@ const CSRF_VALUE = "web";
 export class ApiError extends Error {
   status: number;
   error?: string;
+  code?: string;
   conflicts?: unknown;
+  validation?: unknown;
+  limitType?: string;
+  used?: number | string;
+  limit?: number | string;
+  planCode?: string;
+  planName?: string;
 
-  constructor(status: number, message: string, error?: string, conflicts?: unknown) {
+  constructor(
+    status: number,
+    message: string,
+    error?: string,
+    conflicts?: unknown,
+    validation?: unknown,
+    extras?: {
+      code?: string;
+      limitType?: string;
+      used?: number | string;
+      limit?: number | string;
+      planCode?: string;
+      planName?: string;
+    },
+  ) {
     super(message);
     this.status = status;
     this.error = error;
     this.conflicts = conflicts;
+    this.validation = validation;
+    this.code = extras?.code;
+    this.limitType = extras?.limitType;
+    this.used = extras?.used;
+    this.limit = extras?.limit;
+    this.planCode = extras?.planCode;
+    this.planName = extras?.planName;
   }
 }
 
@@ -45,14 +73,39 @@ export async function apiRequest<T>(
   }
 
   const payload = (await response.json().catch(() => null)) as
-    | { message?: string | string[]; error?: string; conflicts?: unknown }
+    | {
+        message?: string | string[];
+        error?: string;
+        conflicts?: unknown;
+        validation?: unknown;
+        code?: string;
+        limitType?: string;
+        used?: number | string;
+        limit?: number | string;
+        planCode?: string;
+        planName?: string;
+      }
     | null;
 
   if (!response.ok) {
     const message = Array.isArray(payload?.message)
       ? payload.message.join(", ")
       : payload?.message || "Request failed";
-    throw new ApiError(response.status, message, payload?.error, payload?.conflicts);
+    throw new ApiError(
+      response.status,
+      message,
+      payload?.error,
+      payload?.conflicts,
+      payload?.validation,
+      {
+        code: payload?.code,
+        limitType: payload?.limitType,
+        used: payload?.used,
+        limit: payload?.limit,
+        planCode: payload?.planCode,
+        planName: payload?.planName,
+      },
+    );
   }
 
   return payload as T;

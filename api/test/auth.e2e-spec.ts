@@ -34,6 +34,7 @@ describe('Auth (e2e)', () => {
       fullName: 'Signup Owner',
       organizationName: `Signup Org ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
 
     expect(response.status).toBe(201);
@@ -63,6 +64,26 @@ describe('Auth (e2e)', () => {
     expect(membership.role).toBe('OWNER');
     expect(settings.timezone).toBe('America/Chicago');
     expect(subscription.status).toBe('TRIALING');
+    expect(user.termsAcceptedAt).toBeTruthy();
+    expect(user.termsVersion).toBeTruthy();
+    expect(user.privacyVersion).toBeTruthy();
+  });
+
+  it('rejects signup without Terms acceptance', async () => {
+    const suffix = Date.now();
+    const response = await withCsrf(api(app).post('/api/auth/signup')).send({
+      email: `owner-${suffix}@signup.fieldops.test`,
+      password: SEED_PASSWORD,
+      fullName: 'No Consent',
+      organizationName: `No Consent ${suffix}`,
+      timezone: 'America/Chicago',
+    });
+    expect(response.status).toBe(400);
+    expect(response.body.message).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Terms of Service and Privacy Policy/i),
+      ]),
+    );
   });
 
   it('logs in with valid credentials and returns the current user', async () => {

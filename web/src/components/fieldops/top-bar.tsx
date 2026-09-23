@@ -24,6 +24,7 @@ export function TopBar({
   orgSlug,
   memberships,
   user,
+  unreadCount = 0,
   onSearch,
   onNotifications,
   onQuickCreate,
@@ -31,6 +32,7 @@ export function TopBar({
   orgSlug: string;
   memberships: OrganizationMembership[];
   user: PublicUser;
+  unreadCount?: number;
   onSearch: () => void;
   onNotifications: () => void;
   onQuickCreate: () => void;
@@ -81,7 +83,7 @@ export function TopBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="size-11 lg:hidden md:size-8"
             aria-label="Search workspace"
             onClick={onSearch}
           >
@@ -91,10 +93,20 @@ export function TopBar({
             type="button"
             variant="ghost"
             size="icon"
-            aria-label="Notifications"
+            className="relative size-11 md:size-8"
+            aria-label={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : "Notifications"
+            }
             onClick={onNotifications}
           >
             <Bell />
+            {unreadCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
           </Button>
           <TrialChip />
           <MutationButton
@@ -108,7 +120,7 @@ export function TopBar({
           <MutationButton
             type="button"
             size="icon"
-            className="md:hidden"
+            className="size-11 md:hidden"
             aria-label="Create"
             onClick={onQuickCreate}
           >
@@ -119,7 +131,7 @@ export function TopBar({
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full"
+                className="size-11 rounded-md md:size-8"
                 aria-label="Account menu"
               >
                 <Avatar size="sm">

@@ -14,6 +14,16 @@ export function addUtcDays(from: Date, days: number): Date {
   return next;
 }
 
+export function addUtcYears(from: Date, years: number): Date {
+  const next = new Date(from.getTime());
+  const day = next.getUTCDate();
+  next.setUTCFullYear(next.getUTCFullYear() + years);
+  if (next.getUTCDate() !== day) {
+    next.setUTCDate(0);
+  }
+  return next;
+}
+
 export function daysRemaining(from: Date, until: Date | null | undefined): number {
   if (!until) {
     return 0;

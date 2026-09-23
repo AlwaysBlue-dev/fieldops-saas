@@ -69,7 +69,7 @@ Working directory: `api/`. Node **24.14.1** via `fnm` (Prisma 7 requires Node 20
 | `ClockSession` | Clock in/out + optional GPS. Partial unique: one `OPEN` per technician. |
 | `TimeEntry` | Clock-derived or manual time. |
 | `OvertimeAuthorization` | Overtime request/decision. |
-| `Approval` | Generic action-center row (`subjectType` + `subjectId`). |
+| `Approval` | Action-center row (`type`, `subjectType` + `subjectId`, assigned approver, decision). Unique per org+type+subject. |
 | `Notification` | In-app notice. `organizationId` nullable for platform. |
 | `AuditLog` | Append-only. `organizationId` and `actorUserId` nullable. `createdAt` is the timestamp. |
 

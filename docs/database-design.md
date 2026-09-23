@@ -48,7 +48,7 @@ ClockEventSource        MOBILE | MANUAL | ADMIN_ADJUSTMENT
 
 FilePurpose             AVATAR | PHOTO | SIGNATURE | DOCUMENT
 ApprovalType            TIMESHEET | OVERTIME | JOB_COMPLETION | TIME_ADJUSTMENT
-ApprovalStatus          PENDING | APPROVED | REJECTED
+ApprovalStatus          PENDING | APPROVED | RETURNED | REJECTED | CANCELLED
 TimesheetStatus         DRAFT | SUBMITTED | APPROVED | REJECTED
 NotificationStatus      UNREAD | READ
 ```
@@ -340,9 +340,11 @@ Approver FKs point at users/memberships in the same org.
 Polymorphic but explicit:
 
 - `type`, `status`
-- `subjectType`, `subjectId` (timesheet id, job id, …)
-- `requestedByMembershipId`, `decidedByMembershipId`
-- `comment`, `decidedAt`
+- `subjectType`, `subjectId` (timesheet id, job id, overtime id)
+- `requestedByUserId`, `requestedAt`
+- `assignedApproverUserId`, `assignedRole`
+- `decidedByUserId`, `decidedAt`, `decision`, `comment`
+- unique `(organizationId, type, subjectId)` so retries do not duplicate inbox rows
 
 Index `[organizationId, status, type]` for the action center.
 

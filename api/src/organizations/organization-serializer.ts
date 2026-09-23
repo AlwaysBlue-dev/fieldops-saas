@@ -15,6 +15,7 @@ export function serializeSettings(settings: OrganizationSettings) {
     requireGps: settings.requireGps,
     gpsReviewDistanceMeters: settings.gpsReviewDistanceMeters,
     allowManualTime: settings.allowManualTime,
+    allowOvertimeRequests: settings.allowOvertimeRequests,
     requireRiskAssessment: settings.requireRiskAssessment,
     defaultDailyHoursLimit: Number(settings.defaultDailyHoursLimit),
     defaultWeeklyHoursLimit: Number(settings.defaultWeeklyHoursLimit),

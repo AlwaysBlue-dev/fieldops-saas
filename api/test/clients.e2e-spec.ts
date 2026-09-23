@@ -61,6 +61,7 @@ describe('Clients and sites (e2e)', () => {
       fullName: `Client Owner ${label}`,
       organizationName: `Client Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return { agent, organizationId: signup.body.organization.id as string };

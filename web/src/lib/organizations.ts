@@ -10,7 +10,10 @@ export type OrganizationSettings = {
   requireClientSignature: boolean;
   requireGps: boolean;
   gpsReviewDistanceMeters?: number;
+  allowManualTime?: boolean;
+  allowOvertimeRequests?: boolean;
   defaultDailyHoursLimit: number;
+  defaultWeeklyHoursLimit?: number;
 };
 
 export type OrganizationDetail = {

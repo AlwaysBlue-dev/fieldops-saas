@@ -63,15 +63,45 @@ enum SubscriptionStatus {
   ACTIVE
   PAST_DUE
   TRIAL_EXPIRED
+  PAID_GRACE
+  EXPIRED
   SUSPENDED
   CANCELED
   CANCELLED
 }
 
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+  CUSTOM
+}
+
+enum CommercialRequestType {
+  ACTIVATION
+  RENEWAL
+  PLAN_CHANGE
+}
+
 enum ActivationRequestStatus {
   OPEN
   CONTACTED
+  COMPLETED
   CLOSED
+}
+
+enum InvoiceType {
+  ACTIVATION
+  RENEWAL
+  PLAN_CHANGE
+  OTHER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  OVERDUE
 }
 
 enum EntityStatus {
@@ -105,7 +135,15 @@ enum JobAssignmentRole {
 enum JobFileType {
   PHOTO
   DOCUMENT
+  SIGNATURE
   OTHER
+}
+
+enum JobOutcome {
+  COMPLETED
+  PARTIALLY_COMPLETED
+  FOLLOW_UP_REQUIRED
+  UNABLE_TO_COMPLETE
 }
 
 enum ClockSessionStatus {
@@ -119,10 +157,19 @@ enum TimeEntrySource {
   MANUAL
 }
 
+enum TimeEntryType {
+  NORMAL
+  OVERTIME
+  TRAVEL
+  STANDBY
+}
+
 enum TimeEntryStatus {
   DRAFT
   SUBMITTED
+  PENDING
   APPROVED
+  RETURNED
   REJECTED
 }
 
@@ -137,7 +184,16 @@ enum ApprovalType {
 enum ApprovalStatus {
   PENDING
   APPROVED
+  RETURNED
   REJECTED
+  CANCELLED
+}
+
+enum OvertimeAuthorizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 enum NotificationStatus {
@@ -150,17 +206,20 @@ enum NotificationStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id              String       @id @default(uuid()) @db.Uuid
-  email           String       @unique
-  emailVerifiedAt DateTime?    @db.Timestamptz
-  passwordHash    String
-  fullName        String
-  phone           String?
-  avatarUrl       String?
-  platformRole    PlatformRole @default(USER)
-  status          UserStatus   @default(ACTIVE)
-  createdAt       DateTime     @default(now()) @db.Timestamptz
-  updatedAt       DateTime     @updatedAt @db.Timestamptz
+  id               String       @id @default(uuid()) @db.Uuid
+  email            String       @unique
+  emailVerifiedAt  DateTime?    @db.Timestamptz
+  passwordHash     String
+  fullName         String
+  phone            String?
+  avatarUrl        String?
+  platformRole     PlatformRole @default(USER)
+  status           UserStatus   @default(ACTIVE)
+  termsAcceptedAt  DateTime?    @db.Timestamptz
+  termsVersion     String?
+  privacyVersion   String?
+  createdAt        DateTime     @default(now()) @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @db.Timestamptz
 
   refreshSessions         RefreshSession[]
   memberships             OrganizationMember[]
@@ -179,14 +238,18 @@ model User {
   clockSessions           ClockSession[]
   timeEntries             TimeEntry[]
   overtimeSubjects        OvertimeAuthorization[]  @relation("OvertimeSubject")
-  overtimeAuthorizers     OvertimeAuthorization[]  @relation("OvertimeAuthorizer")
+  overtimeRequests        OvertimeAuthorization[]  @relation("OvertimeRequester")
+  overtimeDecisions       OvertimeAuthorization[]  @relation("OvertimeDecider")
   approvalsRequested      Approval[]               @relation("ApprovalRequester")
   approvalsDecided        Approval[]               @relation("ApprovalDecider")
+  approvalsAssigned       Approval[]               @relation("ApprovalAssignee")
   notifications             Notification[]
   auditLogs                 AuditLog[]
   emailVerificationTokens   EmailVerificationToken[]
   activatedSubscriptions    Subscription[]           @relation("SubscriptionActivator")
   activationRequests        ActivationRequest[]
+  invoicesCreated           Invoice[]                @relation("InvoiceCreator")
+  paymentNotices            InvoicePaymentNotice[]
 
   @@index([status])
   @@index([platformRole])
@@ -246,7 +309,10 @@ model Organization {
   invitations            OrganizationInvitation[]
   settings               OrganizationSettings?
   subscription           Subscription?
-  activationRequests     ActivationRequest[]
+  activationRequests        ActivationRequest[]
+  subscriptionNotifications SubscriptionNotification[]
+  invoices                  Invoice[]
+  paymentNotices            InvoicePaymentNotice[]
   jobCounter             OrganizationCounter?
   teams                  Team[]
   teamMembers            TeamMember[]
@@ -325,6 +391,7 @@ model OrganizationSettings {
   requireGps              Boolean  @default(true)
   gpsReviewDistanceMeters Int      @default(250)
   allowManualTime         Boolean  @default(false)
+  allowOvertimeRequests   Boolean  @default(true)
   requireRiskAssessment   Boolean  @default(false)
   defaultDailyHoursLimit  Decimal  @default(8) @db.Decimal(6, 2)
   defaultWeeklyHoursLimit Decimal  @default(40) @db.Decimal(6, 2)
@@ -347,21 +414,28 @@ model OrganizationCounter {
 // ---------------------------------------------------------------------------
 
 model Plan {
-  id                String     @id @default(uuid()) @db.Uuid
-  code              String     @unique
+  id                String          @id @default(uuid()) @db.Uuid
+  code              String          @unique
   name              String
-  status            PlanStatus @default(ACTIVE)
+  status            PlanStatus      @default(ACTIVE)
   monthlyPriceCents Int?
   annualPriceCents  Int?
+  displayPrice      String?
+  currency          String          @default("USD")
+  billingInterval   BillingInterval @default(ANNUAL)
+  publiclyVisible   Boolean         @default(false)
+  contactSales      Boolean         @default(false)
+  sortOrder         Int             @default(100)
   maxUsers          Int
   maxStorageBytes   BigInt
   features          Json?
-  createdAt         DateTime   @default(now()) @db.Timestamptz
-  updatedAt         DateTime   @updatedAt @db.Timestamptz
+  createdAt         DateTime        @default(now()) @db.Timestamptz
+  updatedAt         DateTime        @updatedAt @db.Timestamptz
 
   subscriptions Subscription[]
+  invoices      Invoice[]
 
-  @@index([status])
+  @@index([status, publiclyVisible, sortOrder])
 }
 
 model Subscription {
@@ -385,6 +459,7 @@ model Subscription {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
   activatedBy  User?        @relation("SubscriptionActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
 
   @@index([planId])
   @@index([status])
@@ -396,6 +471,7 @@ model ActivationRequest {
   id                String                  @id @default(uuid()) @db.Uuid
   organizationId    String                  @db.Uuid
   requestedByUserId String                  @db.Uuid
+  requestType       CommercialRequestType   @default(ACTIVATION)
   message           String?
   status            ActivationRequestStatus @default(OPEN)
   createdAt         DateTime                @default(now()) @db.Timestamptz
@@ -404,8 +480,99 @@ model ActivationRequest {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   requestedBy  User         @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
 
-  @@index([organizationId, status, createdAt])
+  @@index([organizationId, requestType, status, createdAt])
   @@index([requestedByUserId])
+  @@index([status, createdAt])
+}
+
+/// Idempotent ledger for trial/renewal emails. One send per org + kind + period.
+model SubscriptionNotification {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  kind           String
+  periodKey      String
+  sentAt         DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, kind, periodKey])
+  @@index([organizationId, kind])
+}
+
+model PlatformCounter {
+  id    String @id @default(uuid()) @db.Uuid
+  key   String
+  year  Int
+  next  Int    @default(1)
+
+  @@unique([key, year])
+}
+
+/// Singleton-style platform billing configuration. Payment destinations stay here, not in source.
+model PlatformBillingSettings {
+  id                           String   @id @default(uuid()) @db.Uuid
+  key                          String   @unique @default("default")
+  billingLegalName             String?
+  billingAddress               String?
+  billingEmail                 String?
+  billingInstructions          String?
+  paymentReferenceInstructions String?
+  updatedByUserId              String?  @db.Uuid
+  createdAt                    DateTime @default(now()) @db.Timestamptz
+  updatedAt                    DateTime @updatedAt @db.Timestamptz
+}
+
+model Invoice {
+  id                         String        @id @default(uuid()) @db.Uuid
+  invoiceNumber              String        @unique
+  organizationId             String        @db.Uuid
+  subscriptionId             String?       @db.Uuid
+  planId                     String        @db.Uuid
+  type                       InvoiceType
+  status                     InvoiceStatus @default(DRAFT)
+  currency                   String        @default("USD")
+  subtotalCents              Int
+  totalCents                 Int
+  billingPeriodStart         DateTime      @db.Timestamptz
+  billingPeriodEnd           DateTime      @db.Timestamptz
+  issuedAt                   DateTime?     @db.Timestamptz
+  dueAt                      DateTime?     @db.Timestamptz
+  paidAt                     DateTime?     @db.Timestamptz
+  createdByPlatformUserId    String        @db.Uuid
+  customerName               String
+  customerBillingEmail       String
+  paymentInstructionsSnapshot String?
+  internalNotes              String?
+  createdAt                  DateTime      @default(now()) @db.Timestamptz
+  updatedAt                  DateTime      @updatedAt @db.Timestamptz
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  subscription Subscription?          @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  plan         Plan                   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  createdBy    User                   @relation("InvoiceCreator", fields: [createdByPlatformUserId], references: [id], onDelete: Restrict)
+  paymentNotices InvoicePaymentNotice[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([planId])
+  @@index([subscriptionId])
+  @@index([createdByPlatformUserId])
+}
+
+model InvoicePaymentNotice {
+  id               String   @id @default(uuid()) @db.Uuid
+  invoiceId        String   @db.Uuid
+  organizationId   String   @db.Uuid
+  submittedByUserId String  @db.Uuid
+  reference        String?
+  message          String?
+  createdAt        DateTime @default(now()) @db.Timestamptz
+
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  submittedBy  User         @relation(fields: [submittedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, createdAt])
+  @@index([organizationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -613,6 +780,13 @@ model Job {
   requirePermit         Boolean @default(false)
   requireLoto           Boolean @default(false)
   requireClientSignOff  Boolean @default(true)
+  clientAccepted   Boolean     @default(false)
+  clientComments   String?
+  signedAt         DateTime?   @db.Timestamptz
+  workPerformed    String?
+  completionNotes  String?
+  outcome          JobOutcome?
+  outcomeReason    String?
   cancelReason     String?
   completedAt      DateTime?   @db.Timestamptz
   cancelledAt      DateTime?   @db.Timestamptz
@@ -633,6 +807,7 @@ model Job {
   signatures     JobSignature[]
   clockSessions  ClockSession[]
   timeEntries    TimeEntry[]
+  overtimeAuthorizations OvertimeAuthorization[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, jobNumber])
@@ -664,7 +839,7 @@ model JobSafetyControl {
   id                String    @id @default(uuid()) @db.Uuid
   organizationId    String    @db.Uuid
   jobId             String    @db.Uuid
-  code              String?
+  code              String
   title             String
   description       String?
   isRequired        Boolean   @default(true)
@@ -678,6 +853,7 @@ model JobSafetyControl {
   job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
   completedBy  User?        @relation(fields: [completedByUserId], references: [id], onDelete: Restrict)
 
+  @@unique([jobId, code])
   @@index([organizationId, jobId])
 }
 
@@ -689,6 +865,7 @@ model JobWorkLog {
   body           String
   loggedAt       DateTime @default(now()) @db.Timestamptz
   createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -728,6 +905,8 @@ model JobFile {
   mimeType       String
   sizeBytes      BigInt
   type           JobFileType
+  caption        String?
+  capturedAt     DateTime?   @db.Timestamptz
   uploadedById   String      @db.Uuid
   createdAt      DateTime    @default(now()) @db.Timestamptz
   updatedAt      DateTime    @updatedAt @db.Timestamptz
@@ -736,6 +915,7 @@ model JobFile {
   job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
   uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
 
+  @@unique([id, organizationId])
   @@index([organizationId, jobId, type])
 }
 
@@ -798,46 +978,61 @@ model TimeEntry {
   userId          String          @db.Uuid
   jobId           String?         @db.Uuid
   clockSessionId  String?         @unique @db.Uuid
+  workDate        DateTime        @db.Date
   startedAt       DateTime        @db.Timestamptz
   endedAt         DateTime?       @db.Timestamptz
   durationMinutes Int?
+  type            TimeEntryType   @default(NORMAL)
   source          TimeEntrySource
   notes           String?
   status          TimeEntryStatus @default(DRAFT)
+  validation      Json?
   createdAt       DateTime        @default(now()) @db.Timestamptz
   updatedAt       DateTime        @updatedAt @db.Timestamptz
 
   organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user                   User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
   job                    Job?                    @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  clockSession           ClockSession?           @relation(fields: [clockSessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  overtimeAuthorizations OvertimeAuthorization[]
+  clockSession             ClockSession?           @relation(fields: [clockSessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  overtimeAuthorizationId  String?                 @db.Uuid
+  overtimeAuthorization    OvertimeAuthorization?  @relation(fields: [overtimeAuthorizationId], references: [id], onDelete: Restrict)
 
   @@index([organizationId, userId, startedAt])
+  @@index([overtimeAuthorizationId])
+  @@index([organizationId, userId, workDate])
   @@index([organizationId, jobId])
   @@index([organizationId, status])
 }
 
 model OvertimeAuthorization {
-  id                 String         @id @default(uuid()) @db.Uuid
-  organizationId     String         @db.Uuid
-  userId             String         @db.Uuid
-  timeEntryId        String?        @db.Uuid
-  requestedMinutes   Int
-  reason             String?
-  status             ApprovalStatus @default(PENDING)
-  authorizedByUserId String?        @db.Uuid
-  authorizedAt       DateTime?      @db.Timestamptz
-  createdAt          DateTime       @default(now()) @db.Timestamptz
-  updatedAt          DateTime       @updatedAt @db.Timestamptz
+  id                String                       @id @default(uuid()) @db.Uuid
+  organizationId    String                       @db.Uuid
+  userId            String                       @db.Uuid
+  jobId             String                       @db.Uuid
+  workDate          DateTime                     @db.Date
+  authorizedStart   DateTime                     @db.Timestamptz
+  authorizedEnd     DateTime                     @db.Timestamptz
+  maxMinutes        Int
+  reason            String
+  status            OvertimeAuthorizationStatus  @default(PENDING)
+  requestedByUserId String                       @db.Uuid
+  requestedAt       DateTime                     @default(now()) @db.Timestamptz
+  decidedByUserId   String?                      @db.Uuid
+  decidedAt         DateTime?                    @db.Timestamptz
+  decisionComment   String?
+  createdAt         DateTime                     @default(now()) @db.Timestamptz
+  updatedAt         DateTime                     @updatedAt @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  user         User         @relation("OvertimeSubject", fields: [userId], references: [id], onDelete: Restrict)
-  timeEntry    TimeEntry?   @relation(fields: [timeEntryId], references: [id], onDelete: Restrict)
-  authorizedBy User?        @relation("OvertimeAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: Restrict)
+  technician   User         @relation("OvertimeSubject", fields: [userId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  requestedBy  User         @relation("OvertimeRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  decidedBy    User?        @relation("OvertimeDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  timeEntries  TimeEntry[]
 
   @@index([organizationId, status])
-  @@index([organizationId, userId])
+  @@index([organizationId, userId, workDate])
+  @@index([organizationId, jobId])
 }
 
 // ---------------------------------------------------------------------------
@@ -845,44 +1040,53 @@ model OvertimeAuthorization {
 // ---------------------------------------------------------------------------
 
 model Approval {
-  id                String         @id @default(uuid()) @db.Uuid
-  organizationId    String         @db.Uuid
-  type              ApprovalType
-  status            ApprovalStatus @default(PENDING)
-  subjectType       String
-  subjectId         String         @db.Uuid
-  requestedByUserId String         @db.Uuid
-  decidedByUserId   String?        @db.Uuid
-  comment           String?
-  decidedAt         DateTime?      @db.Timestamptz
-  createdAt         DateTime       @default(now()) @db.Timestamptz
-  updatedAt         DateTime       @updatedAt @db.Timestamptz
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @db.Uuid
+  type                   ApprovalType
+  status                 ApprovalStatus     @default(PENDING)
+  subjectType            String
+  subjectId              String             @db.Uuid
+  requestedByUserId      String             @db.Uuid
+  requestedAt            DateTime           @default(now()) @db.Timestamptz
+  assignedApproverUserId String?            @db.Uuid
+  assignedRole           OrganizationRole?
+  decidedByUserId        String?            @db.Uuid
+  decidedAt              DateTime?          @db.Timestamptz
+  decision               String?
+  comment                String?
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  requestedBy  User         @relation("ApprovalRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
-  decidedBy    User?        @relation("ApprovalDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy      User         @relation("ApprovalRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  assignedApprover User?        @relation("ApprovalAssignee", fields: [assignedApproverUserId], references: [id], onDelete: Restrict)
+  decidedBy        User?        @relation("ApprovalDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
 
+  @@unique([organizationId, type, subjectId])
   @@index([organizationId, status, type])
   @@index([organizationId, subjectType, subjectId])
 }
 
 model Notification {
-  id             String             @id @default(uuid()) @db.Uuid
-  organizationId String?            @db.Uuid
-  userId         String             @db.Uuid
-  type           String
-  title          String
-  body           String
-  payload        Json?
-  status         NotificationStatus @default(UNREAD)
-  readAt         DateTime?          @db.Timestamptz
-  createdAt      DateTime           @default(now()) @db.Timestamptz
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String?            @db.Uuid
+  userId            String             @db.Uuid
+  type              String
+  title             String
+  body              String
+  relatedEntityType String?
+  relatedEntityId   String?            @db.Uuid
+  payload           Json?
+  status            NotificationStatus @default(UNREAD)
+  readAt            DateTime?          @db.Timestamptz
+  createdAt         DateTime           @default(now()) @db.Timestamptz
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, status, createdAt])
-  @@index([organizationId, createdAt])
+  @@index([organizationId, userId, createdAt])
+  @@index([organizationId, type, relatedEntityId])
 }
 
 /// Append-only. organizationId is null for platform actions. actorUserId is null for system events.

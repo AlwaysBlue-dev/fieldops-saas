@@ -82,12 +82,13 @@ describe('Job cards (e2e)', () => {
       fullName: `Jobs Owner ${label}`,
       organizationName: `Job Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     const organizationId = signup.body.organization.id as string;
     await prismaFrom(app).organizationSettings.update({
       where: { organizationId },
-      data: { jobNumberPrefix: 'NSE-' },
+      data: { jobNumberPrefix: 'NSE-', requireClientSignature: false },
     });
     return {
       agent,
@@ -142,8 +143,26 @@ describe('Job cards (e2e)', () => {
   });
 
   it('walks legal transitions and rejects illegal jumps', async () => {
-    const { agent, organizationId, ownerId } = await signupOrg('flow');
+    const { agent, organizationId } = await signupOrg('flow');
     const { client, site } = await addClientSite(organizationId, 'flow');
+    const { hash } = await import('bcrypt');
+    const techUser = await prismaFrom(app).user.create({
+      data: {
+        email: `tech-flow-${Date.now()}@jobs.fieldops.test`,
+        fullName: 'Flow Tech',
+        passwordHash: await hash(SEED_PASSWORD, 4),
+        status: 'ACTIVE',
+        emailVerifiedAt: new Date(),
+      },
+    });
+    await prismaFrom(app).organizationMember.create({
+      data: {
+        organizationId,
+        userId: techUser.id,
+        role: 'TECHNICIAN',
+        status: 'ACTIVE',
+      },
+    });
     const created = await withCsrf(
       agent.post(`/api/organizations/${organizationId}/jobs`),
     ).send({
@@ -153,7 +172,8 @@ describe('Job cards (e2e)', () => {
       jobType: 'INSTALLATION',
       scheduledStart: '2026-04-02T14:00:00.000Z',
       expectedFinish: '2026-04-02T16:00:00.000Z',
-      technicianUserIds: [ownerId],
+      requireClientSignOff: false,
+      technicianUserIds: [techUser.id],
     });
     expect(created.status).toBe(201);
     expect(created.body.status).toBe(JobStatus.DRAFT);
@@ -184,6 +204,21 @@ describe('Job cards (e2e)', () => {
     ).send({});
     expect(started.status).toBe(200);
     expect(started.body.status).toBe(JobStatus.IN_PROGRESS);
+
+    const blockedSubmit = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/jobs/${created.body.id}/submit`),
+    ).send({});
+    expect(blockedSubmit.status).toBe(400);
+
+    const completion = await withCsrf(
+      agent.patch(
+        `/api/organizations/${organizationId}/jobs/${created.body.id}/completion`,
+      ),
+    ).send({
+      workPerformed: 'Replaced damaged contactor and tested system.',
+      outcome: 'COMPLETED',
+    });
+    expect(completion.status).toBe(200);
 
     const submitted = await withCsrf(
       agent.post(`/api/organizations/${organizationId}/jobs/${created.body.id}/submit`),

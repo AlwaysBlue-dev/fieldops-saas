@@ -19,8 +19,10 @@ import { ErrorState } from "./error-state";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { MutationButton } from "./mutation-control";
 import { NavigationRail } from "./navigation-rail";
+import { NotificationCenter } from "./notification-center";
 import { ResponsiveDrawer } from "./responsive-drawer";
 import { SkeletonBlock } from "./skeleton-block";
+import { OfflineBanner } from "./offline-banner";
 import { SubscriptionBanners } from "./subscription-banners";
 import {
   membershipOrganizationId,
@@ -28,6 +30,7 @@ import {
 } from "./subscription-provider";
 import { TopBar } from "./top-bar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { unreadNotificationCount } from "@/lib/notifications";
 
 const RAIL_KEY = "fieldops.rail-collapsed";
 
@@ -65,6 +68,7 @@ export function AppShell({
   const [commandOpen, setCommandOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -110,6 +114,21 @@ export function AppShell({
       cancelled = true;
     };
   }, [applySession, router]);
+
+  const previewOrgId = membershipOrganizationId(memberships, orgSlug);
+
+  useEffect(() => {
+    if (!previewOrgId) return;
+    let cancelled = false;
+    unreadNotificationCount(previewOrgId)
+      .then((result) => {
+        if (!cancelled) setUnreadCount(result.count);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [previewOrgId, notifyOpen]);
 
   const load = useCallback(async () => {
     setStatus("loading");
@@ -182,10 +201,12 @@ export function AppShell({
             orgSlug={orgSlug}
             memberships={memberships}
             user={user}
+            unreadCount={unreadCount}
             onSearch={() => setCommandOpen(true)}
             onNotifications={() => setNotifyOpen(true)}
             onQuickCreate={() => setCreateOpen(true)}
           />
+          <OfflineBanner />
           {organizationId ? (
             <SubscriptionBanners
               organizationId={organizationId}
@@ -268,6 +289,38 @@ export function AppShell({
               className="h-11 justify-start"
               onClick={() => {
                 setMoreOpen(false);
+                router.push(`/app/${orgSlug}/settings/plan-usage`);
+              }}
+            >
+              Plan & Usage
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-11 justify-start"
+              onClick={() => {
+                setMoreOpen(false);
+                router.push(`/app/${orgSlug}/notifications`);
+              }}
+            >
+              Notifications
+            </Button>
+            {user.platformRole === "SUPER_ADMIN" ? (
+              <Button
+                variant="ghost"
+                className="h-11 justify-start"
+                onClick={() => {
+                  setMoreOpen(false);
+                  router.push("/platform");
+                }}
+              >
+                Platform
+              </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              className="h-11 justify-start"
+              onClick={() => {
+                setMoreOpen(false);
                 setHelpOpen(true);
               }}
             >
@@ -291,10 +344,19 @@ export function AppShell({
           title="Notifications"
           description="Operational alerts for this organization"
         >
-          <p className="text-sm text-muted-foreground">
-            No notifications yet. Alerts will appear here when jobs, time, or
-            approvals need attention.
-          </p>
+          {organizationId ? (
+            <NotificationCenter
+              organizationId={organizationId}
+              orgSlug={orgSlug}
+              timezone={currentMembership?.organization.timezone ?? "UTC"}
+              open={notifyOpen}
+              onUnreadChange={setUnreadCount}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select an organization to view notifications.
+            </p>
+          )}
         </ResponsiveDrawer>
         <ResponsiveDrawer
           open={createOpen}

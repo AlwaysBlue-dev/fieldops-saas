@@ -81,6 +81,18 @@ export function pageTitleFromPath(pathname: string) {
   if (parts.includes("jobs") && segment !== "jobs") {
     return "Job";
   }
+  if (parts.includes("plan-usage")) {
+    return "Plan & Usage";
+  }
+  if (parts.includes("billing")) {
+    return "Billing";
+  }
+  if (parts.includes("members")) {
+    return "Members";
+  }
+  if (parts.includes("notifications")) {
+    return "Notifications";
+  }
   const titles: Record<string, string> = {
     overview: "Overview",
     "my-day": "My Day",
@@ -92,6 +104,7 @@ export function pageTitleFromPath(pathname: string) {
     approvals: "Approvals",
     reports: "Reports",
     settings: "Settings",
+    notifications: "Notifications",
   };
   return titles[segment] ?? "FieldOps";
 }

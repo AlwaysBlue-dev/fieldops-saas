@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
-import { getMyOrganizations, login } from "@/lib/auth";
+import { getMe, getMyOrganizations, login } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -26,7 +26,8 @@ export function LoginForm() {
       );
       const memberships = await getMyOrganizations();
       if (memberships.length === 0) {
-        router.replace("/onboarding");
+        const { user } = await getMe();
+        router.replace(user.platformRole === "SUPER_ADMIN" ? "/platform" : "/onboarding");
         return;
       }
       router.replace(`/app/${memberships[0].organization.slug}/overview`);

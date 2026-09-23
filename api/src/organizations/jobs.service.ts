@@ -1,12 +1,13 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AUDIT_JOB_APPROVED,
   AUDIT_JOB_CANCELLED,
-  AUDIT_JOB_COMPLETED,
   AUDIT_JOB_CREATED,
   AUDIT_JOB_DISPATCHED,
   AUDIT_JOB_RETURNED,
@@ -25,6 +26,9 @@ import {
   toFiniteNumber,
 } from '../common/geo.js';
 import {
+  ApprovalStatus,
+  ApprovalType,
+  ClockSessionStatus,
   EntityStatus,
   JobAssignmentRole,
   JobStatus,
@@ -33,6 +37,7 @@ import {
   Prisma,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CLOCK, type Clock } from '../subscription/clock.js';
 import { Inject } from '@nestjs/common';
@@ -48,8 +53,23 @@ import {
   jobVisibilityWhere,
   TERMINAL_JOB_STATUSES,
 } from './job-visibility.js';
+import { assertNotSelfApproval } from './approval-access.js';
+import { ApprovalNotificationHook } from './approval-events.js';
+import { ApprovalRecordsService } from './approval-records.service.js';
+import { JobApprovalValidationService } from './approval-validation.service.js';
+import {
+  executionRecordsLocked,
+  requiredSafetySatisfied,
+  SAFETY_CONTROL_DEFS,
+  safetyControlStatus,
+} from './job-execution.js';
+import { JobExecutionService } from './job-execution.service.js';
 import { JobWorkflowService } from './job-workflow.service.js';
 import { serializeJobSummary } from './jobs-serializer.js';
+import {
+  formatSiteAddress,
+  navigationUrl,
+} from './my-day-actions.js';
 import { TeamsService } from './teams.service.js';
 
 const LIST_INCLUDE = {
@@ -70,6 +90,11 @@ export class JobsService {
     private readonly audit: AuditService,
     private readonly teams: TeamsService,
     private readonly workflow: JobWorkflowService,
+    private readonly execution: JobExecutionService,
+    private readonly approvals: ApprovalRecordsService,
+    private readonly approvalEvents: ApprovalNotificationHook,
+    private readonly approvalValidation: JobApprovalValidationService,
+    private readonly mail: MailService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -157,33 +182,10 @@ export class JobsService {
   async get(ctx: OrganizationContext, actorUserId: string, jobId: string) {
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     const assigned = job.assignments.some((row) => row.userId === actorUserId);
-    const activity = await this.prisma.auditLog.findMany({
-      where: {
-        organizationId: ctx.organizationId,
-        entityType: 'Job',
-        entityId: job.id,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 40,
-      select: {
-        id: true,
-        action: true,
-        actorUserId: true,
-        createdAt: true,
-        newValues: true,
-        oldValues: true,
-      },
-    });
-    const actorIds = [
-      ...new Set(activity.map((row) => row.actorUserId).filter(Boolean)),
-    ] as string[];
-    const actors = actorIds.length
-      ? await this.prisma.user.findMany({
-          where: { id: { in: actorIds } },
-          select: { id: true, fullName: true },
-        })
-      : [];
-    const actorNames = new Map(actors.map((row) => [row.id, row.fullName]));
+    const activity = await this.execution.listActivityForJob(
+      ctx.organizationId,
+      job.id,
+    );
     const settings = await this.prisma.organizationSettings.findUnique({
       where: { organizationId: ctx.organizationId },
       select: { gpsReviewDistanceMeters: true },
@@ -194,6 +196,31 @@ export class JobsService {
       latitude: toFiniteNumber(job.site.latitude),
       longitude: toFiniteNumber(job.site.longitude),
     };
+    const addressLabel = formatSiteAddress({
+      addressLine1: job.site.addressLine1,
+      addressLine2: job.site.addressLine2,
+      city: job.site.city,
+      region: job.site.region,
+      postalCode: job.site.postalCode,
+      country: job.site.country,
+    });
+    const mapsUrl = navigationUrl({
+      latitude: job.site.latitude?.toString() ?? null,
+      longitude: job.site.longitude?.toString() ?? null,
+      addressLabel: addressLabel ?? job.site.name,
+    });
+    const clockedInOnJob = job.clockSessions.some(
+      (row) =>
+        row.status === ClockSessionStatus.OPEN &&
+        row.technician.id === actorUserId,
+    );
+    const recordsLocked = executionRecordsLocked(job.status);
+    const safetySatisfied = requiredSafetySatisfied(job.safetyControls);
+    const canExecute = this.workflow.canFieldCapture(
+      ctx.role,
+      assigned,
+      job.status,
+    );
 
     return {
       ...serializeJobSummary(job),
@@ -205,6 +232,15 @@ export class JobsService {
       clientRepTitle: job.clientRepTitle,
       clientRepPhone: job.clientRepPhone,
       clientRepEmail: job.clientRepEmail,
+      representativeName: job.clientRepName,
+      representativeRole: job.clientRepTitle,
+      representativePhone: job.clientRepPhone,
+      representativeEmail: job.clientRepEmail,
+      workPerformed: job.workPerformed,
+      completionNotes: job.completionNotes,
+      outcome: job.outcome,
+      outcomeReason: job.outcomeReason,
+      returnReason: await this.latestReturnReason(ctx.organizationId, job.id),
       requireRiskAssessment: job.requireRiskAssessment,
       requirePermit: job.requirePermit,
       requireLoto: job.requireLoto,
@@ -213,6 +249,8 @@ export class JobsService {
       completedAt: job.completedAt?.toISOString() ?? null,
       cancelledAt: job.cancelledAt?.toISOString() ?? null,
       createdAt: job.createdAt.toISOString(),
+      addressLabel,
+      navigationUrl: mapsUrl,
       client: {
         id: job.client.id,
         name: job.client.name,
@@ -236,20 +274,43 @@ export class JobsService {
         canCancel: this.workflow.canCancel(ctx.role),
         canApprove: this.workflow.canApprove(ctx.role),
         canFieldAdvance: this.workflow.canFieldAdvance(ctx.role, assigned),
+        canExecute,
+        canSubmit:
+          this.workflow.canFieldAdvance(ctx.role, assigned) &&
+          job.status === JobStatus.IN_PROGRESS,
+        canEditExecutionRecords: canExecute && !recordsLocked,
       },
+      execution: {
+        recordsLocked,
+        safetySatisfied,
+        clockedInOnThisJob: clockedInOnJob,
+      },
+      safetyControls:
+        job.safetyControls.length > 0
+          ? job.safetyControls.map((row) => this.execution.serializeSafety(row))
+          : SAFETY_CONTROL_DEFS.map((def) => ({
+              id: `${job.id}:${def.code}`,
+              code: def.code,
+              title: def.title,
+              description: null,
+              isRequired: job[def.flag],
+              status: safetyControlStatus({
+                isRequired: job[def.flag],
+                completedAt: null,
+              }),
+              confirmedBy: null,
+              confirmedAt: null,
+              note: null,
+            })),
       workLogs: job.workLogs.map((row) => ({
         id: row.id,
         body: row.body,
         loggedAt: row.loggedAt.toISOString(),
         author: { userId: row.author.id, fullName: row.author.fullName },
       })),
-      materials: job.materials.map((row) => ({
-        id: row.id,
-        name: row.name,
-        quantity: row.quantity.toString(),
-        unit: row.unit,
-        notes: row.notes,
-      })),
+      materials: job.materials.map((row) =>
+        this.execution.serializeMaterial(row),
+      ),
       files: job.files.map((row) => ({
         id: row.id,
         originalName: row.originalName,
@@ -301,14 +362,7 @@ export class JobsService {
         status: row.status,
         user: { userId: row.user.id, fullName: row.user.fullName },
       })),
-      activity: activity.map((row) => ({
-        id: row.id,
-        action: row.action,
-        actorName: row.actorUserId
-          ? (actorNames.get(row.actorUserId) ?? null)
-          : null,
-        createdAt: row.createdAt.toISOString(),
-      })),
+      activity,
     };
   }
 
@@ -379,6 +433,13 @@ export class JobsService {
           },
         });
       }
+      await this.execution.syncSafetyControls(tx, {
+        organizationId: ctx.organizationId,
+        jobId: job.id,
+        requireRiskAssessment: job.requireRiskAssessment,
+        requirePermit: job.requirePermit,
+        requireLoto: job.requireLoto,
+      });
       await this.audit.record(
         {
           action: AUDIT_JOB_CREATED,
@@ -546,7 +607,14 @@ export class JobsService {
     if (!job.teamId && job.assignments.length === 0) {
       throw new BadRequestException('Assign a team or technician before dispatch');
     }
-    return this.applyStatus(ctx, actorUserId, job.id, JobStatus.DISPATCHED, AUDIT_JOB_DISPATCHED);
+    return this.applyStatus(
+      ctx,
+      actorUserId,
+      job.id,
+      job.status,
+      JobStatus.DISPATCHED,
+      AUDIT_JOB_DISPATCHED,
+    );
   }
 
   async start(ctx: OrganizationContext, actorUserId: string, jobId: string) {
@@ -556,23 +624,19 @@ export class JobsService {
       throw new ForbiddenException('Insufficient organization role');
     }
     this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-    return this.applyStatus(ctx, actorUserId, job.id, JobStatus.IN_PROGRESS, AUDIT_JOB_STARTED);
-  }
-
-  async submit(ctx: OrganizationContext, actorUserId: string, jobId: string) {
-    const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
-    const assigned = job.assignments.some((row) => row.userId === actorUserId);
-    if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
-      throw new ForbiddenException('Insufficient organization role');
-    }
-    this.workflow.assertTransition(job.status, JobStatus.PENDING_APPROVAL);
     return this.applyStatus(
       ctx,
       actorUserId,
       job.id,
-      JobStatus.PENDING_APPROVAL,
-      AUDIT_JOB_SUBMITTED,
+      job.status,
+      JobStatus.IN_PROGRESS,
+      AUDIT_JOB_STARTED,
     );
+  }
+
+  async submit(ctx: OrganizationContext, actorUserId: string, jobId: string) {
+    await this.execution.submit(ctx, actorUserId, jobId);
+    return this.get(ctx, actorUserId, jobId);
   }
 
   async complete(ctx: OrganizationContext, actorUserId: string, jobId: string) {
@@ -581,14 +645,39 @@ export class JobsService {
     }
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     this.workflow.assertTransition(job.status, JobStatus.COMPLETED);
+    assertNotSelfApproval(
+      actorUserId,
+      job.assignments.map((row) => row.userId),
+    );
+    await this.approvalValidation.assertApprovable(ctx.organizationId, job.id);
+    const decidedAt = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
-      await tx.job.update({
-        where: { id: job.id },
-        data: { status: JobStatus.COMPLETED, completedAt: this.clock.now() },
+      const updated = await tx.job.updateMany({
+        where: {
+          id: job.id,
+          organizationId: ctx.organizationId,
+          status: JobStatus.PENDING_APPROVAL,
+        },
+        data: { status: JobStatus.COMPLETED, completedAt: decidedAt },
       });
+      if (updated.count !== 1) {
+        throw new ConflictException('Job is no longer pending approval');
+      }
+      await this.approvals.markDecided(
+        {
+          organizationId: ctx.organizationId,
+          type: ApprovalType.JOB_COMPLETION,
+          subjectId: job.id,
+          status: ApprovalStatus.APPROVED,
+          decision: 'APPROVED',
+          decidedByUserId: actorUserId,
+          decidedAt,
+        },
+        tx,
+      );
       await this.audit.record(
         {
-          action: AUDIT_JOB_COMPLETED,
+          action: AUDIT_JOB_APPROVED,
           entityType: 'Job',
           entityId: job.id,
           organizationId: ctx.organizationId,
@@ -598,7 +687,24 @@ export class JobsService {
         },
         tx,
       );
+      await this.approvalEvents.emit(
+        {
+          type: 'JOB_APPROVED',
+          organizationId: ctx.organizationId,
+          subjectId: job.id,
+          actorUserId,
+          recipientUserIds: [
+            ...job.assignments.map((row) => row.userId),
+            job.supervisorUserId,
+          ].filter((id): id is string => Boolean(id)),
+          title: 'Job approved',
+          body: `${job.jobNumber} was approved and marked complete.`,
+          payload: { status: JobStatus.COMPLETED },
+        },
+        tx,
+      );
     });
+    await this.emailJobCrew(ctx, job, 'APPROVED');
     return this.get(ctx, actorUserId, job.id);
   }
 
@@ -611,13 +717,42 @@ export class JobsService {
     if (!this.workflow.canApprove(ctx.role)) {
       throw new ForbiddenException('Insufficient organization role');
     }
+    if (!dto.reason?.trim()) {
+      throw new BadRequestException('A return comment is required');
+    }
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     this.workflow.assertTransition(job.status, JobStatus.RETURNED);
+    assertNotSelfApproval(
+      actorUserId,
+      job.assignments.map((row) => row.userId),
+    );
+    const decidedAt = this.clock.now();
+    const reason = dto.reason.trim();
     await this.prisma.$transaction(async (tx) => {
-      await tx.job.update({
-        where: { id: job.id },
+      const updated = await tx.job.updateMany({
+        where: {
+          id: job.id,
+          organizationId: ctx.organizationId,
+          status: JobStatus.PENDING_APPROVAL,
+        },
         data: { status: JobStatus.RETURNED },
       });
+      if (updated.count !== 1) {
+        throw new ConflictException('Job is no longer pending approval');
+      }
+      await this.approvals.markDecided(
+        {
+          organizationId: ctx.organizationId,
+          type: ApprovalType.JOB_COMPLETION,
+          subjectId: job.id,
+          status: ApprovalStatus.RETURNED,
+          decision: 'RETURNED',
+          comment: reason,
+          decidedByUserId: actorUserId,
+          decidedAt,
+        },
+        tx,
+      );
       await this.audit.record(
         {
           action: AUDIT_JOB_RETURNED,
@@ -626,11 +761,28 @@ export class JobsService {
           organizationId: ctx.organizationId,
           actorUserId,
           oldValues: { status: job.status },
-          newValues: { status: JobStatus.RETURNED, reason: dto.reason ?? null },
+          newValues: { status: JobStatus.RETURNED, reason },
+        },
+        tx,
+      );
+      await this.approvalEvents.emit(
+        {
+          type: 'JOB_RETURNED',
+          organizationId: ctx.organizationId,
+          subjectId: job.id,
+          actorUserId,
+          recipientUserIds: [
+            ...job.assignments.map((row) => row.userId),
+            job.supervisorUserId,
+          ].filter((id): id is string => Boolean(id)),
+          title: 'Job returned',
+          body: `${job.jobNumber} was returned: ${reason}`,
+          payload: { status: JobStatus.RETURNED, comment: reason },
         },
         tx,
       );
     });
+    await this.emailJobCrew(ctx, job, 'RETURNED', reason);
     return this.get(ctx, actorUserId, job.id);
   }
 
@@ -641,7 +793,14 @@ export class JobsService {
       throw new ForbiddenException('Insufficient organization role');
     }
     this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-    return this.applyStatus(ctx, actorUserId, job.id, JobStatus.IN_PROGRESS, AUDIT_JOB_STARTED);
+    return this.applyStatus(
+      ctx,
+      actorUserId,
+      job.id,
+      job.status,
+      JobStatus.IN_PROGRESS,
+      AUDIT_JOB_STARTED,
+    );
   }
 
   async cancel(
@@ -656,14 +815,21 @@ export class JobsService {
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     this.workflow.assertCancel(job.status, dto.reason);
     await this.prisma.$transaction(async (tx) => {
-      await tx.job.update({
-        where: { id: job.id },
+      const updated = await tx.job.updateMany({
+        where: {
+          id: job.id,
+          organizationId: ctx.organizationId,
+          status: job.status,
+        },
         data: {
           status: JobStatus.CANCELLED,
           cancelledAt: this.clock.now(),
           cancelReason: emptyToNull(dto.reason),
         },
       });
+      if (updated.count !== 1) {
+        throw new ConflictException('Job status changed concurrently');
+      }
       await this.audit.record(
         {
           action: AUDIT_JOB_CANCELLED,
@@ -684,17 +850,22 @@ export class JobsService {
     ctx: OrganizationContext,
     actorUserId: string,
     jobId: string,
-    status: JobStatus,
+    fromStatus: JobStatus,
+    toStatus: JobStatus,
     action: string,
   ) {
-    const existing = await this.prisma.job.findFirstOrThrow({
-      where: withTenant(ctx.organizationId, { id: jobId }),
-    });
     await this.prisma.$transaction(async (tx) => {
-      await tx.job.update({
-        where: { id: jobId },
-        data: { status },
+      const updated = await tx.job.updateMany({
+        where: {
+          id: jobId,
+          organizationId: ctx.organizationId,
+          status: fromStatus,
+        },
+        data: { status: toStatus },
       });
+      if (updated.count !== 1) {
+        throw new ConflictException('Job status changed concurrently');
+      }
       await this.audit.record(
         {
           action,
@@ -702,13 +873,25 @@ export class JobsService {
           entityId: jobId,
           organizationId: ctx.organizationId,
           actorUserId,
-          oldValues: { status: existing.status },
-          newValues: { status },
+          oldValues: { status: fromStatus },
+          newValues: { status: toStatus },
         },
         tx,
       );
     });
     return this.get(ctx, actorUserId, jobId);
+  }
+
+  private async latestReturnReason(organizationId: string, jobId: string) {
+    const approval = await this.approvals.findBySubject(
+      organizationId,
+      ApprovalType.JOB_COMPLETION,
+      jobId,
+    );
+    if (approval?.status !== ApprovalStatus.RETURNED) {
+      return null;
+    }
+    return approval.comment;
   }
 
   private async requireVisibleJob(
@@ -739,9 +922,18 @@ export class JobsService {
             city: true,
             region: true,
             addressLine1: true,
+            addressLine2: true,
+            postalCode: true,
+            country: true,
             latitude: true,
             longitude: true,
           },
+        },
+        safetyControls: {
+          include: {
+            completedBy: { select: { id: true, fullName: true } },
+          },
+          orderBy: { code: 'asc' },
         },
         workLogs: {
           orderBy: { loggedAt: 'desc' },
@@ -790,6 +982,55 @@ export class JobsService {
       throw new BadRequestException('Site does not belong to the selected client');
     }
     return site;
+  }
+
+  private async emailJobCrew(
+    ctx: OrganizationContext,
+    job: {
+      id: string;
+      jobNumber: string;
+      title: string;
+      assignments: Array<{ userId: string }>;
+      supervisorUserId: string | null;
+    },
+    decision: 'APPROVED' | 'RETURNED',
+    reason?: string,
+  ) {
+    const userIds = [
+      ...job.assignments.map((row) => row.userId),
+      job.supervisorUserId,
+    ].filter((id): id is string => Boolean(id));
+    if (userIds.length === 0) {
+      return;
+    }
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(userIds)] } },
+      select: { id: true, email: true, fullName: true },
+    });
+    for (const user of users) {
+      if (decision === 'APPROVED') {
+        await this.mail.sendJobApproved({
+          to: user.email,
+          recipientName: user.fullName,
+          organizationName: ctx.name,
+          orgSlug: ctx.slug,
+          jobNumber: job.jobNumber,
+          jobTitle: job.title,
+          jobId: job.id,
+        });
+      } else {
+        await this.mail.sendJobReturned({
+          to: user.email,
+          recipientName: user.fullName,
+          organizationName: ctx.name,
+          orgSlug: ctx.slug,
+          jobNumber: job.jobNumber,
+          jobTitle: job.title,
+          jobId: job.id,
+          reason: reason ?? 'Updates required',
+        });
+      }
+    }
   }
 
   private async requireOrgTeam(organizationId: string, teamId: string) {

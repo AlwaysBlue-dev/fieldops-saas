@@ -1,0 +1,66 @@
+# Notifications
+
+In-app notifications and selective transactional email for FieldOps Cloud.
+
+## Model
+
+`Notification` (existing):
+
+- `organizationId` (nullable for platform-only later)
+- `userId` recipient
+- `type`, `title`, `body` (API exposes `message`)
+- `relatedEntityType` / `relatedEntityId`
+- `status` `UNREAD` | `READ`, `readAt`, `createdAt`
+- `payload` JSON for navigation hints
+
+## Central service
+
+`NotificationsService` owns creates and inbox reads. Domain modules emit through thin hooks:
+
+- `ApprovalNotificationHook` — job / timesheet approval lifecycle
+- `OvertimeNotificationHook` — overtime request / decide
+- `JobNotificationHook` — assign / reschedule (+ job-assigned email after commit)
+
+Do not insert notification rows from controllers.
+
+## Event types (in-app)
+
+| Type | Source |
+| --- | --- |
+| `JOB_ASSIGNED` | Schedule assignment |
+| `JOB_RESCHEDULED` | Schedule window change |
+| `JOB_RETURNED` / `JOB_APPROVED` | Job approval |
+| `TIMESHEET_SUBMITTED` / `TIMESHEET_APPROVED` / `TIMESHEET_RETURNED` | Timesheets |
+| `OVERTIME_REQUESTED` / `OVERTIME_APPROVED` / `OVERTIME_REJECTED` | Overtime |
+| `INVITATION` | Invite when invitee already has an account |
+| `TRIAL_EXPIRING` / `TRIAL_GRACE` / `TRIAL_EXPIRED` | Subscription reconciliation |
+| `ACTIVATION_REQUEST_ACK` | Activation request confirmation to requester |
+
+Unread dedupe is applied for pending-style events (`dedupeUnread` on same type + entity).
+
+## API
+
+All scoped to active org membership of the current user:
+
+- `GET /api/organizations/:organizationId/notifications`
+- `GET /api/organizations/:organizationId/notifications/unread-count`
+- `PATCH /api/organizations/:organizationId/notifications/:id/read`
+- `PATCH /api/organizations/:organizationId/notifications/read-all`
+
+Cross-tenant ids → **404**. Email failures never roll back domain transactions (mail runs after commit / caught in `MailService`).
+
+## Email
+
+`MailService` sends HTML + plain text via SMTP (Mailpit locally: `localhost:1025`, UI `:8025`).
+
+Emailed (not every operational ping):
+
+- Organization invitation
+- Job assigned
+- Job returned / approved
+- Overtime decision
+- Timesheet returned
+- Trial ending / grace / expired
+- Activation request acknowledgement
+
+Tokens appear only in secure links, never in logs.

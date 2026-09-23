@@ -61,33 +61,45 @@ describe('Tenant isolation (e2e)', () => {
       where: { email: 'dana.brooks@bluepeak.fieldops.local' },
     });
 
-    const northstarApproval = await prisma.approval.create({
-      data: {
+    const northstarApproval = await prisma.approval.upsert({
+      where: {
+        organizationId_type_subjectId: {
+          organizationId: northstarId,
+          type: ApprovalType.JOB_COMPLETION,
+          subjectId: northstarJobId,
+        },
+      },
+      create: {
         organizationId: northstarId,
         type: ApprovalType.JOB_COMPLETION,
         subjectType: 'Job',
         subjectId: northstarJobId,
         requestedByUserId: northstarOwner.id,
       },
+      update: {},
     });
-    const bluepeakApproval = await prisma.approval.create({
-      data: {
+    const bluepeakApproval = await prisma.approval.upsert({
+      where: {
+        organizationId_type_subjectId: {
+          organizationId: bluepeakId,
+          type: ApprovalType.JOB_COMPLETION,
+          subjectId: bluepeakJobId,
+        },
+      },
+      create: {
         organizationId: bluepeakId,
         type: ApprovalType.JOB_COMPLETION,
         subjectType: 'Job',
         subjectId: bluepeakJobId,
         requestedByUserId: bluepeakOwner.id,
       },
+      update: {},
     });
     northstarApprovalId = northstarApproval.id;
     bluepeakApprovalId = bluepeakApproval.id;
   });
 
   afterAll(async () => {
-    const prisma = prismaFrom(app);
-    await prisma.approval.deleteMany({
-      where: { id: { in: [northstarApprovalId, bluepeakApprovalId] } },
-    });
     await app.close();
   });
 

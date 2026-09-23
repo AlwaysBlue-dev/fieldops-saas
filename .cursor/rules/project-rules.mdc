@@ -60,6 +60,8 @@ prisma.job.findFirst({ where: { id: jobId, organizationId: ctx.organizationId } 
 - CORS allow-list `WEB_URL` with credentials. No `origin: *`.
 - Never return `passwordHash`, token hashes, or raw tokens in DTOs.
 - Uploads: auth + org scope, size cap, MIME allow-list, magic-byte check, private bucket, keys `org/{organizationId}/...`. Authorize downloads via parent record.
+- Presigned GET URLs are short-lived capability tokens issued only after tenant/job authorization (`S3_PRESIGNED_GET_EXPIRY_SECONDS`, default 300). Never persist them; never log signed URLs; never issue PUT/DELETE presigns from generic download endpoints.
+- **Rich text / XSS (future):** Do not render user-controlled HTML or Markdown as raw HTML. If a future feature needs rich text, sanitize with an approved sanitizer library and never use `dangerouslySetInnerHTML` (or equivalent) on unsanitized tenant content. Plain JSON text fields are not an XSS sink.
 - `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
 - Rate-limit auth. Helmet in bootstrap.
 

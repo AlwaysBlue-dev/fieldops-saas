@@ -6,6 +6,13 @@ export function validateEnv(config: Record<string, unknown>) {
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: false,
   });
+  if (
+    validated.S3_PRESIGNED_GET_EXPIRY_SECONDS === undefined ||
+    validated.S3_PRESIGNED_GET_EXPIRY_SECONDS === null ||
+    Number.isNaN(Number(validated.S3_PRESIGNED_GET_EXPIRY_SECONDS))
+  ) {
+    validated.S3_PRESIGNED_GET_EXPIRY_SECONDS = 300;
+  }
   const errors = validateSync(validated, {
     skipMissingProperties: false,
     whitelist: true,

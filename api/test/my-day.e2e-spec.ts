@@ -72,6 +72,7 @@ describe('Technician My Day (e2e)', () => {
       fullName: `Day Owner ${label}`,
       organizationName: `Day Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return {

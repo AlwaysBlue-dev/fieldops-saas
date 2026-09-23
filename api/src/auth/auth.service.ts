@@ -29,6 +29,7 @@ import {
   UserStatus,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
+import { LegalService } from '../legal/legal.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { SignupDto } from './dto/signup.dto.js';
@@ -36,7 +37,7 @@ import type { LoginDto } from './dto/login.dto.js';
 import type { AccessTokenPayload, RefreshTokenPayload } from './jwt-payload.js';
 import { hashPassword, normalizeEmail, verifyPassword } from './password.js';
 import { toPublicUser } from './user.serializer.js';
-import { REFRESH_COOKIE } from '../common/constants.js';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from '../common/constants.js';
 
 @Injectable()
 export class AuthService {
@@ -46,6 +47,7 @@ export class AuthService {
     private readonly config: ConfigService<EnvironmentVariables, true>,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly legal: LegalService,
   ) {}
 
   async signup(dto: SignupDto, request: Request) {
@@ -83,6 +85,9 @@ export class AuthService {
             passwordHash,
             fullName: dto.fullName.trim(),
             status: UserStatus.ACTIVE,
+            termsAcceptedAt: new Date(),
+            termsVersion: this.legal.termsVersion(),
+            privacyVersion: this.legal.privacyVersion(),
           },
         });
 
@@ -248,21 +253,59 @@ export class AuthService {
 
   async logout(request: Request, userId?: string) {
     const refreshToken = request.cookies?.[REFRESH_COOKIE] as string | undefined;
+    const accessToken = request.cookies?.[ACCESS_COOKIE] as string | undefined;
     let actorId = userId;
+    const revokedSids = new Set<string>();
+
     if (refreshToken) {
       try {
-        const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(refreshToken, {
-          secret: this.config.get('JWT_REFRESH_SECRET', { infer: true }),
-        });
+        const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(
+          refreshToken,
+          {
+            secret: this.config.get('JWT_REFRESH_SECRET', { infer: true }),
+          },
+        );
         actorId = actorId ?? payload.sub;
         if (payload.sid) {
           await this.prisma.refreshSession.updateMany({
-            where: { id: payload.sid, revokedAt: null },
+            where: {
+              id: payload.sid,
+              userId: payload.sub,
+              revokedAt: null,
+            },
             data: { revokedAt: new Date() },
           });
+          revokedSids.add(payload.sid);
         }
       } catch {
         // Cookie may already be invalid; still clear it.
+      }
+    }
+
+    if (accessToken) {
+      try {
+        const payload = await this.jwt.verifyAsync<AccessTokenPayload>(
+          accessToken,
+          {
+            secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
+            ignoreExpiration: true,
+          },
+        );
+        if (payload.typ === 'access' && payload.sid && payload.sub) {
+          actorId = actorId ?? payload.sub;
+          if (!revokedSids.has(payload.sid)) {
+            await this.prisma.refreshSession.updateMany({
+              where: {
+                id: payload.sid,
+                userId: payload.sub,
+                revokedAt: null,
+              },
+              data: { revokedAt: new Date() },
+            });
+          }
+        }
+      } catch {
+        // Access cookie may already be invalid; still clear it.
       }
     }
 
@@ -323,10 +366,17 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    await this.prisma.refreshSession.update({
-      where: { id: session.id },
+    const revoked = await this.prisma.refreshSession.updateMany({
+      where: {
+        id: session.id,
+        userId: payload.sub,
+        revokedAt: null,
+      },
       data: { revokedAt: new Date() },
     });
+    if (revoked.count !== 1) {
+      throw new UnauthorizedException();
+    }
 
     const tokens = await this.issueSession(user.id, request);
     return { user: toPublicUser(user), ...tokens };

@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { SubscriptionModule } from '../subscription/subscription.module.js';
+import { ApprovalNotificationHook } from './approval-events.js';
+import { ApprovalRecordsService } from './approval-records.service.js';
+import { JobApprovalValidationService } from './approval-validation.service.js';
 import { ApprovalsController } from './approvals.controller.js';
+import { ApprovalsService } from './approvals.service.js';
 import { ClientsController } from './clients.controller.js';
 import { ClientsService } from './clients.service.js';
 import { SitesController } from './sites.controller.js';
@@ -17,11 +21,13 @@ import { ClockService } from './clock.service.js';
 import { ClockSessionsController } from './clock-sessions.controller.js';
 import { JobsController } from './jobs.controller.js';
 import { JobsService } from './jobs.service.js';
+import { JobExecutionService } from './job-execution.service.js';
 import { JobFieldService } from './job-field.service.js';
+import { JobFilesService } from './job-files.service.js';
+import { JobNotificationHook } from './job-events.js';
 import { JobWorkflowService } from './job-workflow.service.js';
 import { MyDayController } from './my-day.controller.js';
 import { MyDayService } from './my-day.service.js';
-import { ObjectStorageService } from './object-storage.service.js';
 import { ScheduleController } from './schedule.controller.js';
 import { ScheduleService } from './schedule.service.js';
 import { MembersController } from './members.controller.js';
@@ -29,7 +35,16 @@ import { MembersService } from './members.service.js';
 import { OrganizationsController } from './organizations.controller.js';
 import { OrganizationsService } from './organizations.service.js';
 import { PublicInvitationsController } from './public-invitations.controller.js';
-import { TenantResourcesService } from './tenant-resources.service.js';
+import { OvertimeNotificationHook } from './overtime-events.js';
+import { OvertimeController } from './overtime.controller.js';
+import { OvertimeService } from './overtime.service.js';
+import { OvertimeValidationService } from './overtime-validation.service.js';
+import { TimesheetValidationService } from './timesheet-validation.service.js';
+import { TimesheetsController } from './timesheets.controller.js';
+import { TimesheetsService } from './timesheets.service.js';
+import { JobReportPdfService } from './job-report-pdf.service.js';
+import { ReportsController } from './reports.controller.js';
+import { ReportsService } from './reports.service.js';
 
 @Module({
   imports: [AuthModule, SubscriptionModule],
@@ -40,6 +55,8 @@ import { TenantResourcesService } from './tenant-resources.service.js';
     PublicInvitationsController,
     JobsController,
     ClockSessionsController,
+    TimesheetsController,
+    OvertimeController,
     MyDayController,
     ScheduleController,
     ClientsController,
@@ -48,6 +65,7 @@ import { TenantResourcesService } from './tenant-resources.service.js';
     TechniciansController,
     FilesController,
     ApprovalsController,
+    ReportsController,
   ],
   providers: [
     OrganizationsService,
@@ -58,13 +76,25 @@ import { TenantResourcesService } from './tenant-resources.service.js';
     TeamsService,
     TechniciansService,
     JobWorkflowService,
+    JobExecutionService,
     JobsService,
     JobFieldService,
+    JobFilesService,
     ClockService,
+    JobNotificationHook,
+    OvertimeValidationService,
+    OvertimeNotificationHook,
+    OvertimeService,
+    TimesheetValidationService,
+    TimesheetsService,
     MyDayService,
-    ObjectStorageService,
     ScheduleService,
-    TenantResourcesService,
+    ApprovalRecordsService,
+    ApprovalNotificationHook,
+    JobApprovalValidationService,
+    ApprovalsService,
+    JobReportPdfService,
+    ReportsService,
   ],
 })
 export class OrganizationsModule {}

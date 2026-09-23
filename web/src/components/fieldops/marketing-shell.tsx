@@ -6,7 +6,28 @@ import type { ReactNode } from "react";
 const links = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/trust", label: "Trust" },
 ];
+
+const footer = {
+  Product: [
+    { href: "/features", label: "Features" },
+    { href: "/pricing", label: "Pricing" },
+    { href: "/documentation", label: "Documentation" },
+    { href: "/support", label: "Support" },
+  ],
+  Trust: [
+    { href: "/trust", label: "Trust Center" },
+    { href: "/security", label: "Security" },
+  ],
+  Legal: [
+    { href: "/terms", label: "Terms of Service" },
+    { href: "/privacy", label: "Privacy Policy" },
+    { href: "/security", label: "Security" },
+    { href: "/billing-policy", label: "Billing & Subscription Policy" },
+    { href: "/acceptable-use", label: "Acceptable Use" },
+  ],
+};
 
 export function MarketingShell({ children }: { children: ReactNode }) {
   return (
@@ -50,12 +71,24 @@ export function MarketingShell({ children }: { children: ReactNode }) {
         className="border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} FieldOps Cloud</p>
-          <div className="flex gap-4">
-            <Link href="/features">Features</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/login">Sign in</Link>
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 text-sm md:grid-cols-4">
+          {Object.entries(footer).map(([heading, items]) => (
+            <div key={heading}>
+              <p className="font-medium text-foreground">{heading}</p>
+              <ul className="mt-3 space-y-2 text-muted-foreground">
+                {items.map((item) => (
+                  <li key={`${heading}-${item.href}-${item.label}`}>
+                    <Link href={item.href}>{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div>
+            <p className="font-medium text-foreground">FieldOps Cloud</p>
+            <p className="mt-3 text-muted-foreground">
+              © {new Date().getFullYear()} FieldOps Cloud
+            </p>
           </div>
         </div>
       </footer>

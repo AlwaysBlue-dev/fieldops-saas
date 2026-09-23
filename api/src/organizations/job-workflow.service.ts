@@ -71,7 +71,11 @@ export class JobWorkflowService {
   }
 
   assertCancel(from: JobStatus, reason?: string | null) {
-    this.assertTransition(from, JobStatus.CANCELLED);
+    if (!CANCELABLE_STATUSES.includes(from)) {
+      throw new BadRequestException(
+        `Cannot cancel a job in status ${from}`,
+      );
+    }
     if (from === JobStatus.IN_PROGRESS && !reason?.trim()) {
       throw new BadRequestException(
         'A reason is required to cancel work already in progress',

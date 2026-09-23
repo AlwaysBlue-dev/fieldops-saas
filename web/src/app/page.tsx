@@ -1,5 +1,6 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { Button } from "@/components/ui/button";
+import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -7,7 +8,11 @@ export const metadata: Metadata = {
   title: "Field operations, without the clutter",
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const catalog = await getPublicCatalog();
+  const professional = catalogPlan(catalog, "professional");
+  const trialDays = catalog?.trialDays;
+
   return (
     <MarketingShell>
       <section className="max-w-2xl">
@@ -21,12 +26,24 @@ export default function HomePage() {
         </p>
         <div className="mt-8 flex flex-col gap-2 sm:flex-row">
           <Button asChild className="h-11 px-4">
-            <Link href="/signup">Start a workspace</Link>
+            <Link href="/signup">
+              {trialDays ? `Start ${trialDays}-day trial` : "Start free trial"}
+            </Link>
           </Button>
           <Button asChild variant="outline" className="h-11 px-4">
-            <Link href="/features">See capabilities</Link>
+            <Link href="/pricing">
+              {professional
+                ? `Professional — ${professional.priceLabel}`
+                : "View pricing"}
+            </Link>
           </Button>
         </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          No credit card required
+          {professional
+            ? `. ${professional.includedUsers} users and ${professional.includedStorage} included.`
+            : "."}
+        </p>
       </section>
 
       <section className="mt-16 grid gap-4 md:grid-cols-3">

@@ -48,6 +48,7 @@ export function signup(input: {
   email: string;
   password: string;
   organizationName: string;
+  acceptTerms: boolean;
 }) {
   return apiRequest<AuthPayload>("/auth/signup", {
     method: "POST",

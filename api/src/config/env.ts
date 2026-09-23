@@ -81,6 +81,18 @@ export class EnvironmentVariables {
   @IsBoolean()
   S3_FORCE_PATH_STYLE!: boolean;
 
+  /** Presigned GET URL lifetime in seconds (default 300). */
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return 300;
+    }
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : 300;
+  })
+  @IsInt()
+  @Min(30)
+  S3_PRESIGNED_GET_EXPIRY_SECONDS!: number;
+
   @IsOptional()
   @IsString()
   SMTP_HOST?: string;
@@ -121,4 +133,36 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PLATFORM_SALES_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  PLATFORM_SUPPORT_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  SECURITY_CONTACT_EMAIL?: string;
+
+  @IsOptional()
+  @IsString()
+  LEGAL_ENTITY_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  LEGAL_GOVERNING_LAW?: string;
+
+  @IsOptional()
+  @IsString()
+  TERMS_VERSION?: string;
+
+  @IsOptional()
+  @IsString()
+  PRIVACY_VERSION?: string;
+
+  @IsOptional()
+  @IsString()
+  BILLING_POLICY_VERSION?: string;
+
+  @IsOptional()
+  @IsString()
+  LEGAL_EFFECTIVE_DATE?: string;
 }

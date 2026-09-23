@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c2233" />
+    <title>Offline · FieldOps Cloud</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1c2233;
+        --muted: #5b6475;
+        --workspace: #f4f6f9;
+        --card: #ffffff;
+        --line: #dde2ea;
+        --primary: #2f5bdb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        background: var(--workspace);
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: max(1.25rem, env(safe-area-inset-top))
+          max(1.25rem, env(safe-area-inset-right))
+          max(1.25rem, env(safe-area-inset-bottom))
+          max(1.25rem, env(safe-area-inset-left));
+      }
+      main {
+        width: min(24rem, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+      }
+      h1 { margin: 0 0 0.5rem; font-size: 1.125rem; }
+      p { margin: 0; color: var(--muted); font-size: 0.9375rem; line-height: 1.45; }
+      button {
+        margin-top: 1rem;
+        min-height: 44px;
+        width: 100%;
+        border: 0;
+        border-radius: 0.5rem;
+        background: var(--primary);
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You’re offline</h1>
+      <p>
+        FieldOps Cloud needs a network connection for jobs, time, photos, and
+        other operational actions. Reconnect, then try again.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

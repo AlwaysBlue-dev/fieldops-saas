@@ -72,6 +72,7 @@ describe('Schedule and dispatch (e2e)', () => {
       fullName: `Schedule Owner ${label}`,
       organizationName: `Dispatch Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return {

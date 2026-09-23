@@ -29,6 +29,7 @@ describe('Subscription trial and manual activation (e2e)', () => {
       fullName: `Trial Owner ${label}`,
       organizationName: `Trial Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return {
@@ -36,6 +37,25 @@ describe('Subscription trial and manual activation (e2e)', () => {
       organizationId: signup.body.organization.id as string,
       email: `owner-${suffix}@trial.fieldops.test`,
     };
+  }
+
+  async function ensurePlatformAdmin() {
+    const prisma = prismaFrom(app);
+    await prisma.user.upsert({
+      where: { email: 'platform.admin@fieldops.test' },
+      update: { platformRole: PlatformRole.SUPER_ADMIN },
+      create: {
+        email: 'platform.admin@fieldops.test',
+        fullName: 'Platform Admin',
+        passwordHash: (
+          await prisma.user.findUniqueOrThrow({
+            where: { email: 'jordan.hale@northstar.fieldops.local' },
+          })
+        ).passwordHash,
+        platformRole: PlatformRole.SUPER_ADMIN,
+      },
+    });
+    return loginAs(app, 'platform.admin@fieldops.test', SEED_PASSWORD);
   }
 
   async function setSubscription(
@@ -261,26 +281,7 @@ describe('Subscription trial and manual activation (e2e)', () => {
     const plan = await prisma.plan.findUniqueOrThrow({
       where: { code: 'professional' },
     });
-    await prisma.user.upsert({
-      where: { email: 'platform.admin@fieldops.test' },
-      update: { platformRole: PlatformRole.SUPER_ADMIN },
-      create: {
-        email: 'platform.admin@fieldops.test',
-        fullName: 'Platform Admin',
-        passwordHash: (
-          await prisma.user.findUniqueOrThrow({
-            where: { email: 'jordan.hale@northstar.fieldops.local' },
-          })
-        ).passwordHash,
-        platformRole: PlatformRole.SUPER_ADMIN,
-      },
-    });
-
-    const { agent: platform } = await loginAs(
-      app,
-      'platform.admin@fieldops.test',
-      SEED_PASSWORD,
-    );
+    const { agent: platform } = await ensurePlatformAdmin();
     const activated = await withCsrf(
       platform.post(`/api/platform/organizations/${organizationId}/subscription/activate`),
     ).send({
@@ -305,5 +306,159 @@ describe('Subscription trial and manual activation (e2e)', () => {
       role: 'TECHNICIAN',
     });
     expect(invite.status).toBe(201);
+  });
+
+  it('defaults annual Professional activation to a 1-year period', async () => {
+    const { organizationId } = await signupOrg('one-year');
+    const { agent: platform } = await ensurePlatformAdmin();
+    const before = Date.now();
+    const activated = await withCsrf(
+      platform.post(`/api/platform/organizations/${organizationId}/subscription/activate`),
+    ).send({ planCode: 'professional' });
+    expect(activated.status).toBe(200);
+    expect(activated.body.effectiveStatus).toBe('ACTIVE');
+    const start = new Date(activated.body.currentPeriodStart).getTime();
+    const end = new Date(activated.body.currentPeriodEnd).getTime();
+    expect(start).toBeGreaterThanOrEqual(before - 5_000);
+    expect(Math.round((end - start) / 86_400_000)).toBe(365);
+  });
+
+  it('keeps a paid organization writable during 7-day grace and read-only after', async () => {
+    const { agent, organizationId } = await signupOrg('paid-grace');
+    const now = Date.now();
+    await setSubscription(organizationId, {
+      status: SubscriptionStatus.ACTIVE,
+      activatedAt: new Date(now - 366 * 86_400_000),
+      currentPeriodStart: new Date(now - 366 * 86_400_000),
+      currentPeriodEnd: new Date(now - 2 * 86_400_000),
+    });
+    const grace = await agent.get(`/api/organizations/${organizationId}/subscription`);
+    expect(grace.body.effectiveStatus).toBe('PAID_GRACE');
+    expect(grace.body.canMutate).toBe(true);
+
+    await setSubscription(organizationId, {
+      currentPeriodEnd: new Date(now - 8 * 86_400_000),
+    });
+    const expired = await agent.get(`/api/organizations/${organizationId}/subscription`);
+    expect(expired.body.effectiveStatus).toBe('EXPIRED');
+    expect(expired.body.readOnly).toBe(true);
+    const blocked = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/invitations`),
+    ).send({
+      email: `paid-expired-${organizationId.slice(0, 8)}@trial.fieldops.test`,
+      role: 'TECHNICIAN',
+    });
+    expect(blocked.status).toBe(403);
+  });
+
+  it('extends a renewal from the current paid period end', async () => {
+    const { organizationId } = await signupOrg('renew');
+    const start = new Date('2026-01-01T00:00:00.000Z');
+    const end = new Date('2027-01-01T00:00:00.000Z');
+    await setSubscription(organizationId, {
+      status: SubscriptionStatus.ACTIVE,
+      activatedAt: start,
+      currentPeriodStart: start,
+      currentPeriodEnd: end,
+    });
+    const { agent: platform } = await ensurePlatformAdmin();
+    const renewed = await withCsrf(
+      platform.post(`/api/platform/organizations/${organizationId}/subscription/renew`),
+    ).send({});
+    expect(renewed.status).toBe(200);
+    expect(renewed.body.effectiveStatus).toBe('ACTIVE');
+    expect(renewed.body.currentPeriodEnd).toBe('2028-01-01T00:00:00.000Z');
+  });
+
+  it('rejects a second open activation or renewal request', async () => {
+    const { agent, organizationId } = await signupOrg('dup-req');
+    const first = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/activation-requests`),
+    ).send({ message: 'Please activate.' });
+    expect(first.status).toBe(201);
+    const second = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/activation-requests`),
+    ).send({ message: 'Again.' });
+    expect(second.status).toBe(409);
+
+    await setSubscription(organizationId, {
+      status: SubscriptionStatus.ACTIVE,
+      activatedAt: new Date(),
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 200 * 86_400_000),
+    });
+    const renew = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/renewal-requests`),
+    ).send({});
+    expect(renew.status).toBe(201);
+    const renewAgain = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/renewal-requests`),
+    ).send({});
+    expect(renewAgain.status).toBe(409);
+  });
+
+  it('blocks a tenant user from platform activation and from another org subscription', async () => {
+    const owner = await signupOrg('no-self');
+    const other = await signupOrg('other-sub');
+    const activate = await withCsrf(
+      owner.agent.post(
+        `/api/platform/organizations/${owner.organizationId}/subscription/activate`,
+      ),
+    ).send({ planCode: 'professional' });
+    expect(activate.status).toBe(403);
+
+    const foreign = await owner.agent.get(
+      `/api/organizations/${other.organizationId}/subscription`,
+    );
+    expect([403, 404]).toContain(foreign.status);
+    expect(foreign.body.plan).toBeUndefined();
+  });
+
+  it('exposes Professional limits from the plan catalog and enforces the user cap', async () => {
+    const catalog = await api(app).get('/api/plans');
+    expect(catalog.status).toBe(200);
+    const professional = catalog.body.plans.find(
+      (plan: { code: string }) => plan.code === 'professional',
+    );
+    const business = catalog.body.plans.find(
+      (plan: { code: string }) => plan.code === 'business',
+    );
+    expect(professional.maxUsers).toBe(10);
+    expect(professional.maxStorageBytes).toBe('21474836480');
+    expect(professional.priceLabel).toBe('$499/year');
+    expect(business.contactSales).toBe(true);
+    expect(business.priceLabel).toMatch(/contact sales/i);
+
+    const { agent, organizationId } = await signupOrg('seats');
+    const prisma = prismaFrom(app);
+    const owner = await prisma.organizationMember.findFirstOrThrow({
+      where: { organizationId },
+    });
+    const extras = professional.maxUsers - 1;
+    for (let i = 0; i < extras; i += 1) {
+      const user = await prisma.user.create({
+        data: {
+          email: `seat-${i}-${organizationId.slice(0, 8)}@trial.fieldops.test`,
+          fullName: `Seat ${i}`,
+          passwordHash: owner.id,
+        },
+      });
+      await prisma.organizationMember.create({
+        data: {
+          organizationId,
+          userId: user.id,
+          role: 'TECHNICIAN',
+        },
+      });
+    }
+    const over = await withCsrf(
+      agent.post(`/api/organizations/${organizationId}/invitations`),
+    ).send({
+      email: `over-${organizationId.slice(0, 8)}@trial.fieldops.test`,
+      role: 'TECHNICIAN',
+    });
+    expect(over.status).toBe(403);
+    expect(over.body.error).toBe('PLAN_LIMIT_REACHED');
+    expect(over.body.message).toMatch(/10-user limit on your Professional plan/i);
   });
 });

@@ -20,6 +20,11 @@ export class SubscriptionController {
     return this.subscriptions.getForOrganization(organization.organizationId);
   }
 
+  @Get('usage')
+  getUsage(@CurrentOrganization() organization: OrganizationContext) {
+    return this.subscriptions.getUsage(organization.organizationId);
+  }
+
   @Post('activation-requests')
   @UseGuards(OrganizationRolesGuard)
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
@@ -29,5 +34,27 @@ export class SubscriptionController {
     @Body() dto: RequestActivationDto,
   ) {
     return this.subscriptions.requestActivation(organization, user, dto);
+  }
+
+  @Post('renewal-requests')
+  @UseGuards(OrganizationRolesGuard)
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  requestRenewal(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestActivationDto,
+  ) {
+    return this.subscriptions.requestRenewal(organization, user, dto);
+  }
+
+  @Post('plan-change-requests')
+  @UseGuards(OrganizationRolesGuard)
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  requestPlanChange(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestActivationDto,
+  ) {
+    return this.subscriptions.requestPlanChange(organization, user, dto);
   }
 }

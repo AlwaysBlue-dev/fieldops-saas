@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function SignupForm() {
+export function SignupForm({ description }: { description: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -25,6 +25,7 @@ export function SignupForm() {
         email: String(formData.get("email") ?? ""),
         password: String(formData.get("password") ?? ""),
         organizationName: String(formData.get("organizationName") ?? ""),
+        acceptTerms: formData.get("acceptTerms") === "on",
       });
       if (result.organization?.slug) {
         router.replace(`/onboarding?org=${result.organization.slug}`);
@@ -45,7 +46,7 @@ export function SignupForm() {
   return (
     <AuthShell
       title="Create your workspace"
-      description="We’ll open an organization from your company name. You can refine it on the next screen."
+      description={description}
       footer={
         <p className="text-muted-foreground">
           Already have an account?{" "}
@@ -101,6 +102,28 @@ export function SignupForm() {
             maxLength={120}
             className="h-11"
           />
+        </FormField>
+        <FormField>
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              id="acceptTerms"
+              name="acceptTerms"
+              type="checkbox"
+              required
+              className="mt-1 size-4"
+            />
+            <span>
+              I agree to the{" "}
+              <Link href="/terms" className="font-medium text-primary" target="_blank">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="font-medium text-primary" target="_blank">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
         </FormField>
         {error ? (
           <p role="alert" className="text-sm text-destructive">

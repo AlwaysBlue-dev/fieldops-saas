@@ -20,9 +20,11 @@ import {
   type OrgMember,
 } from "@/lib/organizations";
 import { ACTIVATION_UNAVAILABLE_MESSAGE } from "@/lib/subscription";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { MutationButton, useCanMutate } from "./mutation-control";
+import { RequestPlanChangeButton } from "./subscription-banners";
 
 const ROLES: OrgMember["role"][] = [
   "OWNER",
@@ -40,6 +42,7 @@ export function MembersPanel() {
   const [invites, setInvites] = useState<OrgInvitation[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [seatLimitHit, setSeatLimitHit] = useState(false);
   const [pending, setPending] = useState(false);
 
   const applyLists = useCallback(
@@ -113,6 +116,7 @@ export function MembersPanel() {
           const form = new FormData(event.currentTarget);
           setPending(true);
           setError(null);
+          setSeatLimitHit(false);
           try {
             await createInvitation(organizationId, {
               email: String(form.get("email") ?? ""),
@@ -121,7 +125,17 @@ export function MembersPanel() {
             event.currentTarget.reset();
             await load();
           } catch (err) {
-            setError(err instanceof ApiError ? err.message : "Could not send invitation.");
+            if (
+              err instanceof ApiError &&
+              (err.error === "PLAN_LIMIT_REACHED" || err.code === "PLAN_LIMIT_REACHED")
+            ) {
+              setSeatLimitHit(true);
+              setError(err.message);
+            } else {
+              setError(
+                err instanceof ApiError ? err.message : "Could not send invitation.",
+              );
+            }
           } finally {
             setPending(false);
           }
@@ -161,9 +175,24 @@ export function MembersPanel() {
           </MutationButton>
         </div>
         {error ? (
-          <p role="alert" className="mt-2 text-sm text-destructive">
-            {error}
-          </p>
+          <div role="alert" className="mt-2 space-y-2">
+            <p className="text-sm text-destructive">{error}</p>
+            {seatLimitHit && organizationId ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <RequestPlanChangeButton
+                  organizationId={organizationId}
+                  label="Request plan change"
+                  variant="outline"
+                />
+                <Link
+                  href={`/app/${params.orgSlug}/settings/plan-usage`}
+                  className="text-sm text-primary"
+                >
+                  View plan & usage
+                </Link>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </form>
 

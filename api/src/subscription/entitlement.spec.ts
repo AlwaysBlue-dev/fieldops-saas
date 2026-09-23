@@ -1,24 +1,42 @@
-import { SubscriptionStatus } from '../generated/prisma/client.js';
+import { BillingInterval, SubscriptionStatus } from '../generated/prisma/client.js';
 import { addUtcDays } from './clock.js';
 import { resolveEntitlement, type PlanSnapshot } from './entitlement.js';
 
-const professional: PlanSnapshot = {
+function commercialPlan(
+  extras: Partial<PlanSnapshot> & Pick<PlanSnapshot, 'id' | 'code' | 'name' | 'maxUsers' | 'maxStorageBytes'>,
+): PlanSnapshot {
+  return {
+    features: {},
+    currency: 'USD',
+    billingInterval: BillingInterval.ANNUAL,
+    displayPrice: null,
+    annualPriceCents: extras.code === 'professional' ? 49900 : null,
+    monthlyPriceCents: null,
+    contactSales: extras.code === 'business',
+    publiclyVisible: extras.code !== 'starter',
+    priceLabel: extras.code === 'professional' ? '$499/year' : extras.code === 'business' ? 'Contact sales' : '$490/year',
+    ...extras,
+  };
+}
+
+const professional = commercialPlan({
   id: 'plan-pro',
   code: 'professional',
   name: 'Professional',
-  maxUsers: 25,
-  maxStorageBytes: '53687091200',
+  maxUsers: 10,
+  maxStorageBytes: '21474836480',
   features: { gps: true, approvals: true, reports: 'standard' },
-};
+});
 
-const starter: PlanSnapshot = {
+const starter = commercialPlan({
   id: 'plan-starter',
   code: 'starter',
   name: 'Starter',
   maxUsers: 8,
   maxStorageBytes: '5368709120',
+  annualPriceCents: 49000,
   features: { gps: true, approvals: false, reports: 'basic' },
-};
+});
 
 function entitlement(
   storedStatus: SubscriptionStatus,
@@ -28,6 +46,9 @@ function entitlement(
     trialEndsAt: Date;
     graceEndsAt: Date;
     assignedPlan: PlanSnapshot;
+    currentPeriodStart: Date | null;
+    currentPeriodEnd: Date | null;
+    activatedAt: Date | null;
   }> = {},
 ) {
   const trialStartedAt = extras.trialStartedAt ?? addUtcDays(now, -1);
@@ -38,9 +59,9 @@ function entitlement(
     trialStartedAt,
     trialEndsAt,
     graceEndsAt,
-    currentPeriodStart: null,
-    currentPeriodEnd: null,
-    activatedAt: null,
+    currentPeriodStart: extras.currentPeriodStart ?? null,
+    currentPeriodEnd: extras.currentPeriodEnd ?? null,
+    activatedAt: extras.activatedAt ?? null,
     cancelAtPeriodEnd: false,
     assignedPlan: extras.assignedPlan ?? starter,
     trialPlan: professional,
@@ -63,7 +84,10 @@ describe('resolveEntitlement', () => {
     expect(result.readOnly).toBe(false);
     expect(result.trialDaysRemaining).toBe(14);
     expect(result.graceDaysRemaining).toBe(0);
+    expect(result.daysUntilExpiration).toBe(14);
     expect(result.plan.code).toBe('professional');
+    expect(result.plan.maxUsers).toBe(10);
+    expect(result.plan.maxStorageBytes).toBe('21474836480');
     expect(result.features.approvals).toBe(true);
   });
 
@@ -75,6 +99,7 @@ describe('resolveEntitlement', () => {
       graceEndsAt: addUtcDays(now, 3),
     });
     expect(result.effectiveStatus).toBe('GRACE');
+    expect(result.graceKind).toBe('trial');
     expect(result.canMutate).toBe(true);
     expect(result.trialDaysRemaining).toBe(0);
     expect(result.graceDaysRemaining).toBe(3);
@@ -95,7 +120,7 @@ describe('resolveEntitlement', () => {
     expect(result.graceDaysRemaining).toBe(0);
   });
 
-  it('lets ACTIVE organizations mutate regardless of elapsed trial dates', () => {
+  it('lets ACTIVE organizations mutate when the paid period is still open', () => {
     const result = resolveEntitlement({
       storedStatus: SubscriptionStatus.ACTIVE,
       trialStartedAt: addUtcDays(now, -40),
@@ -111,7 +136,70 @@ describe('resolveEntitlement', () => {
     });
     expect(result.effectiveStatus).toBe('ACTIVE');
     expect(result.canMutate).toBe(true);
+    expect(result.daysUntilExpiration).toBe(365);
     expect(result.plan.code).toBe('starter');
+  });
+
+  it('computes 30/14/7/1 day remaining against the paid period end', () => {
+    for (const days of [30, 14, 7, 1]) {
+      const result = resolveEntitlement({
+        storedStatus: SubscriptionStatus.ACTIVE,
+        trialStartedAt: addUtcDays(now, -400),
+        trialEndsAt: addUtcDays(now, -386),
+        graceEndsAt: addUtcDays(now, -383),
+        currentPeriodStart: addUtcDays(now, -365 + days),
+        currentPeriodEnd: addUtcDays(now, days),
+        activatedAt: addUtcDays(now, -365 + days),
+        cancelAtPeriodEnd: false,
+        assignedPlan: professional,
+        trialPlan: professional,
+        now,
+      });
+      expect(result.effectiveStatus).toBe('ACTIVE');
+      expect(result.daysUntilExpiration).toBe(days);
+    }
+  });
+
+  it('keeps a paid subscription operational during the 7-day renewal grace', () => {
+    const currentPeriodEnd = addUtcDays(now, -2);
+    const result = resolveEntitlement({
+      storedStatus: SubscriptionStatus.ACTIVE,
+      trialStartedAt: addUtcDays(now, -400),
+      trialEndsAt: addUtcDays(now, -386),
+      graceEndsAt: addUtcDays(now, -383),
+      currentPeriodStart: addUtcDays(currentPeriodEnd, -365),
+      currentPeriodEnd,
+      activatedAt: addUtcDays(currentPeriodEnd, -365),
+      cancelAtPeriodEnd: false,
+      assignedPlan: professional,
+      trialPlan: professional,
+      now,
+    });
+    expect(result.effectiveStatus).toBe('PAID_GRACE');
+    expect(result.graceKind).toBe('paid');
+    expect(result.canMutate).toBe(true);
+    expect(result.graceDaysRemaining).toBe(5);
+    expect(result.daysUntilExpiration).toBe(0);
+  });
+
+  it('makes a paid subscription read-only after the 7-day renewal grace', () => {
+    const currentPeriodEnd = addUtcDays(now, -8);
+    const result = resolveEntitlement({
+      storedStatus: SubscriptionStatus.ACTIVE,
+      trialStartedAt: addUtcDays(now, -400),
+      trialEndsAt: addUtcDays(now, -386),
+      graceEndsAt: addUtcDays(now, -383),
+      currentPeriodStart: addUtcDays(currentPeriodEnd, -365),
+      currentPeriodEnd,
+      activatedAt: addUtcDays(currentPeriodEnd, -365),
+      cancelAtPeriodEnd: false,
+      assignedPlan: professional,
+      trialPlan: professional,
+      now,
+    });
+    expect(result.effectiveStatus).toBe('EXPIRED');
+    expect(result.canMutate).toBe(false);
+    expect(result.readOnly).toBe(true);
   });
 
   it('blocks mutations for SUSPENDED even when trial dates are still open', () => {

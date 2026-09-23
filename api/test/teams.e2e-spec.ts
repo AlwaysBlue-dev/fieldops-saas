@@ -83,6 +83,7 @@ describe('Teams and technicians (e2e)', () => {
       fullName: `Team Owner ${label}`,
       organizationName: `Crew Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     return { agent, organizationId: signup.body.organization.id as string };

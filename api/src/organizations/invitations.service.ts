@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { AUDIT_TEAM_MEMBER_ADDED, INVITATION_TTL_DAYS } from '../common/constants.js';
+import { AUDIT_TEAM_MEMBER_ADDED, INVITATION_TTL_DAYS, NOTIFICATION_INVITATION } from '../common/constants.js';
 import { generateUrlToken, hashToken } from '../common/crypto-token.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -23,10 +23,12 @@ import {
   UserStatus,
 } from '../generated/prisma/client.js';
 import { MailService } from '../mail/mail.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import type { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
 import type { CreateInvitationDto } from './dto/create-invitation.dto.js';
+import { SubscriptionAccessService } from '../subscription/subscription-access.service.js';
 import { MembersService } from './members.service.js';
 
 @Injectable()
@@ -37,6 +39,8 @@ export class InvitationsService {
     private readonly mail: MailService,
     private readonly auth: AuthService,
     private readonly members: MembersService,
+    private readonly access: SubscriptionAccessService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async list(organizationId: string) {
@@ -54,6 +58,7 @@ export class InvitationsService {
     actorUserId: string,
   ) {
     const email = normalizeEmail(dto.email);
+    await this.access.assertSeatAvailable(ctx.organizationId, true, actorUserId);
     await this.members.ensureNotAlreadyMember(ctx.organizationId, email);
     if (dto.role === OrganizationRole.OWNER) {
       // Allowed: another owner can be invited. Last-owner rule is on removal.
@@ -118,6 +123,24 @@ export class InvitationsService {
       role: dto.role,
       rawToken,
     });
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existingUser) {
+      await this.notifications.notify({
+        organizationId: ctx.organizationId,
+        recipientUserIds: [existingUser.id],
+        type: NOTIFICATION_INVITATION,
+        title: 'Organization invitation',
+        message: `You were invited to join ${ctx.name} as ${dto.role.replaceAll('_', ' ').toLowerCase()}.`,
+        relatedEntityType: 'OrganizationInvitation',
+        relatedEntityId: invitation.id,
+        payload: { organizationSlug: ctx.slug, role: dto.role },
+        dedupeUnread: true,
+      });
+    }
 
     return this.serialize(invitation);
   }
@@ -225,6 +248,22 @@ export class InvitationsService {
           emailVerifiedAt: new Date(),
         },
       });
+    }
+
+    const existingMembership = await this.prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: invitation.organizationId,
+          userId: user.id,
+        },
+      },
+    });
+    if (!existingMembership || existingMembership.status !== MembershipStatus.ACTIVE) {
+      await this.access.assertSeatAvailable(
+        invitation.organizationId,
+        false,
+        user.id,
+      );
     }
 
     const result = await this.prisma.$transaction(async (tx) => {

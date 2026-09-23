@@ -49,6 +49,7 @@ describe('Organizations, members, invitations (e2e)', () => {
       fullName: 'Onboard Owner',
       organizationName: `Onboard Co ${suffix}`,
       timezone: 'America/Chicago',
+      acceptTerms: true,
     });
     expect(signup.status).toBe(201);
     const organizationId = signup.body.organization.id;
@@ -180,6 +181,7 @@ describe('Organizations, members, invitations (e2e)', () => {
       password: SEED_PASSWORD,
       fullName: 'Existing User',
       organizationName: `Existing Co ${suffix}`,
+      acceptTerms: true,
     });
 
     const { agent } = await loginAs(

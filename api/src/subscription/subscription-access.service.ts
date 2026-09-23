@@ -1,47 +1,54 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { TRIAL_PLAN_CODE } from '../common/constants.js';
-import { PlanStatus } from '../generated/prisma/client.js';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { CLOCK, type Clock } from './clock.js';
-import {
-  planSnapshot,
-  resolveEntitlement,
-  type Entitlement,
-} from './entitlement.js';
+import { Injectable } from '@nestjs/common';
+import { EntitlementService } from './entitlement.service.js';
+import type { Entitlement } from './entitlement.js';
+import { UsageService } from './usage.service.js';
 
+/**
+ * Compatibility facade for existing call sites.
+ * Prefer EntitlementService / UsageService for new code.
+ */
 @Injectable()
 export class SubscriptionAccessService {
   constructor(
-    private readonly prisma: PrismaService,
-    @Inject(CLOCK) private readonly clock: Clock,
+    private readonly entitlements: EntitlementService,
+    private readonly usageService: UsageService,
   ) {}
 
-  async evaluate(organizationId: string, now = this.clock.now()): Promise<Entitlement> {
-    const subscription = await this.prisma.subscription.findFirst({
-      where: { organizationId },
-      include: { plan: true },
-    });
-    if (!subscription) {
-      throw new NotFoundException();
-    }
+  evaluate(organizationId: string, now?: Date): Promise<Entitlement> {
+    return this.entitlements.evaluate(organizationId, now);
+  }
 
-    const trialPlanRow = await this.prisma.plan.findFirst({
-      where: { code: TRIAL_PLAN_CODE, status: PlanStatus.ACTIVE },
-    });
-    const trialPlan = planSnapshot(trialPlanRow ?? subscription.plan);
+  usageForSubscription(organizationId: string) {
+    return this.usageService.usageForSubscription(organizationId);
+  }
 
-    return resolveEntitlement({
-      storedStatus: subscription.status,
-      trialStartedAt: subscription.trialStartedAt,
-      trialEndsAt: subscription.trialEndsAt,
-      graceEndsAt: subscription.graceEndsAt,
-      currentPeriodStart: subscription.currentPeriodStart,
-      currentPeriodEnd: subscription.currentPeriodEnd,
-      activatedAt: subscription.activatedAt,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-      assignedPlan: planSnapshot(subscription.plan),
-      trialPlan,
-      now,
+  /** @deprecated Prefer usageForSubscription / UsageService.getSummary */
+  async usage(
+    organizationId: string,
+    _includedUsers: number,
+    _includedBytes: string,
+  ) {
+    return this.usageService.usageForSubscription(organizationId);
+  }
+
+  assertSeatAvailable(
+    organizationId: string,
+    reservingInvite = true,
+    actorUserId?: string | null,
+  ) {
+    return this.usageService.assertSeatAvailable(organizationId, {
+      reservingInvite,
+      actorUserId,
+    });
+  }
+
+  assertStorageAvailable(
+    organizationId: string,
+    incomingBytes: number,
+    actorUserId?: string | null,
+  ) {
+    return this.usageService.assertStorageAvailable(organizationId, incomingBytes, {
+      actorUserId,
     });
   }
 }
