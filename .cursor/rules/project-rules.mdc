@@ -1,0 +1,153 @@
+---
+description: FieldOps Cloud project rules — architecture, tenancy, security, API, database, UI
+alwaysApply: true
+---
+
+# FieldOps Cloud — Project Rules
+
+Independent commercial multi-tenant SaaS. **Not** the MKMABALE/client app. Do not copy, import, or imitate prior client code, IA, or visuals.
+
+Read `docs/product-requirements.md`, `docs/architecture.md`, `docs/database-design.md`, `docs/security-model.md`, `docs/design-system.md`, `docs/development-roadmap.md`.
+
+Next.js 16 differs from older App Router docs. Before web code, check `web/node_modules/next/dist/docs/`. Prisma stays **v7** until the user explicitly approves an upgrade.
+
+---
+
+## Architecture
+
+- Two apps: `web/` (Next.js App Router) and `api/` (NestJS ESM monolith). PostgreSQL is source of truth. MinIO/S3 holds bytes. Mail via SMTP.
+- API owns permissions and workflow. Next.js is a client. No Prisma in `web/`. No business API as Next route handlers.
+- No Redis, RabbitMQ, Kubernetes, or extra microservices unless explicitly requested.
+- Critical writes use Prisma transactions and write `AuditEvent` in the same transaction when practical.
+- Timestamps stored UTC. Organization IANA timezone is used for “today”, timesheets, and overtime.
+- Soft-deactivate referenced entities. Do not cascade-delete operational history.
+- Do not store business records in `localStorage` / `sessionStorage`. UI chrome flags only (sidebar collapsed, theme).
+
+```ts
+// BAD — second source of truth
+localStorage.setItem("jobs", JSON.stringify(jobs));
+
+// GOOD — UI preference only
+localStorage.setItem("fieldops.rail-collapsed", "1");
+```
+
+---
+
+## Multi-tenancy
+
+- A User may belong to many organizations. Platform role on `User`: `USER` | `SUPER_ADMIN`. Org role **only** on `OrganizationMembership`: `OWNER` | `ADMIN` | `OPERATIONS_MANAGER` | `SUPERVISOR` | `TECHNICIAN`.
+- Never add `User.role` for org permissions. Never put `organizationId` on `User`.
+- Frontend org id/slug is **selection**, not authorization. Load ACTIVE membership server-side on every tenant request. Bind `RequestContext` from that membership.
+- Ignore or reject body `organizationId` on tenant resource routes if it disagrees with context.
+- Tenant rows always persist `organizationId`. Look up by `{ id, organizationId }`, never id alone. Wrong-tenant IDs → **404**. In-org forbidden actions → **403**.
+- SUPER_ADMIN does not silently read tenant jobs/files. Platform routes are separate.
+
+```ts
+// BAD
+prisma.job.findUnique({ where: { id: jobId } });
+
+// GOOD
+prisma.job.findFirst({ where: { id: jobId, organizationId: ctx.organizationId } });
+```
+
+---
+
+## Security
+
+- Session: HTTP-only cookies (`fieldops_access`, `fieldops_refresh`). **Never** put JWTs in `localStorage`, `sessionStorage`, or SPA JSON for storage.
+- Do not embed `orgRole` / `organizationId` in access JWTs as authority; read membership from DB.
+- Store hashes of refresh and invitation tokens, not plaintext.
+- CORS allow-list `WEB_URL` with credentials. No `origin: *`.
+- Never return `passwordHash`, token hashes, or raw tokens in DTOs.
+- Uploads: auth + org scope, size cap, MIME allow-list, magic-byte check, private bucket, keys `org/{organizationId}/...`. Authorize downloads via parent record.
+- `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`.
+- Rate-limit auth. Helmet in bootstrap.
+
+```ts
+// BAD
+localStorage.setItem("accessToken", token);
+
+// GOOD
+// Set-Cookie HttpOnly from Nest; browser fetch credentials: "include"
+```
+
+---
+
+## Naming
+
+- Product: **FieldOps Cloud**. Packages stay `web` and `api`.
+- DB/Prisma models: PascalCase singular (`OrganizationMembership`, `ClockEvent`).
+- Tables: Prisma default. Columns: camelCase in Prisma.
+- Files: kebab-case. Nest: `jobs.module.ts`, `create-job.dto.ts`.
+- React components: PascalCase. Org customers are `Client` (not FieldOps tenants).
+- Cookies: `fieldops_*`. Env: `DATABASE_URL`, `JWT_*`, `S3_*`, `SMTP_*`. Public web: only `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_URL`.
+
+---
+
+## API conventions
+
+- Prefix `/api`, version `/v1` → `/api/v1/...`.
+- Nest ESM: import with `.js` extensions as in existing files.
+- REST, DTO classes + class-validator. Controllers thin; services hold rules (job transitions, last owner, completion evidence).
+- Auth from cookies (Passport extractor), not required `Authorization` header for the browser app.
+- List endpoints: org filter + role scope (technician = assigned only). Paginate. Sort allow-list.
+- Errors: consistent JSON `{ statusCode, message, error }`. No stack traces in production.
+
+```ts
+// BAD — technician posts arbitrary completion
+@Patch(":id")
+update(@Body() dto: { status: string }) { return this.jobs.save(dto); }
+
+// GOOD — explicit command
+@Post(":id/complete")
+complete(@Req() req: AuthedRequest) { return this.jobs.complete(req.ctx); }
+```
+
+---
+
+## Database / Prisma
+
+- Prisma **7 only**: `prisma-client` generator, explicit `output`, `PrismaPg` adapter, URL in `prisma.config.ts`, `dotenv/config` for CLI. No `$use` middleware (removed).
+- Declare `prisma` + `dotenv` in `api/package.json`. Do not rename to Prisma 6 patterns.
+- Composite unique keys org-scoped. Composite FKs so children cannot point at another org’s parent.
+- Sequences (job numbers) incremented in a transaction (`OrganizationCounter`).
+- Generated client is gitignored; run `prisma generate` in CI/dev.
+- No `db push` as production workflow; use migrations.
+
+---
+
+## UI / design
+
+- Premium operations command center. Restyle tokens; do not ship default shadcn black-primary chrome.
+- Cobalt primary, ink text, soft workspace gray, teal/emerald **accents only**. No heavy gradients, glassmorphism, or oversized rounded marketing cards.
+- Geist Sans/Mono. Dense desktop; large targets on mobile.
+- Desktop ≥1024: collapsible rail + top bar + command palette.
+- Mobile: app shell, bottom nav **Home | Jobs | Schedule | Time | More**, full-screen sheets, sticky primary actions, safe-area insets, camera-first photos, touch signatures.
+- Light default. Dark later via tokens.
+- **No fake production data** inside UI components (no hardcoded job lists, technicians, or charts presented as live). Empty states are empty.
+- Do not clone prior client layouts.
+
+---
+
+## Responsive / a11y
+
+- Usable at 320px through large desktops. No page-level horizontal scroll.
+- Mobile controls ≥44px. Desktop tables compact but readable.
+- Visible focus rings. Labels on inputs. Status not color-only. Radix focus traps on dialogs/sheets. Keyboard: `Ctrl+K` palette.
+
+---
+
+## Testing
+
+- Vitest for API. Isolation test is mandatory when tenancy ships: org A user + org B resource id = 404/403 and no payload.
+- Test workflow rejects illegal status jumps. Do not mock away `organizationId`.
+- Do not add Playwright until shells exist unless asked.
+
+---
+
+## Scope discipline
+
+- Do not implement modules ahead of `docs/development-roadmap.md` unless the user asks.
+- No unrelated refactors, no drive-by dependency upgrades, no Prisma major bump, no Redis “while we’re here”.
+- Do not reintroduce create-next-app or Nest starter marketing pages as product UI.
+- Leave `api/.env` secrets out of git, docs, and logs.

@@ -1,13 +1,909 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// FieldOps Cloud — PostgreSQL schema (Prisma ORM 7)
+// Tenant-owned records carry organizationId. Org roles live on OrganizationMember, never on User.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum PlatformRole {
+  USER
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  OPERATIONS_MANAGER
+  SUPERVISOR
+  TECHNICIAN
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  NONE
+  TRIALING
+  GRACE
+  ACTIVE
+  PAST_DUE
+  TRIAL_EXPIRED
+  SUSPENDED
+  CANCELED
+  CANCELLED
+}
+
+enum ActivationRequestStatus {
+  OPEN
+  CONTACTED
+  CLOSED
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum JobStatus {
+  DRAFT
+  SCHEDULED
+  DISPATCHED
+  IN_PROGRESS
+  PENDING_APPROVAL
+  COMPLETED
+  RETURNED
+  CANCELLED
+}
+
+enum JobPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum JobAssignmentRole {
+  LEAD
+  TECHNICIAN
+}
+
+enum JobFileType {
+  PHOTO
+  DOCUMENT
+  OTHER
+}
+
+enum ClockSessionStatus {
+  OPEN
+  CLOSED
+  VOIDED
+}
+
+enum TimeEntrySource {
+  CLOCK_SESSION
+  MANUAL
+}
+
+enum TimeEntryStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalType {
+  TIMESHEET
+  OVERTIME
+  JOB_COMPLETION
+  TIME_ADJUSTMENT
+  SAFETY
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+}
+
+// ---------------------------------------------------------------------------
+// Platform identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String       @id @default(uuid()) @db.Uuid
+  email           String       @unique
+  emailVerifiedAt DateTime?    @db.Timestamptz
+  passwordHash    String
+  fullName        String
+  phone           String?
+  avatarUrl       String?
+  platformRole    PlatformRole @default(USER)
+  status          UserStatus   @default(ACTIVE)
+  createdAt       DateTime     @default(now()) @db.Timestamptz
+  updatedAt       DateTime     @updatedAt @db.Timestamptz
+
+  refreshSessions         RefreshSession[]
+  memberships             OrganizationMember[]
+  invitationsSent         OrganizationInvitation[] @relation("InvitationInviter")
+  teamMemberships         TeamMember[]
+  supervisedTeams         Team[]                   @relation("TeamSupervisor")
+  technicianSkills        TechnicianSkill[]
+  certifications          TechnicianCertification[]
+  supervisedJobs          Job[]                    @relation("JobSupervisor")
+  jobAssignments          JobAssignment[]
+  authoredWorkLogs        JobWorkLog[]
+  addedMaterials          JobMaterial[]
+  uploadedJobFiles        JobFile[]
+  completedSafetyControls JobSafetyControl[]
+  capturedSignatures      JobSignature[]
+  clockSessions           ClockSession[]
+  timeEntries             TimeEntry[]
+  overtimeSubjects        OvertimeAuthorization[]  @relation("OvertimeSubject")
+  overtimeAuthorizers     OvertimeAuthorization[]  @relation("OvertimeAuthorizer")
+  approvalsRequested      Approval[]               @relation("ApprovalRequester")
+  approvalsDecided        Approval[]               @relation("ApprovalDecider")
+  notifications             Notification[]
+  auditLogs                 AuditLog[]
+  emailVerificationTokens   EmailVerificationToken[]
+  activatedSubscriptions    Subscription[]           @relation("SubscriptionActivator")
+  activationRequests        ActivationRequest[]
+
+  @@index([status])
+  @@index([platformRole])
+}
+
+/// Hashed, single-use email verification secrets. Raw tokens are never stored.
+model EmailVerificationToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz
+  consumedAt DateTime? @db.Timestamptz
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, consumedAt])
+}
+
+model RefreshSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  tokenHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz
+  revokedAt  DateTime? @db.Timestamptz
+  userAgent  String?
+  ipAddress  String?
+  deviceName String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenancy
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id                     String             @id @default(uuid()) @db.Uuid
+  name                   String
+  slug                   String             @unique
+  logoUrl                String?
+  email                  String
+  phone                  String?
+  industry               String?
+  timezone               String
+  onboardingStep         Int                @default(1)
+  onboardingCompletedAt  DateTime?          @db.Timestamptz
+  status                 OrganizationStatus @default(ACTIVE)
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
+
+  members                OrganizationMember[]
+  invitations            OrganizationInvitation[]
+  settings               OrganizationSettings?
+  subscription           Subscription?
+  activationRequests     ActivationRequest[]
+  jobCounter             OrganizationCounter?
+  teams                  Team[]
+  teamMembers            TeamMember[]
+  skills                 Skill[]
+  technicianSkills       TechnicianSkill[]
+  certifications         TechnicianCertification[]
+  clients                Client[]
+  sites                  Site[]
+  siteContacts           SiteContact[]
+  jobs                   Job[]
+  jobAssignments         JobAssignment[]
+  jobSafetyControls      JobSafetyControl[]
+  jobWorkLogs            JobWorkLog[]
+  jobMaterials           JobMaterial[]
+  jobFiles               JobFile[]
+  jobSignatures          JobSignature[]
+  clockSessions          ClockSession[]
+  timeEntries            TimeEntry[]
+  overtimeAuthorizations OvertimeAuthorization[]
+  approvals              Approval[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
+
+  @@index([status])
+}
+
+model OrganizationMember {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  userId         String           @db.Uuid
+  role           OrganizationRole
+  status         MembershipStatus @default(ACTIVE)
+  joinedAt       DateTime         @default(now()) @db.Timestamptz
+  createdAt      DateTime         @default(now()) @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([userId, status])
+  @@index([organizationId, role, status])
+}
+
+/// One PENDING invite per organization + email is enforced by a partial unique index in SQL:
+/// OrganizationInvitation_one_pending_email_per_org_idx
+model OrganizationInvitation {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @db.Uuid
+  email          String
+  role           OrganizationRole
+  teamId         String?          @db.Uuid
+  tokenHash      String           @unique
+  invitedById    String           @db.Uuid
+  expiresAt      DateTime         @db.Timestamptz
+  acceptedAt     DateTime?        @db.Timestamptz
+  status         InvitationStatus @default(PENDING)
+  createdAt      DateTime         @default(now()) @db.Timestamptz
+  updatedAt      DateTime         @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invitedBy    User         @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+  team         Team?        @relation(fields: [teamId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([email, status])
+  @@index([teamId])
+}
+
+model OrganizationSettings {
+  organizationId          String   @id @db.Uuid
+  jobNumberPrefix         String   @default("JOB-")
+  timezone                String
+  workingWeek             Json     @default("[\"MON\", \"TUE\", \"WED\", \"THU\", \"FRI\"]")
+  requireClientSignature  Boolean  @default(true)
+  requireGps              Boolean  @default(true)
+  gpsReviewDistanceMeters Int      @default(250)
+  allowManualTime         Boolean  @default(false)
+  requireRiskAssessment   Boolean  @default(false)
+  defaultDailyHoursLimit  Decimal  @default(8) @db.Decimal(6, 2)
+  defaultWeeklyHoursLimit Decimal  @default(40) @db.Decimal(6, 2)
+  createdAt               DateTime @default(now()) @db.Timestamptz
+  updatedAt               DateTime @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+}
+
+/// Per-organization sequences. Increment jobNext inside a transaction.
+model OrganizationCounter {
+  organizationId String @id @db.Uuid
+  jobNext        Int    @default(1)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// SaaS plans (no payment provider integration)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id                String     @id @default(uuid()) @db.Uuid
+  code              String     @unique
+  name              String
+  status            PlanStatus @default(ACTIVE)
+  monthlyPriceCents Int?
+  annualPriceCents  Int?
+  maxUsers          Int
+  maxStorageBytes   BigInt
+  features          Json?
+  createdAt         DateTime   @default(now()) @db.Timestamptz
+  updatedAt         DateTime   @updatedAt @db.Timestamptz
+
+  subscriptions Subscription[]
+
+  @@index([status])
+}
+
+model Subscription {
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @unique @db.Uuid
+  planId                 String             @db.Uuid
+  status                 SubscriptionStatus @default(TRIALING)
+  trialStartedAt         DateTime?          @db.Timestamptz
+  trialEndsAt            DateTime?          @db.Timestamptz
+  graceEndsAt            DateTime?          @db.Timestamptz
+  currentPeriodStart     DateTime?          @db.Timestamptz
+  currentPeriodEnd       DateTime?          @db.Timestamptz
+  activatedAt            DateTime?          @db.Timestamptz
+  activatedByUserId      String?            @db.Uuid
+  externalCustomerId     String?
+  externalSubscriptionId String?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  plan         Plan         @relation(fields: [planId], references: [id], onDelete: Restrict)
+  activatedBy  User?        @relation("SubscriptionActivator", fields: [activatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([planId])
+  @@index([status])
+  @@index([activatedByUserId])
+}
+
+/// Lightweight sales/support request. No payment provider.
+model ActivationRequest {
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @db.Uuid
+  requestedByUserId String                  @db.Uuid
+  message           String?
+  status            ActivationRequestStatus @default(OPEN)
+  createdAt         DateTime                @default(now()) @db.Timestamptz
+  updatedAt         DateTime                @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy  User         @relation(fields: [requestedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt])
+  @@index([requestedByUserId])
+}
+
+// ---------------------------------------------------------------------------
+// Field operations — crew
+// ---------------------------------------------------------------------------
+
+model Team {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @db.Uuid
+  name             String
+  code             String?
+  description      String?
+  supervisorUserId String?      @db.Uuid
+  status           EntityStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now()) @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @db.Timestamptz
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  supervisor   User?                     @relation("TeamSupervisor", fields: [supervisorUserId], references: [id], onDelete: Restrict)
+  members      TeamMember[]
+  jobs         Job[]
+  invitations  OrganizationInvitation[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, name])
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@index([supervisorUserId])
+}
+
+model TeamMember {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  teamId         String   @db.Uuid
+  userId         String   @db.Uuid
+  joinedAt       DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  team         Team         @relation(fields: [teamId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([teamId, userId])
+  @@index([organizationId, userId])
+}
+
+model Skill {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  assignments  TechnicianSkill[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, name])
+}
+
+model TechnicianSkill {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  skillId        String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  skill        Skill        @relation(fields: [skillId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([userId, skillId])
+  @@index([organizationId, userId])
+}
+
+model TechnicianCertification {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @db.Uuid
+  userId            String    @db.Uuid
+  name              String
+  certificateNumber String?
+  issuedAt          DateTime? @db.Timestamptz
+  expiresAt         DateTime? @db.Timestamptz
+  documentRef       String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Field operations — customers
+// ---------------------------------------------------------------------------
+
+model Client {
+  id                  String       @id @default(uuid()) @db.Uuid
+  organizationId      String       @db.Uuid
+  name                String
+  accountCode         String?
+  email               String?
+  phone               String?
+  primaryContactName  String?
+  primaryContactEmail String?
+  primaryContactPhone String?
+  billingEmail        String?
+  website             String?
+  notes               String?
+  status              EntityStatus @default(ACTIVE)
+  createdAt           DateTime     @default(now()) @db.Timestamptz
+  updatedAt           DateTime     @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sites        Site[]
+  jobs         Job[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, accountCode])
+  @@index([organizationId, status])
+  @@index([organizationId, name])
+}
+
+model Site {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @db.Uuid
+  clientId         String       @db.Uuid
+  name             String
+  siteCode         String?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  region           String?
+  postalCode       String?
+  country          String?
+  latitude         Decimal?     @db.Decimal(10, 7)
+  longitude        Decimal?     @db.Decimal(10, 7)
+  timezone         String?
+  siteContactName  String?
+  siteContactEmail String?
+  siteContactPhone String?
+  notes            String?
+  accessNotes      String?
+  status           EntityStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now()) @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @db.Timestamptz
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  client       Client        @relation(fields: [clientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  contacts     SiteContact[]
+  jobs         Job[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, siteCode])
+  @@index([organizationId, clientId])
+  @@index([organizationId, status])
+}
+
+model SiteContact {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  siteId         String   @db.Uuid
+  name           String
+  title          String?
+  phone          String?
+  email          String?
+  isPrimary      Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  site         Site         @relation(fields: [siteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, siteId])
+  @@index([siteId, isPrimary])
+}
+
+// ---------------------------------------------------------------------------
+// Jobs
+// ---------------------------------------------------------------------------
+
+model Job {
+  id               String      @id @default(uuid()) @db.Uuid
+  organizationId   String      @db.Uuid
+  jobNumber        String
+  title            String
+  clientId         String      @db.Uuid
+  siteId           String      @db.Uuid
+  jobType          String
+  priority         JobPriority @default(NORMAL)
+  teamId           String?     @db.Uuid
+  supervisorUserId String?     @db.Uuid
+  scheduledStart   DateTime?   @db.Timestamptz
+  expectedFinish   DateTime?   @db.Timestamptz
+  scope            String?
+  internalNotes    String?
+  workOrderNumber  String?
+  status           JobStatus   @default(DRAFT)
+  clientRepName    String?
+  clientRepTitle   String?
+  clientRepPhone   String?
+  clientRepEmail   String?
+  requireRiskAssessment Boolean @default(false)
+  requirePermit         Boolean @default(false)
+  requireLoto           Boolean @default(false)
+  requireClientSignOff  Boolean @default(true)
+  cancelReason     String?
+  completedAt      DateTime?   @db.Timestamptz
+  cancelledAt      DateTime?   @db.Timestamptz
+  createdAt        DateTime    @default(now()) @db.Timestamptz
+  updatedAt        DateTime    @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  client       Client       @relation(fields: [clientId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  site         Site         @relation(fields: [siteId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  team         Team?        @relation(fields: [teamId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  supervisor   User?        @relation("JobSupervisor", fields: [supervisorUserId], references: [id], onDelete: Restrict)
+
+  assignments    JobAssignment[]
+  safetyControls JobSafetyControl[]
+  workLogs       JobWorkLog[]
+  materials      JobMaterial[]
+  files          JobFile[]
+  signatures     JobSignature[]
+  clockSessions  ClockSession[]
+  timeEntries    TimeEntry[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, jobNumber])
+  @@index([organizationId, status, scheduledStart])
+  @@index([organizationId, clientId])
+  @@index([organizationId, siteId])
+  @@index([organizationId, teamId])
+  @@index([organizationId, supervisorUserId])
+  @@index([organizationId, priority, status])
+}
+
+model JobAssignment {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @db.Uuid
+  jobId          String            @db.Uuid
+  userId         String            @db.Uuid
+  role           JobAssignmentRole @default(TECHNICIAN)
+  assignedAt     DateTime          @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([jobId, userId])
+  @@index([organizationId, userId])
+}
+
+model JobSafetyControl {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @db.Uuid
+  jobId             String    @db.Uuid
+  code              String?
+  title             String
+  description       String?
+  isRequired        Boolean   @default(true)
+  completedAt       DateTime? @db.Timestamptz
+  completedByUserId String?   @db.Uuid
+  notes             String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  completedBy  User?        @relation(fields: [completedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, jobId])
+}
+
+model JobWorkLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  jobId          String   @db.Uuid
+  authorUserId   String   @db.Uuid
+  body           String
+  loggedAt       DateTime @default(now()) @db.Timestamptz
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  author       User         @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, jobId, loggedAt])
+}
+
+model JobMaterial {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  jobId          String   @db.Uuid
+  name           String
+  sku            String?
+  quantity       Decimal  @db.Decimal(12, 3)
+  unit           String
+  notes          String?
+  addedByUserId  String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz
+  updatedAt      DateTime @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  addedBy      User         @relation(fields: [addedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, jobId])
+}
+
+/// Object metadata only. Bytes live in S3-compatible storage.
+/// Keys: organizations/{organizationId}/jobs/{jobId}/...
+model JobFile {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @db.Uuid
+  jobId          String      @db.Uuid
+  objectKey      String      @unique
+  originalName   String
+  mimeType       String
+  sizeBytes      BigInt
+  type           JobFileType
+  uploadedById   String      @db.Uuid
+  createdAt      DateTime    @default(now()) @db.Timestamptz
+  updatedAt      DateTime    @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, jobId, type])
+}
+
+model JobSignature {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @db.Uuid
+  jobId            String   @db.Uuid
+  signerName       String
+  signerTitle      String?
+  signedAt         DateTime @db.Timestamptz
+  objectKey        String   @unique
+  mimeType         String
+  capturedByUserId String   @db.Uuid
+  ipAddress        String?
+  createdAt        DateTime @default(now()) @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  capturedBy   User         @relation(fields: [capturedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, jobId])
+}
+
+// ---------------------------------------------------------------------------
+// Time
+// ---------------------------------------------------------------------------
+
+/// At most one OPEN session per technician is enforced by a partial unique index in SQL:
+/// ClockSession_one_open_per_technician_idx
+model ClockSession {
+  id                     String             @id @default(uuid()) @db.Uuid
+  organizationId         String             @db.Uuid
+  technicianUserId       String             @db.Uuid
+  jobId                  String?            @db.Uuid
+  clockInAt              DateTime           @db.Timestamptz
+  clockOutAt             DateTime?          @db.Timestamptz
+  clockInLatitude        Decimal?           @db.Decimal(10, 7)
+  clockInLongitude       Decimal?           @db.Decimal(10, 7)
+  clockInAccuracyMeters  Decimal?           @db.Decimal(8, 2)
+  clockOutLatitude       Decimal?           @db.Decimal(10, 7)
+  clockOutLongitude      Decimal?           @db.Decimal(10, 7)
+  clockOutAccuracyMeters Decimal?           @db.Decimal(8, 2)
+  status                 ClockSessionStatus @default(OPEN)
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  technician   User         @relation(fields: [technicianUserId], references: [id], onDelete: Restrict)
+  job          Job?         @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  timeEntries  TimeEntry[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, technicianUserId, status])
+  @@index([organizationId, jobId])
+}
+
+model TimeEntry {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @db.Uuid
+  userId          String          @db.Uuid
+  jobId           String?         @db.Uuid
+  clockSessionId  String?         @unique @db.Uuid
+  startedAt       DateTime        @db.Timestamptz
+  endedAt         DateTime?       @db.Timestamptz
+  durationMinutes Int?
+  source          TimeEntrySource
+  notes           String?
+  status          TimeEntryStatus @default(DRAFT)
+  createdAt       DateTime        @default(now()) @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @db.Timestamptz
+
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  job                    Job?                    @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  clockSession           ClockSession?           @relation(fields: [clockSessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  overtimeAuthorizations OvertimeAuthorization[]
+
+  @@index([organizationId, userId, startedAt])
+  @@index([organizationId, jobId])
+  @@index([organizationId, status])
+}
+
+model OvertimeAuthorization {
+  id                 String         @id @default(uuid()) @db.Uuid
+  organizationId     String         @db.Uuid
+  userId             String         @db.Uuid
+  timeEntryId        String?        @db.Uuid
+  requestedMinutes   Int
+  reason             String?
+  status             ApprovalStatus @default(PENDING)
+  authorizedByUserId String?        @db.Uuid
+  authorizedAt       DateTime?      @db.Timestamptz
+  createdAt          DateTime       @default(now()) @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("OvertimeSubject", fields: [userId], references: [id], onDelete: Restrict)
+  timeEntry    TimeEntry?   @relation(fields: [timeEntryId], references: [id], onDelete: Restrict)
+  authorizedBy User?        @relation("OvertimeAuthorizer", fields: [authorizedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Approvals, notifications, audit
+// ---------------------------------------------------------------------------
+
+model Approval {
+  id                String         @id @default(uuid()) @db.Uuid
+  organizationId    String         @db.Uuid
+  type              ApprovalType
+  status            ApprovalStatus @default(PENDING)
+  subjectType       String
+  subjectId         String         @db.Uuid
+  requestedByUserId String         @db.Uuid
+  decidedByUserId   String?        @db.Uuid
+  comment           String?
+  decidedAt         DateTime?      @db.Timestamptz
+  createdAt         DateTime       @default(now()) @db.Timestamptz
+  updatedAt         DateTime       @updatedAt @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy  User         @relation("ApprovalRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  decidedBy    User?        @relation("ApprovalDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, type])
+  @@index([organizationId, subjectType, subjectId])
+}
+
+model Notification {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String?            @db.Uuid
+  userId         String             @db.Uuid
+  type           String
+  title          String
+  body           String
+  payload        Json?
+  status         NotificationStatus @default(UNREAD)
+  readAt         DateTime?          @db.Timestamptz
+  createdAt      DateTime           @default(now()) @db.Timestamptz
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status, createdAt])
+  @@index([organizationId, createdAt])
+}
+
+/// Append-only. organizationId is null for platform actions. actorUserId is null for system events.
+model AuditLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @db.Uuid
+  actorUserId    String?  @db.Uuid
+  action         String
+  entityType     String
+  entityId       String
+  oldValues      Json?
+  newValues      Json?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now()) @db.Timestamptz
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User?         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
 }

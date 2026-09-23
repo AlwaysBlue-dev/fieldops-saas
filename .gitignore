@@ -15,6 +15,7 @@ dist/
 
 # Prisma generated
 api/generated/
+api/src/generated/
 
 # Logs
 *.log

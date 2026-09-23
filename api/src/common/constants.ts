@@ -1,0 +1,88 @@
+export const ACCESS_COOKIE = 'fieldops_access';
+export const REFRESH_COOKIE = 'fieldops_refresh';
+export const CSRF_HEADER = 'x-fieldops-requested-with';
+export const CSRF_HEADER_VALUE = 'web';
+export const DEFAULT_PLAN_CODE = 'starter';
+export const TRIAL_PLAN_CODE = 'professional';
+export const TRIAL_DAYS = 14;
+export const TRIAL_GRACE_DAYS = 3;
+export const TRIAL_ENDING_SOON_DAYS = 3;
+
+export const AUDIT_TRIAL_STARTED = 'TRIAL_STARTED';
+export const AUDIT_TRIAL_EXTENDED = 'TRIAL_EXTENDED';
+export const AUDIT_ACTIVATION_REQUESTED = 'ACTIVATION_REQUESTED';
+export const AUDIT_SUBSCRIPTION_ACTIVATED = 'SUBSCRIPTION_ACTIVATED';
+export const AUDIT_SUBSCRIPTION_SUSPENDED = 'SUBSCRIPTION_SUSPENDED';
+export const AUDIT_SUBSCRIPTION_REACTIVATED = 'SUBSCRIPTION_REACTIVATED';
+export const AUDIT_SUBSCRIPTION_CANCELLED = 'SUBSCRIPTION_CANCELLED';
+export const AUDIT_CLIENT_CREATED = 'CLIENT_CREATED';
+export const AUDIT_CLIENT_UPDATED = 'CLIENT_UPDATED';
+export const AUDIT_CLIENT_DEACTIVATED = 'CLIENT_DEACTIVATED';
+export const AUDIT_SITE_CREATED = 'SITE_CREATED';
+export const AUDIT_SITE_UPDATED = 'SITE_UPDATED';
+export const AUDIT_SITE_DEACTIVATED = 'SITE_DEACTIVATED';
+export const AUDIT_TEAM_CREATED = 'TEAM_CREATED';
+export const AUDIT_TEAM_UPDATED = 'TEAM_UPDATED';
+export const AUDIT_TEAM_MEMBER_ADDED = 'TEAM_MEMBER_ADDED';
+export const AUDIT_TEAM_MEMBER_REMOVED = 'TEAM_MEMBER_REMOVED';
+export const AUDIT_TEAM_SUPERVISOR_CHANGED = 'TEAM_SUPERVISOR_CHANGED';
+export const AUDIT_SKILL_ASSIGNED = 'SKILL_ASSIGNED';
+export const AUDIT_CERTIFICATION_ADDED = 'CERTIFICATION_ADDED';
+export const AUDIT_CERTIFICATION_UPDATED = 'CERTIFICATION_UPDATED';
+export const AUDIT_JOB_CREATED = 'JOB_CREATED';
+export const AUDIT_JOB_UPDATED = 'JOB_UPDATED';
+export const AUDIT_JOB_SCHEDULED = 'JOB_SCHEDULED';
+export const AUDIT_JOB_RESCHEDULED = 'JOB_RESCHEDULED';
+export const AUDIT_JOB_ASSIGNED = 'JOB_ASSIGNED';
+export const AUDIT_JOB_REASSIGNED = 'JOB_REASSIGNED';
+export const AUDIT_JOB_DISPATCHED = 'JOB_DISPATCHED';
+export const AUDIT_JOB_STARTED = 'JOB_STARTED';
+export const AUDIT_JOB_SUBMITTED = 'JOB_SUBMITTED';
+export const AUDIT_JOB_COMPLETED = 'JOB_COMPLETED';
+export const AUDIT_JOB_RETURNED = 'JOB_RETURNED';
+export const AUDIT_JOB_CANCELLED = 'JOB_CANCELLED';
+export const AUDIT_CLOCK_IN = 'CLOCK_IN';
+export const AUDIT_CLOCK_OUT = 'CLOCK_OUT';
+export const AUDIT_JOB_WORK_LOG = 'JOB_WORK_LOG';
+export const AUDIT_JOB_MATERIAL = 'JOB_MATERIAL';
+export const AUDIT_JOB_PHOTO = 'JOB_PHOTO';
+export const AUDIT_JOB_SIGNATURE = 'JOB_SIGNATURE';
+export const PHOTO_MAX_BYTES = 8 * 1024 * 1024;
+export const PHOTO_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+] as const;
+export const JOB_TYPES = [
+  'SERVICE_CALL',
+  'INSTALLATION',
+  'MAINTENANCE',
+  'INSPECTION',
+  'EMERGENCY',
+  'OTHER',
+] as const;
+export type JobTypeCode = (typeof JOB_TYPES)[number];
+export const JOB_NUMBER_PAD = 6;
+export const CERTIFICATION_EXPIRING_SOON_DAYS = 30;
+export const DEFAULT_JOB_WINDOW_MINUTES = 120;
+export { DEFAULT_GPS_REVIEW_DISTANCE_METERS } from './geo.js';
+export const BCRYPT_ROUNDS = 12;
+export const EMAIL_VERIFICATION_TTL_HOURS = 24;
+export const INVITATION_TTL_DAYS = 7;
+export const WORK_WEEK_DAYS = [
+  'MON',
+  'TUE',
+  'WED',
+  'THU',
+  'FRI',
+  'SAT',
+  'SUN',
+] as const;
+export type WorkWeekDay = (typeof WORK_WEEK_DAYS)[number];
+export const DEFAULT_WORKING_WEEK: WorkWeekDay[] = [
+  'MON',
+  'TUE',
+  'WED',
+  'THU',
+  'FRI',
+];
