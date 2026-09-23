@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+
+# Next
+.next/
+out/
+
+# Nest
+dist/
+
+# Prisma generated
+api/generated/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+
+# Temporary files
+tmp/

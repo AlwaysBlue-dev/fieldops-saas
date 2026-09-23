@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fieldops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fieldops
+      POSTGRES_PASSWORD: fieldops_dev_password
+      POSTGRES_DB: fieldops_saas
+    ports:
+      - "5432:5432"
+    volumes:
+      - fieldops_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldops -d fieldops_saas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: fieldops-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: fieldopsadmin
+      MINIO_ROOT_PASSWORD: fieldops_dev_minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - fieldops_minio_data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: fieldops-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  fieldops_postgres_data:
+  fieldops_minio_data:
