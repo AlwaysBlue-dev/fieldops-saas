@@ -2,12 +2,13 @@
 
 import { AuthShell } from "@/components/fieldops/auth-shell";
 import { ErrorState } from "@/components/fieldops/error-state";
+import { PasswordInput } from "@/components/fieldops/password-input";
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { SkeletonBlock } from "@/components/fieldops/skeleton-block";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api";
+import { friendlyErrorMessage } from "@/lib/friendly-message";
 import { getMe, login } from "@/lib/auth";
 import {
   acceptInvitation,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/organizations";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 export function InviteAcceptForm({ token }: { token: string }) {
   const router = useRouter();
@@ -26,6 +27,8 @@ export function InviteAcceptForm({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [mode, setMode] = useState<"join" | "login">("join");
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +46,9 @@ export function InviteAcceptForm({ token }: { token: string }) {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "Invitation is not available.");
+        setError(
+          friendlyErrorMessage(err, "This invitation is not available."),
+        );
         setStatus("error");
       });
     return () => {
@@ -51,36 +56,41 @@ export function InviteAcceptForm({ token }: { token: string }) {
     };
   }, [token]);
 
-  async function joinAsNew(formData: FormData) {
+  async function joinAsNew(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!preview) return;
     setPending(true);
     setError(null);
     try {
       const result = await acceptInvitation(token, {
-        fullName: String(formData.get("fullName") ?? ""),
-        password: String(formData.get("password") ?? ""),
+        fullName,
+        password,
       });
       router.replace(`/app/${result.organization.slug}/overview`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not accept the invitation.");
+      setError(
+        friendlyErrorMessage(err, "Could not accept the invitation. Please try again."),
+      );
     } finally {
       setPending(false);
     }
   }
 
-  async function joinExisting(formData: FormData) {
+  async function joinExisting(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!preview) return;
     setPending(true);
     setError(null);
     try {
       if (!signedIn) {
-        await login(preview.email, String(formData.get("password") ?? ""));
+        await login(preview.email, password);
       }
       const result = await acceptInvitation(token);
       router.replace(`/app/${result.organization.slug}/overview`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not accept the invitation.");
-    } finally {
+      setError(
+        friendlyErrorMessage(err, "Could not accept the invitation. Please try again."),
+      );    } finally {
       setPending(false);
     }
   }
@@ -110,17 +120,19 @@ export function InviteAcceptForm({ token }: { token: string }) {
       description={`This invitation is for ${preview.email} as ${preview.role.replaceAll("_", " ").toLowerCase()}.`}
     >
       {signedIn || mode === "login" ? (
-        <ResponsiveForm action={joinExisting}>
+        <ResponsiveForm onSubmit={joinExisting}>
           {!signedIn ? (
             <FormField>
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
+                placeholder="Enter your password"
                 required
                 className="h-11"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
               />
             </FormField>
           ) : (
@@ -147,21 +159,31 @@ export function InviteAcceptForm({ token }: { token: string }) {
           ) : null}
         </ResponsiveForm>
       ) : (
-        <ResponsiveForm action={joinAsNew}>
+        <ResponsiveForm onSubmit={joinAsNew}>
           <FormField>
             <Label htmlFor="fullName">Full name</Label>
-            <Input id="fullName" name="fullName" required className="h-11" />
+            <Input
+              id="fullName"
+              name="fullName"
+              placeholder="Alex Rivera"
+              required
+              className="h-11"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+            />
           </FormField>
           <FormField>
             <Label htmlFor="password">Password</Label>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
+              placeholder="At least 10 characters"
               required
               minLength={10}
               className="h-11"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
             />
           </FormField>
           {error ? (

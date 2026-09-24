@@ -24,7 +24,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { MutationButton, useCanMutate } from "./mutation-control";
+import { PaginationControls } from "./pagination-controls";
 import { RequestPlanChangeButton } from "./subscription-banners";
+import { personDisplayName } from "@/lib/person-label";
 
 const ROLES: OrgMember["role"][] = [
   "OWNER",
@@ -40,16 +42,36 @@ export function MembersPanel() {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [invites, setInvites] = useState<OrgInvitation[]>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [seatLimitHit, setSeatLimitHit] = useState(false);
   const [pending, setPending] = useState(false);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const applyLists = useCallback(
-    (orgId: string, nextMembers: OrgMember[], nextInvites: OrgInvitation[]) => {
+    (
+      orgId: string,
+      nextMembers: OrgMember[],
+      nextInvites: OrgInvitation[],
+      nextTotal: number,
+    ) => {
       setOrganizationId(orgId);
       setMembers(nextMembers);
       setInvites(nextInvites);
+      setTotal(nextTotal);
       setStatus("ready");
     },
     [],
@@ -65,13 +87,7 @@ export function MembersPanel() {
         if (!match) {
           throw new ApiError(404, "Organization not found");
         }
-        const [nextMembers, nextInvites] = await Promise.all([
-          listMembers(match.organization.id),
-          listInvitations(match.organization.id),
-        ]);
-        if (!cancelled) {
-          applyLists(match.organization.id, nextMembers, nextInvites);
-        }
+        setOrganizationId(match.organization.id);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -81,21 +97,36 @@ export function MembersPanel() {
     return () => {
       cancelled = true;
     };
-  }, [applyLists, params.orgSlug]);
+  }, [params.orgSlug]);
 
   const load = useCallback(async () => {
     if (!organizationId) return;
     try {
-      const [nextMembers, nextInvites] = await Promise.all([
-        listMembers(organizationId),
+      const [memberResult, nextInvites] = await Promise.all([
+        listMembers(organizationId, {
+          search: debouncedSearch || undefined,
+          page,
+          pageSize,
+          sort: "fullName",
+        }),
         listInvitations(organizationId),
       ]);
-      applyLists(organizationId, nextMembers, nextInvites);
+      applyLists(
+        organizationId,
+        memberResult.items,
+        nextInvites,
+        memberResult.total,
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not load members.");
       setStatus("error");
     }
-  }, [applyLists, organizationId]);
+  }, [applyLists, organizationId, debouncedSearch, page, pageSize]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    void load();
+  }, [organizationId, load]);
 
   if (status === "loading") {
     return <SkeletonBlock rows={6} />;
@@ -113,18 +144,22 @@ export function MembersPanel() {
         onSubmit={async (event) => {
           event.preventDefault();
           if (!canMutate) return;
-          const form = new FormData(event.currentTarget);
+          const formEl = event.currentTarget;
+          const form = new FormData(formEl);
           setPending(true);
           setError(null);
+          setSuccess(null);
           setSeatLimitHit(false);
           try {
             await createInvitation(organizationId, {
               email: String(form.get("email") ?? ""),
               role: String(form.get("role") ?? "TECHNICIAN") as OrgMember["role"],
             });
-            event.currentTarget.reset();
+            formEl.reset();
+            setSuccess("Invitation sent successfully");
             await load();
           } catch (err) {
+            setSuccess(null);
             if (
               err instanceof ApiError &&
               (err.error === "PLAN_LIMIT_REACHED" || err.code === "PLAN_LIMIT_REACHED")
@@ -151,6 +186,7 @@ export function MembersPanel() {
               type="email"
               required
               disabled={!canMutate}
+              placeholder="name@company.com"
               className="h-11 md:h-8"
             />
           </FormField>
@@ -174,6 +210,11 @@ export function MembersPanel() {
             {pending ? "Sending…" : "Invite Member"}
           </MutationButton>
         </div>
+        {success ? (
+          <p role="status" className="mt-2 text-sm text-emerald-700 dark:text-emerald-400">
+            {success}
+          </p>
+        ) : null}
         {error ? (
           <div role="alert" className="mt-2 space-y-2">
             <p className="text-sm text-destructive">{error}</p>
@@ -197,7 +238,16 @@ export function MembersPanel() {
       </form>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold">Members</h2>
+        <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold">Members</h2>
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search name or email"
+            className="h-11 max-w-sm md:h-8"
+            aria-label="Search members"
+          />
+        </div>
         <ul className="flex flex-col gap-2">
           {members.map((member) => (
             <li
@@ -205,7 +255,9 @@ export function MembersPanel() {
               className="flex flex-col gap-3 rounded-lg border border-border bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{member.user.fullName}</p>
+                <p className="truncate text-sm font-medium">
+                  {personDisplayName(member.user)}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {member.user.email}
                 </p>
@@ -216,7 +268,7 @@ export function MembersPanel() {
                   tone={member.status === "ACTIVE" ? "emerald" : "muted"}
                 />
                 <select
-                  aria-label={`Role for ${member.user.fullName}`}
+                  aria-label={`Role for ${personDisplayName(member.user)}`}
                   className="h-11 rounded-md border border-input bg-transparent px-2 text-sm md:h-8"
                   value={member.role}
                   disabled={!canMutate}
@@ -263,6 +315,17 @@ export function MembersPanel() {
             </li>
           ))}
         </ul>
+        <PaginationControls
+          className="mt-3"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
       </section>
 
       <section>

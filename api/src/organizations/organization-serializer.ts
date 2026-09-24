@@ -37,6 +37,7 @@ export function serializeOrganization(
     status: organization.status,
     onboardingStep: organization.onboardingStep,
     onboardingCompletedAt: organization.onboardingCompletedAt,
+    hasLogo: Boolean(organization.logoObjectKey || organization.logoUrl),
     settings: settings ? serializeSettings(settings) : undefined,
   };
 }

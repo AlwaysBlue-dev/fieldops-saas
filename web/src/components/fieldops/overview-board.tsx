@@ -79,7 +79,7 @@ export function OverviewBoard({ orgSlug }: { orgSlug: string }) {
   const firstName = userName.split(" ")[0] ?? userName;
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
+    <div className="mx-auto flex max-w-350 flex-col gap-4">
       <PageHeader
         title={`Good ${greeting()}, ${firstName}`}
         description={`${orgName} · ${dayLabel || "Operational day"}`}

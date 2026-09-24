@@ -117,6 +117,19 @@ export class EnvironmentVariables {
   @IsString()
   EMAIL_FROM?: string;
 
+  /** smtp | resend | none — default smtp (Mailpit locally). */
+  @IsOptional()
+  @IsIn(['smtp', 'resend', 'none', 'mailpit'])
+  EMAIL_PROVIDER?: string;
+
+  @IsOptional()
+  @IsString()
+  EMAIL_REPLY_TO?: string;
+
+  @IsOptional()
+  @IsString()
+  RESEND_API_KEY?: string;
+
   @Transform(({ value }) => (value === undefined || value === '' ? 10 : Number(value)))
   @IsInt()
   @Min(1)

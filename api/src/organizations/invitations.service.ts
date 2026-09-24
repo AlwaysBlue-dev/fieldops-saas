@@ -228,11 +228,15 @@ export class InvitationsService {
       : await this.prisma.user.findUnique({ where: { email } });
 
     if (currentUser && currentUser.email !== email) {
-      throw new ForbiddenException('This invitation was issued to a different email');
+      throw new ForbiddenException(
+        'This invitation was sent to a different email address. Sign in with that email to continue.',
+      );
     }
 
     if (!currentUser && user) {
-      throw new UnauthorizedException('Sign in to accept this invitation');
+      throw new UnauthorizedException(
+        'Please sign in with the invited email to accept this invitation.',
+      );
     }
 
     if (!user) {
@@ -245,8 +249,15 @@ export class InvitationsService {
           fullName: dto.fullName.trim(),
           passwordHash: await hashPassword(dto.password),
           status: UserStatus.ACTIVE,
+          // Invitation token proves control of this email address.
           emailVerifiedAt: new Date(),
         },
+      });
+    } else if (!user.emailVerifiedAt) {
+      // Accepting an invitation for this exact email proves possession.
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
       });
     }
 

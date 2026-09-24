@@ -51,10 +51,20 @@ Cross-tenant ids → **404**. Email failures never roll back domain transactions
 
 ## Email
 
-`MailService` sends HTML + plain text via SMTP (Mailpit locally: `localhost:1025`, UI `:8025`).
+`MailService` is the only sender entry point for business modules. It dispatches through a transport:
+
+| `EMAIL_PROVIDER` | Transport |
+| --- | --- |
+| `smtp` / `mailpit` (default) | Nodemailer SMTP — local Mailpit (`SMTP_HOST=localhost`, `SMTP_PORT=1025`) or any SMTP relay |
+| `resend` | HTTP API (`RESEND_API_KEY`) — production transactional email |
+| `none` | Skip sends (logged) |
+
+Shared: `EMAIL_FROM`, optional `EMAIL_REPLY_TO`. Do not put API keys in source or docs.
 
 Emailed (not every operational ping):
 
+- Email verification (signup) — required before workspace creation
+- Password reset
 - Organization invitation
 - Job assigned
 - Job returned / approved
@@ -63,4 +73,4 @@ Emailed (not every operational ping):
 - Trial ending / grace / expired
 - Activation request acknowledgement
 
-Tokens appear only in secure links, never in logs.
+Tokens appear only in secure links, never in logs. Provider failures return `failed` without rolling back domain transactions.

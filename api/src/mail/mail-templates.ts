@@ -278,16 +278,41 @@ export function activationAckMail(input: {
   return { ...content, subject: `Activation request received — ${input.organizationName}` };
 }
 
-export function emailVerificationMail(input: { verifyUrl: string }): MailContent {
+export function emailVerificationMail(input: {
+  verifyUrl: string;
+  email: string;
+}): MailContent {
   const content = layout({
-    preheader: 'Verify your email',
+    preheader: 'Verify your FieldOps Cloud email',
     heading: 'Verify your FieldOps Cloud email',
     paragraphs: [
-      'Confirm this email address to finish setting up your FieldOps Cloud account.',
-      'This link expires in 24 hours.',
+      `Confirm that ${input.email} belongs to you to finish setting up your FieldOps Cloud account.`,
+      'This link expires in 24 hours and can only be used once.',
+      'If you did not create a FieldOps Cloud account, you can ignore this email.',
     ],
     ctaLabel: 'Verify email',
     ctaUrl: input.verifyUrl,
   });
   return { ...content, subject: 'Verify your FieldOps Cloud email' };
 }
+
+export function passwordResetMail(input: {
+  resetUrl: string;
+  expiresInMinutes: number;
+}): MailContent {
+  const content = layout({
+    preheader: 'Reset your FieldOps Cloud password',
+    heading: 'Reset your FieldOps Cloud password',
+    paragraphs: [
+      'We received a request to reset the password for your FieldOps Cloud account.',
+      `This link expires in ${input.expiresInMinutes} minutes and can only be used once.`,
+      'If you did not request a password reset, you can ignore this email. Your password will stay the same.',
+    ],
+    ctaLabel: 'Reset password',
+    ctaUrl: input.resetUrl,
+    footerNote:
+      'FieldOps Cloud — field operations for service teams. Never share this link with anyone.',
+  });
+  return { ...content, subject: 'Reset your FieldOps Cloud password' };
+}
+

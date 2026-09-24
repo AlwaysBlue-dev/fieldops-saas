@@ -34,25 +34,30 @@ export default async function BillingPolicyPage() {
           address, verify them through FieldOps Support before sending payment.
         </p>
       </LegalSection>
-      <LegalSection title="Professional plan">
+      <LegalSection title="Published plans">
         <p>
-          The published Professional plan is billed annually
-          {professional ? ` at ${professional.priceLabel}` : ""}. Launch limits
+          FieldOps Cloud publishes Starter, Professional, and Business plans.
+          Annual list prices and seat/storage limits come from the live Plan
+          catalog
           {professional
-            ? ` include up to ${professional.includedUsers} users and ${professional.includedStorage} of storage`
-            : " are defined on the Plan record"}
-          . Those values come from plan configuration and may change for future
-          periods with reasonable advance communication. This is not a lifetime
-          price promise.
+            ? ` (Professional is currently ${professional.priceLabel} with up to ${professional.includedUsers} users and ${professional.includedStorage})`
+            : ""}
+          . Values may change for future periods with reasonable advance
+          communication. This is not a lifetime price promise. Business is
+          contact-sales and is not self-serve checkout.
         </p>
       </LegalSection>
-      <LegalSection title="Trial and grace">
+      <LegalSection title="Free Trial">
         <p>
-          New eligible organizations receive a {catalog?.trialDays ?? 14}-day
-          trial with no credit card. A {catalog?.trialGraceDays ?? 3}-day trial
-          grace follows. Paid annual subscriptions receive a 7-day renewal grace
-          after the paid period ends. After the applicable grace, the workspace
-          becomes read-only.
+          Each verified FieldOps Cloud account is eligible for one{" "}
+          {catalog?.trialDays ?? 14}-day Professional trial with no credit card.
+          The trial begins when the first trial workspace is successfully
+          created after email verification. A {catalog?.trialGraceDays ?? 3}-day
+          trial grace follows. Additional workspaces require their own
+          independent subscriptions. Trial eligibility does not reset when a
+          workspace is deleted. Paid annual subscriptions receive a 7-day
+          renewal grace after the paid period ends. After the applicable grace,
+          the workspace becomes read-only.
         </p>
       </LegalSection>
       <LegalSection title="Expiration and data">

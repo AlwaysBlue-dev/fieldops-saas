@@ -79,20 +79,40 @@ export class NotificationsService {
   async list(
     ctx: OrganizationContext,
     actorUserId: string,
-    query: { unreadOnly?: boolean; take?: number } = {},
+    query: {
+      unreadOnly?: boolean;
+      take?: number;
+      page?: number;
+      pageSize?: number;
+    } = {},
   ) {
     await this.assertActiveMember(ctx.organizationId, actorUserId);
-    const take = Math.min(Math.max(query.take ?? 40, 1), 100);
-    const rows = await this.prisma.notification.findMany({
-      where: {
-        organizationId: ctx.organizationId,
-        userId: actorUserId,
-        ...(query.unreadOnly ? { status: NotificationStatus.UNREAD } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take,
-    });
-    return { items: rows.map((row) => this.serialize(row)) };
+    const page = query.page ?? 1;
+    const pageSize = Math.min(
+      Math.max(query.pageSize ?? query.take ?? 40, 1),
+      100,
+    );
+    const where = {
+      organizationId: ctx.organizationId,
+      userId: actorUserId,
+      ...(query.unreadOnly ? { status: NotificationStatus.UNREAD } : {}),
+    };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      items: rows.map((row) => this.serialize(row)),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
   }
 
   async unreadCount(ctx: OrganizationContext, actorUserId: string) {

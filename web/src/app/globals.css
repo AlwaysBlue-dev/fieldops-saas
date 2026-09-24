@@ -60,6 +60,7 @@
 }
 
 :root {
+  color-scheme: light;
   --workspace: oklch(0.97 0.006 250);
   --background: oklch(0.97 0.006 250);
   --foreground: oklch(0.22 0.028 260);
@@ -106,6 +107,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --workspace: oklch(0.2 0.02 260);
   --background: oklch(0.2 0.02 260);
   --foreground: oklch(0.95 0.01 250);
@@ -153,6 +155,19 @@
   body {
     @apply bg-workspace text-foreground antialiased;
     font-size: 15px;
+  }
+
+  /* Native <select> dropdowns inherit page text color; without color-scheme
+     matching, Windows/Chrome keeps a light popup and options become invisible. */
+  select {
+    @apply bg-card text-foreground;
+    color-scheme: inherit;
+  }
+
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
   }
 
   @media (min-width: 768px) {
@@ -222,4 +237,90 @@
     font-family: var(--font-geist-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Documentation portal: force nav LEFT + article RIGHT on desktop.
+   Plain CSS so layout cannot collapse to a stacked column. */
+.docs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  width: 100%;
+}
+
+.docs-layout__nav {
+  display: none;
+}
+
+.docs-layout__toc {
+  display: none;
+}
+
+.docs-layout__toc-mobile {
+  display: block;
+}
+
+.docs-layout-mobile-bar {
+  display: flex;
+}
+
+@media (min-width: 1024px) {
+  .docs-layout-mobile-bar {
+    display: none !important;
+  }
+
+  .docs-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  .docs-layout--with-toc {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .docs-layout__nav {
+    display: block;
+    width: 260px;
+    max-width: 260px;
+  }
+
+  .docs-layout__nav-inner {
+    position: sticky;
+    top: 4rem;
+    /* Let the page scroll as one unit — no nested nav scrollbar. */
+    max-height: none;
+    overflow: visible;
+  }
+
+  .docs-layout--home .docs-layout__main > .docs-layout__panel {
+    min-height: calc(100dvh - 7.5rem);
+  }
+
+  .docs-layout__toc-mobile {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .docs-layout--with-toc {
+    grid-template-columns: 260px minmax(0, 1fr) 220px;
+  }
+
+  .docs-layout__toc {
+    display: block;
+    width: 220px;
+    max-width: 220px;
+  }
+
+  .docs-layout__toc-inner {
+    position: sticky;
+    top: 4rem;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+.docs-nav {
+  max-width: 100%;
 }

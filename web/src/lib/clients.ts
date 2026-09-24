@@ -147,15 +147,25 @@ export function listClients(
 export function listClientSites(
   organizationId: string,
   clientId: string,
-  query: { status?: ClientStatus | ""; pageSize?: number } = {},
+  query: {
+    status?: ClientStatus | "";
+    page?: number;
+    pageSize?: number;
+    search?: string;
+  } = {},
 ) {
   const params = new URLSearchParams();
   if (query.status) params.set("status", query.status);
+  if (query.page) params.set("page", String(query.page));
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  if (query.search) params.set("search", query.search);
   const suffix = params.toString() ? `?${params}` : "";
-  return apiRequest<{ items: SiteRecord[]; total: number }>(
-    `/organizations/${organizationId}/clients/${clientId}/sites${suffix}`,
-  );
+  return apiRequest<{
+    items: SiteRecord[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/organizations/${organizationId}/clients/${clientId}/sites${suffix}`);
 }
 
 export function getClient(organizationId: string, clientId: string) {

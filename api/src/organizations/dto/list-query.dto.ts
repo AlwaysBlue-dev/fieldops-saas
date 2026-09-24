@@ -25,6 +25,10 @@ export class ListQueryDto {
   status?: EntityStatus;
 
   @IsOptional()
+  @IsString()
+  roles?: string;
+
+  @IsOptional()
   @IsIn(['name', 'createdAt', 'updatedAt', 'status'])
   sort?: 'name' | 'createdAt' | 'updatedAt' | 'status';
 

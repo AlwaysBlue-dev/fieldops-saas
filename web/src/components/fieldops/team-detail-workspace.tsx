@@ -114,7 +114,7 @@ export function TeamDetailWorkspace() {
   const assignable = technicians.filter((person) => !memberIds.has(person.userId));
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-4">
+    <div className="mx-auto flex max-w-275 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <Link
@@ -394,7 +394,6 @@ export function TeamDetailWorkspace() {
         onOpenChange={setEditOpen}
         organizationId={organizationId}
         team={team}
-        technicians={technicians}
         onSaved={() => void load()}
       />
       <InviteTechnicianSheet

@@ -1,42 +1,45 @@
 "use client";
 
 import { AuthShell } from "@/components/fieldops/auth-shell";
+import { PasswordInput } from "@/components/fieldops/password-input";
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api";
+import { friendlyErrorMessage } from "@/lib/friendly-message";
 import { signup } from "@/lib/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 
 export function SignupForm({ description }: { description: string }) {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  async function onSubmit(formData: FormData) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     setPending(true);
     try {
       const result = await signup({
-        fullName: String(formData.get("fullName") ?? ""),
-        email: String(formData.get("email") ?? ""),
-        password: String(formData.get("password") ?? ""),
-        organizationName: String(formData.get("organizationName") ?? ""),
-        acceptTerms: formData.get("acceptTerms") === "on",
+        fullName,
+        email,
+        password,
+        acceptTerms,
       });
-      if (result.organization?.slug) {
-        router.replace(`/onboarding?org=${result.organization.slug}`);
+      if (result.emailVerificationRequired || !result.user.emailVerifiedAt) {
+        router.replace("/verify-email");
         return;
       }
-      router.replace("/onboarding");
+      router.replace("/create-workspace");
     } catch (err) {
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Unable to create the workspace right now.",
+        friendlyErrorMessage(err, "Unable to create your account right now."),
       );
     } finally {
       setPending(false);
@@ -45,7 +48,7 @@ export function SignupForm({ description }: { description: string }) {
 
   return (
     <AuthShell
-      title="Create your workspace"
+      title="Create your account"
       description={description}
       footer={
         <p className="text-muted-foreground">
@@ -56,16 +59,19 @@ export function SignupForm({ description }: { description: string }) {
         </p>
       }
     >
-      <ResponsiveForm action={onSubmit}>
+      <ResponsiveForm onSubmit={onSubmit}>
         <FormField>
           <Label htmlFor="fullName">Full name</Label>
           <Input
             id="fullName"
             name="fullName"
             autoComplete="name"
+            placeholder="Alex Rivera"
             required
             maxLength={120}
             className="h-11"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
           />
         </FormField>
         <FormField>
@@ -75,33 +81,27 @@ export function SignupForm({ description }: { description: string }) {
             name="email"
             type="email"
             autoComplete="email"
+            placeholder="you@company.com"
             required
             className="h-11"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
         </FormField>
         <FormField>
           <Label htmlFor="password">Password</Label>
-          <Input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="new-password"
+            placeholder="At least 10 characters"
             required
             minLength={10}
             className="h-11"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">At least 10 characters.</p>
-        </FormField>
-        <FormField>
-          <Label htmlFor="organizationName">Company name</Label>
-          <Input
-            id="organizationName"
-            name="organizationName"
-            autoComplete="organization"
-            required
-            maxLength={120}
-            className="h-11"
-          />
         </FormField>
         <FormField>
           <label className="flex items-start gap-3 text-sm">
@@ -111,6 +111,8 @@ export function SignupForm({ description }: { description: string }) {
               type="checkbox"
               required
               className="mt-1 size-4"
+              checked={acceptTerms}
+              onChange={(event) => setAcceptTerms(event.target.checked)}
             />
             <span>
               I agree to the{" "}
@@ -131,7 +133,7 @@ export function SignupForm({ description }: { description: string }) {
           </p>
         ) : null}
         <Button type="submit" className="h-11 w-full" disabled={pending}>
-          {pending ? "Creating workspace…" : "Create workspace"}
+          {pending ? "Creating account…" : "Create account"}
         </Button>
       </ResponsiveForm>
     </AuthShell>

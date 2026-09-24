@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegister } from "@/components/fieldops/pwa-register";
+import { ThemeProvider } from "@/components/fieldops/theme-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -42,25 +43,28 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#1c2233" },
-    { media: "(prefers-color-scheme: dark)", color: "#1c2233" },
+    { media: "(prefers-color-scheme: dark)", color: "#141821" },
   ],
-  colorScheme: "light",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased`}
     >
       <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground">
-        {children}
-        <PwaRegister />
-        <Toaster
-          richColors
-          position="top-center"
-          toastOptions={{ className: "font-sans" }}
-        />
+        <ThemeProvider>
+          {children}
+          <PwaRegister />
+          <Toaster
+            richColors
+            position="top-center"
+            toastOptions={{ className: "font-sans" }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

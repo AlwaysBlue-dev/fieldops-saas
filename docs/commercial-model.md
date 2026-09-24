@@ -8,13 +8,15 @@ Public catalog is loaded from `Plan` rows (`GET /api/plans`). Do not hardcode pr
 
 | Plan | Public price | Seats / storage | Visibility |
 | --- | --- | --- | --- |
-| Professional | `annualPriceCents` (launch: $499/year) | `maxUsers` / `maxStorageBytes` (launch: 10 / 20 GB) | `publiclyVisible` |
-| Business | Contact sales (`contactSales`) | Configurable per plan | `publiclyVisible` |
-| Starter | Hidden | Existing workspaces only | not public |
+| Starter | `annualPriceCents` (launch: $299/year) | 5 users / 5 GB | `publiclyVisible` |
+| Professional | `annualPriceCents` (launch: $499/year) | 10 users / 20 GB | `publiclyVisible` (trial default, Most Popular) |
+| Business | Contact sales (`contactSales`) | 100 users / 250 GB | `publiclyVisible` |
 
 Optional Plan metadata: `displayPrice`, `currency`, `billingInterval`, `publiclyVisible`, `contactSales`, `sortOrder`. Changing public price is a Plan update, not a migration.
 
-Trial policy (server constants, also returned on the catalog): 14 days, no card, 3-day trial grace. New organizations trial onto Professional features.
+Trial policy (server constants, also returned on the catalog): 14 days, no card, 3-day trial grace. **One free trial per verified FieldOps account** — consumed when the first trial workspace is provisioned (`User.trialUsedAt`). Additional owned organizations are created without a trial and require activation. New trial workspaces still trial onto **Professional** (`TRIAL_PLAN_CODE`), not Starter.
+
+Feature flags on `Plan.features`: `CUSTOM_BRANDING` = organization logo (Professional+); `ADVANCED_BRANDING` = advanced/custom branding (Business).
 
 ## Access
 

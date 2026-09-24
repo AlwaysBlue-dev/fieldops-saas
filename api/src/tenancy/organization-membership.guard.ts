@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,15 @@ export class OrganizationMembershipGuard implements CanActivate {
     const user = request.user;
     if (!user) {
       throw new NotFoundException();
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: 'Your email address has not been verified.',
+        error: 'Forbidden',
+        code: 'EMAIL_NOT_VERIFIED',
+      });
     }
 
     const organizationId = this.readOrganizationId(request);

@@ -5,7 +5,10 @@ export const PLAN_FEATURES = {
   GPS: 'GPS',
   CLIENT_SIGNATURE: 'CLIENT_SIGNATURE',
   ADVANCED_REPORTS: 'ADVANCED_REPORTS',
+  /** Organization logo / workspace branding (Professional+). */
   CUSTOM_BRANDING: 'CUSTOM_BRANDING',
+  /** Advanced/custom branding requirements (Business). */
+  ADVANCED_BRANDING: 'ADVANCED_BRANDING',
 } as const;
 
 export type PlanFeature = (typeof PLAN_FEATURES)[keyof typeof PLAN_FEATURES];
@@ -20,6 +23,7 @@ export const DEFAULT_PLAN_FEATURES: PlanFeatureFlags = {
   CLIENT_SIGNATURE: true,
   ADVANCED_REPORTS: false,
   CUSTOM_BRANDING: false,
+  ADVANCED_BRANDING: false,
 };
 
 function readFlag(
@@ -77,8 +81,14 @@ export function resolvePlanFeatures(
     CUSTOM_BRANDING: readFlag(
       raw,
       PLAN_FEATURES.CUSTOM_BRANDING,
-      ['customBranding', 'custom_branding'],
+      ['customBranding', 'custom_branding', 'organizationLogo', 'organization_logo'],
       DEFAULT_PLAN_FEATURES.CUSTOM_BRANDING,
+    ),
+    ADVANCED_BRANDING: readFlag(
+      raw,
+      PLAN_FEATURES.ADVANCED_BRANDING,
+      ['advancedBranding', 'advanced_branding'],
+      DEFAULT_PLAN_FEATURES.ADVANCED_BRANDING,
     ),
   };
 }
@@ -104,8 +114,27 @@ export function featureCatalog(flags: PlanFeatureFlags) {
     },
     {
       key: PLAN_FEATURES.CUSTOM_BRANDING,
-      label: 'Custom branding',
+      label: 'Organization branding',
       enabled: flags.CUSTOM_BRANDING,
     },
+    {
+      key: PLAN_FEATURES.ADVANCED_BRANDING,
+      label: 'Advanced branding',
+      enabled: flags.ADVANCED_BRANDING,
+    },
   ] as const;
+}
+
+export function planPositioning(features: Record<string, unknown>): string | null {
+  const value = features.positioning;
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+export function planBadge(features: Record<string, unknown>): string | null {
+  const value = features.badge;
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+export function planApprovalsEnabled(features: Record<string, unknown>): boolean {
+  return typeof features.approvals === 'boolean' ? features.approvals : false;
 }

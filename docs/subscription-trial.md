@@ -6,7 +6,11 @@ No payment provider is connected. Access is decided on the API from subscription
 
 ## Policy
 
-New organizations receive:
+Each **verified FieldOps Cloud account** is eligible for **one** 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.
+
+Additional workspaces the same account creates are allowed, but they do **not** receive another free trial — they use the selected plan and require manual activation. Accepting invitations never consumes trial eligibility. Deleting a workspace never restores it.
+
+Trial organizations receive:
 
 - 14 days of trial access
 - 3 additional days of grace
@@ -51,7 +55,7 @@ Statuses supported: `TRIALING`, `GRACE`, `ACTIVE`, `TRIAL_EXPIRED`, `SUSPENDED`,
 
 `ActivationRequest` stores a lightweight sales request: organization, requester, optional message, `OPEN` | `CONTACTED` | `CLOSED`, timestamps.
 
-Published commercial offer is **FieldOps Cloud Professional** at **$499/year**: 14-day trial, no credit card, 3-day grace, 10 users, 20 GB, core field-service features, product updates, and standard support. Larger seat or storage needs are **Business** pricing by contact. Starter remains in the catalog for existing workspaces. Trial evaluation always overlays Professional features.
+Published public plans: **Starter** ($299/year, 5 users / 5 GB), **Professional** ($499/year, 10 users / 20 GB, Most Popular), and **Business** (contact sales, 100 users / 250 GB). New workspaces trial onto **Professional** for 14 days (no card, 3-day grace). Trial evaluation always overlays Professional features.
 
 ## Services and guards
 

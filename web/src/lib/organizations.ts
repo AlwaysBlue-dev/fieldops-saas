@@ -27,6 +27,7 @@ export type OrganizationDetail = {
   status: string;
   onboardingStep: number;
   onboardingCompletedAt: string | null;
+  hasLogo?: boolean;
   settings?: OrganizationSettings;
 };
 
@@ -101,8 +102,84 @@ export function advanceOnboarding(
   });
 }
 
-export function listMembers(organizationId: string) {
-  return apiRequest<OrgMember[]>(`/organizations/${organizationId}/members`);
+export type MemberListResponse = {
+  items: OrgMember[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+export function listMembers(
+  organizationId: string,
+  query: {
+    search?: string;
+    status?: OrgMember["status"];
+    roles?: string;
+    page?: number;
+    pageSize?: number;
+    sort?: "fullName" | "email" | "role" | "joinedAt";
+    order?: "asc" | "desc";
+  } = {},
+) {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.status) params.set("status", query.status);
+  if (query.roles) params.set("roles", query.roles);
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  if (query.sort) params.set("sort", query.sort);
+  if (query.order) params.set("order", query.order);
+  const suffix = params.toString() ? `?${params}` : "";
+  return apiRequest<MemberListResponse>(
+    `/organizations/${organizationId}/members${suffix}`,
+  );
+}
+
+export async function resolveOrganizationLogoUrl(organizationId: string) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+  const response = await fetch(
+    `${API_URL}/organizations/${organizationId}/branding/logo`,
+    { credentials: "include", headers: { Accept: "image/*" } },
+  );
+  if (!response.ok) return null;
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+export async function uploadOrganizationLogo(
+  organizationId: string,
+  file: File,
+) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(
+    `${API_URL}/organizations/${organizationId}/branding/logo`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-FieldOps-Requested-With": "web" },
+      body,
+    },
+  );
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as {
+      message?: string | string[];
+    } | null;
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join(", ")
+      : payload?.message ?? "Could not upload logo";
+    throw new Error(message);
+  }
+  return (await response.json()) as { hasLogo: boolean };
+}
+
+export function removeOrganizationLogo(organizationId: string) {
+  return apiRequest<{ hasLogo: boolean }>(
+    `/organizations/${organizationId}/branding/logo`,
+    { method: "DELETE" },
+  );
 }
 
 export function updateMember(

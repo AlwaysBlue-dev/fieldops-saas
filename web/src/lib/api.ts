@@ -13,6 +13,11 @@ export class ApiError extends Error {
   limit?: number | string;
   planCode?: string;
   planName?: string;
+  existingOrganization?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
 
   constructor(
     status: number,
@@ -27,6 +32,11 @@ export class ApiError extends Error {
       limit?: number | string;
       planCode?: string;
       planName?: string;
+      existingOrganization?: {
+        id: string;
+        name: string;
+        slug: string;
+      };
     },
   ) {
     super(message);
@@ -40,6 +50,7 @@ export class ApiError extends Error {
     this.limit = extras?.limit;
     this.planCode = extras?.planCode;
     this.planName = extras?.planName;
+    this.existingOrganization = extras?.existingOrganization;
   }
 }
 
@@ -84,6 +95,11 @@ export async function apiRequest<T>(
         limit?: number | string;
         planCode?: string;
         planName?: string;
+        existingOrganization?: {
+          id: string;
+          name: string;
+          slug: string;
+        };
       }
     | null;
 
@@ -104,6 +120,7 @@ export async function apiRequest<T>(
         limit: payload?.limit,
         planCode: payload?.planCode,
         planName: payload?.planName,
+        existingOrganization: payload?.existingOrganization,
       },
     );
   }

@@ -33,6 +33,9 @@ import { ScheduleService } from './schedule.service.js';
 import { MembersController } from './members.controller.js';
 import { MembersService } from './members.service.js';
 import { OrganizationsController } from './organizations.controller.js';
+import { OrganizationBrandingService } from './organization-branding.service.js';
+import { OrganizationStorageController } from './organization-storage.controller.js';
+import { OrganizationStorageService } from './organization-storage.service.js';
 import { OrganizationsService } from './organizations.service.js';
 import { PublicInvitationsController } from './public-invitations.controller.js';
 import { OvertimeNotificationHook } from './overtime-events.js';
@@ -50,6 +53,7 @@ import { ReportsService } from './reports.service.js';
   imports: [AuthModule, SubscriptionModule],
   controllers: [
     OrganizationsController,
+    OrganizationStorageController,
     MembersController,
     InvitationsController,
     PublicInvitationsController,
@@ -69,6 +73,8 @@ import { ReportsService } from './reports.service.js';
   ],
   providers: [
     OrganizationsService,
+    OrganizationBrandingService,
+    OrganizationStorageService,
     MembersService,
     InvitationsService,
     ClientsService,

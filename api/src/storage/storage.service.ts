@@ -90,7 +90,11 @@ export class StorageService {
     }
   }
 
-  async delete(key: string) {
+  /**
+   * Deletes an object. When `required` is true, provider failures propagate so
+   * callers do not report successful metadata deletion after a failed remove.
+   */
+  async delete(key: string, options: { required?: boolean } = {}) {
     this.memory.delete(key);
     if (!this.client || !this.bucket) {
       return;
@@ -102,6 +106,9 @@ export class StorageService {
     } catch (error) {
       this.logger.warn(`Object delete failed for a tenant key`);
       this.logger.debug(error instanceof Error ? error.message : String(error));
+      if (options.required) {
+        throw error;
+      }
     }
   }
 

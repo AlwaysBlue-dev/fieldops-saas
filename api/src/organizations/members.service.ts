@@ -5,13 +5,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
+import { normalizeEmail } from '../auth/password.js';
 import {
   MembershipStatus,
   OrganizationRole,
+  Prisma,
 } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
 import type { UpdateMemberDto } from './dto/update-member.dto.js';
+import {
+  ListMembersQueryDto,
+  parseMemberRoles,
+} from './dto/list-members-query.dto.js';
 
 @Injectable()
 export class MembersService {
@@ -20,30 +26,103 @@ export class MembersService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(organizationId: string) {
-    const members = await this.prisma.organizationMember.findMany({
-      where: { organizationId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            status: true,
+  async list(organizationId: string, query: ListMembersQueryDto = {}) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const search = query.search?.trim();
+    const roles = parseMemberRoles(query.roles);
+    const status = query.status ?? MembershipStatus.ACTIVE;
+    const order = query.order ?? 'asc';
+
+    const where: Prisma.OrganizationMemberWhereInput = {
+      organizationId,
+      status,
+      ...(roles ? { role: { in: roles } } : {}),
+      ...(search
+        ? {
+            user: {
+              OR: [
+                { fullName: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          }
+        : {}),
+    };
+
+    const orderBy: Prisma.OrganizationMemberOrderByWithRelationInput[] =
+      query.sort === 'email'
+        ? [{ user: { email: order } }]
+        : query.sort === 'fullName'
+          ? [{ user: { fullName: order } }]
+          : query.sort === 'joinedAt'
+            ? [{ joinedAt: order }]
+            : [{ role: order }, { user: { fullName: 'asc' } }];
+
+    const [total, members] = await this.prisma.$transaction([
+      this.prisma.organizationMember.count({ where }),
+      this.prisma.organizationMember.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }],
-    });
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
-    return members.map((member) => ({
-      id: member.id,
-      organizationId: member.organizationId,
-      role: member.role,
-      status: member.status,
-      joinedAt: member.joinedAt,
-      user: member.user,
-    }));
+    const seen = new Set<string>();
+    const items = members
+      .filter((member) => {
+        if (seen.has(member.userId)) return false;
+        seen.add(member.userId);
+        return true;
+      })
+      .map((member) => ({
+        id: member.id,
+        organizationId: member.organizationId,
+        role: member.role,
+        status: member.status,
+        joinedAt: member.joinedAt,
+        user: member.user,
+      }));
+
+    return {
+      items,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
+  /**
+   * Blocks inviting someone who already has an ACTIVE membership in this org.
+   * Membership in another organization is not a conflict.
+   */
+  async ensureNotAlreadyMember(organizationId: string, email: string) {
+    const normalized = normalizeEmail(email);
+    const existing = await this.prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        status: MembershipStatus.ACTIVE,
+        user: { email: normalized },
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'This user is already a member of this organization.',
+      );
+    }
   }
 
   async update(
@@ -69,6 +148,14 @@ export class MembersService {
         dto.role,
         dto.status,
       );
+    }
+
+    if (
+      ctx.role !== OrganizationRole.OWNER &&
+      (member.role === OrganizationRole.OWNER ||
+        dto.role === OrganizationRole.OWNER)
+    ) {
+      throw new ForbiddenException('Only owners can manage owner memberships');
     }
 
     const updated = await this.prisma.organizationMember.update({
@@ -124,28 +211,15 @@ export class MembersService {
     const otherOwners = await this.prisma.organizationMember.count({
       where: {
         organizationId,
-        id: { not: member.id },
         role: OrganizationRole.OWNER,
         status: MembershipStatus.ACTIVE,
+        id: { not: member.id },
       },
     });
     if (otherOwners === 0) {
-      throw new ForbiddenException(
-        'An active organization must keep at least one owner',
+      throw new ConflictException(
+        'Cannot remove the last active owner from the organization',
       );
-    }
-  }
-
-  async ensureNotAlreadyMember(organizationId: string, email: string) {
-    const existing = await this.prisma.organizationMember.findFirst({
-      where: {
-        organizationId,
-        status: MembershipStatus.ACTIVE,
-        user: { email },
-      },
-    });
-    if (existing) {
-      throw new ConflictException('That person is already a member');
     }
   }
 }

@@ -98,17 +98,26 @@ export type TeamWriteBody = {
 
 export function listTeams(
   organizationId: string,
-  query: { search?: string; status?: TeamStatus | ""; pageSize?: number } = {},
+  query: {
+    search?: string;
+    status?: TeamStatus | "";
+    page?: number;
+    pageSize?: number;
+  } = {},
 ) {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
   if (query.status) params.set("status", query.status);
+  if (query.page) params.set("page", String(query.page));
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
   params.set("sort", "name");
   const suffix = params.toString();
-  return apiRequest<{ items: TeamSummary[]; total: number }>(
-    `/organizations/${organizationId}/teams${suffix ? `?${suffix}` : ""}`,
-  );
+  return apiRequest<{
+    items: TeamSummary[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/organizations/${organizationId}/teams${suffix ? `?${suffix}` : ""}`);
 }
 
 export function getTeam(organizationId: string, teamId: string) {
@@ -175,15 +184,47 @@ export function removeTeamMember(
 
 export function listTechnicians(
   organizationId: string,
-  query: { search?: string; pageSize?: number } = {},
+  query: {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    roles?: string;
+    status?: string;
+  } = {},
 ) {
   const params = new URLSearchParams();
   if (query.search) params.set("search", query.search);
+  if (query.page) params.set("page", String(query.page));
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  if (query.roles) params.set("roles", query.roles);
+  if (query.status) params.set("status", query.status);
   const suffix = params.toString();
-  return apiRequest<{ items: TechnicianSummary[]; total: number }>(
-    `/organizations/${organizationId}/technicians${suffix ? `?${suffix}` : ""}`,
-  );
+  return apiRequest<{
+    items: TechnicianSummary[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>(`/organizations/${organizationId}/technicians${suffix ? `?${suffix}` : ""}`);
+}
+
+/** Active org members eligible for supervisor assignment (paginated). */
+export function listMembersForSupervisor(
+  organizationId: string,
+  query: {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    roles?: string;
+  } = {},
+) {
+  return listTechnicians(organizationId, {
+    search: query.search,
+    page: query.page,
+    pageSize: query.pageSize,
+    roles: query.roles,
+    status: "ACTIVE",
+  });
 }
 
 export function getTechnician(organizationId: string, userId: string) {

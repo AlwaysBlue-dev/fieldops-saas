@@ -13,8 +13,13 @@ function commercialPlan(
     annualPriceCents: extras.code === 'professional' ? 49900 : null,
     monthlyPriceCents: null,
     contactSales: extras.code === 'business',
-    publiclyVisible: extras.code !== 'starter',
-    priceLabel: extras.code === 'professional' ? '$499/year' : extras.code === 'business' ? 'Contact sales' : '$490/year',
+    publiclyVisible: true,
+    priceLabel:
+      extras.code === 'professional'
+        ? '$499/year'
+        : extras.code === 'business'
+          ? 'Contact sales'
+          : '$299/year',
     ...extras,
   };
 }
@@ -25,17 +30,17 @@ const professional = commercialPlan({
   name: 'Professional',
   maxUsers: 10,
   maxStorageBytes: '21474836480',
-  features: { gps: true, approvals: true, reports: 'standard' },
+  features: { gps: true, approvals: true, reports: 'standard', CUSTOM_BRANDING: true },
 });
 
 const starter = commercialPlan({
   id: 'plan-starter',
   code: 'starter',
   name: 'Starter',
-  maxUsers: 8,
+  maxUsers: 5,
   maxStorageBytes: '5368709120',
-  annualPriceCents: 49000,
-  features: { gps: true, approvals: false, reports: 'basic' },
+  annualPriceCents: 29900,
+  features: { gps: true, approvals: false, reports: 'basic', CUSTOM_BRANDING: false },
 });
 
 function entitlement(

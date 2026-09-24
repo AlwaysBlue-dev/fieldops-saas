@@ -1,5 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  MembershipStatus,
+  OrganizationRole,
+} from '../generated/prisma/client.js';
 import { DEFAULT_WORKING_WEEK, WORK_WEEK_DAYS } from '../common/constants.js';
+import {
+  organizationNamesMatch,
+  validateOrganizationDisplayName,
+} from '../common/organization-name.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
@@ -43,11 +56,55 @@ export class OrganizationsService {
       throw new NotFoundException();
     }
 
+    let nextName: string | undefined;
+    if (dto.name !== undefined) {
+      const nameValidation = validateOrganizationDisplayName(dto.name);
+      if (!nameValidation.ok) {
+        throw new BadRequestException(nameValidation.message);
+      }
+      nextName = nameValidation.displayName;
+    }
+
     const organization = await this.prisma.$transaction(async (tx) => {
+      if (nextName && !organizationNamesMatch(existing.name, nextName)) {
+        await tx.$queryRaw`
+          SELECT id FROM "User" WHERE id = ${actorUserId}::uuid FOR UPDATE
+        `;
+        const ownedMemberships = await tx.organizationMember.findMany({
+          where: {
+            userId: actorUserId,
+            role: OrganizationRole.OWNER,
+            status: MembershipStatus.ACTIVE,
+            organizationId: { not: ctx.organizationId },
+          },
+          include: {
+            organization: {
+              select: { id: true, name: true, slug: true },
+            },
+          },
+        });
+        const duplicateOwned = ownedMemberships.find((membership) =>
+          organizationNamesMatch(membership.organization.name, nextName),
+        );
+        if (duplicateOwned) {
+          throw new ConflictException({
+            statusCode: 409,
+            message: `You already have a workspace named “${duplicateOwned.organization.name}”.`,
+            error: 'Conflict',
+            code: 'WORKSPACE_NAME_TAKEN',
+            existingOrganization: {
+              id: duplicateOwned.organization.id,
+              name: duplicateOwned.organization.name,
+              slug: duplicateOwned.organization.slug,
+            },
+          });
+        }
+      }
+
       const updated = await tx.organization.update({
         where: { id: ctx.organizationId },
         data: {
-          name: dto.name?.trim() || undefined,
+          name: nextName,
           industry: dto.industry?.trim() || undefined,
           phone: dto.phone?.trim() || undefined,
           timezone: dto.timezone,

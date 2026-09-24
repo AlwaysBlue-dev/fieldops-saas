@@ -12,12 +12,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { logout } from "@/lib/auth";
+import { canInviteMembers } from "@/lib/current-org";
 import { pageTitleFromPath } from "@/lib/navigation";
 import { Bell, Plus, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "./brand-mark";
 import { MutationButton } from "./mutation-control";
 import { OrganizationSwitcher } from "./organization-switcher";
+import { ThemeMenuItems } from "./theme-menu";
 import { TrialChip } from "./subscription-banners";
 
 export function TopBar({
@@ -46,6 +48,17 @@ export function TopBar({
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const currentMembership = memberships.find(
+    (membership) => membership.organization.slug === orgSlug,
+  );
+  const orgRole = currentMembership?.role;
+  const orgRoleLabel = orgRole
+    ? orgRole
+        .split("_")
+        .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+        .join(" ")
+    : null;
+  const showManageMembers = canInviteMembers(currentMembership ?? null);
 
   return (
     <header
@@ -147,6 +160,11 @@ export function TopBar({
                 <p className="truncate text-xs text-muted-foreground">
                   {user.email}
                 </p>
+                {orgRoleLabel ? (
+                  <p className="mt-1 truncate text-xs font-medium text-foreground/80">
+                    {orgRoleLabel}
+                  </p>
+                ) : null}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -154,6 +172,16 @@ export function TopBar({
               >
                 Settings
               </DropdownMenuItem>
+              {showManageMembers ? (
+                <DropdownMenuItem
+                  onClick={() =>
+                    router.push(`/app/${orgSlug}/settings/members`)
+                  }
+                >
+                  Manage members
+                </DropdownMenuItem>
+              ) : null}
+              <ThemeMenuItems />
               <DropdownMenuItem
                 onClick={async () => {
                   await logout().catch(() => undefined);

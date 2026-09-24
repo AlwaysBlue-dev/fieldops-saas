@@ -82,7 +82,7 @@ export default function PlatformDashboardPage() {
           </Link>
         </div>
         <div className="mt-3 scroll-x-pane rounded-lg border border-border bg-card">
-          <table className="w-full min-w-[36rem] text-left text-sm">
+          <table className="w-full min-w-xl text-left text-sm">
             <thead className="border-b border-border text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">Organization</th>

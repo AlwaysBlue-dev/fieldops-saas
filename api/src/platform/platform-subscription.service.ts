@@ -27,6 +27,7 @@ import {
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { StorageQuotaService } from '../storage/storage-quota.service.js';
 import { CLOCK, addUtcDays, type Clock } from '../subscription/clock.js';
 import type { ActivateSubscriptionDto } from '../subscription/dto/activate-subscription.dto.js';
 import type { ChangePlanDto } from '../subscription/dto/change-plan.dto.js';
@@ -53,6 +54,7 @@ export class PlatformSubscriptionService {
     private readonly access: SubscriptionAccessService,
     private readonly audit: AuditService,
     private readonly notifications: SubscriptionNotificationService,
+    private readonly storageQuota: StorageQuotaService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -204,7 +206,13 @@ export class PlatformSubscriptionService {
           },
           take: 1,
           include: {
-            user: { select: { id: true, fullName: true, email: true } },
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -253,7 +261,13 @@ export class PlatformSubscriptionService {
           },
           take: 1,
           include: {
-            user: { select: { id: true, fullName: true, email: true } },
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
           },
         },
         subscription: { include: { plan: true } },
@@ -267,16 +281,28 @@ export class PlatformSubscriptionService {
       ? await this.access.evaluate(organizationId)
       : null;
 
-    const [memberCount, jobCount, storage] = await Promise.all([
+    const [memberCount, jobCount, storageBytes] = await Promise.all([
       this.prisma.organizationMember.count({
         where: { organizationId, status: MembershipStatus.ACTIVE },
       }),
       this.prisma.job.count({ where: { organizationId } }),
-      this.prisma.jobFile.aggregate({
-        where: { organizationId },
-        _sum: { sizeBytes: true },
-      }),
+      this.storageQuota.confirmedStorageUsage(organizationId),
     ]);
+
+    const ownerUser = organization.members[0]?.user ?? null;
+    let ownerTrialUsedAt: Date | null = null;
+    if (ownerUser) {
+      try {
+        const trialRows = await this.prisma.$queryRaw<
+          Array<{ trialUsedAt: Date | null }>
+        >`
+          SELECT "trialUsedAt" FROM "User" WHERE id = ${ownerUser.id}::uuid
+        `;
+        ownerTrialUsedAt = trialRows[0]?.trialUsedAt ?? null;
+      } catch {
+        ownerTrialUsedAt = null;
+      }
+    }
 
     return {
       id: organization.id,
@@ -287,18 +313,20 @@ export class PlatformSubscriptionService {
       status: organization.status,
       timezone: organization.timezone,
       createdAt: organization.createdAt.toISOString(),
-      owner: organization.members[0]
+      owner: ownerUser
         ? {
-            id: organization.members[0].user.id,
-            fullName: organization.members[0].user.fullName,
-            email: organization.members[0].user.email,
+            id: ownerUser.id,
+            fullName: ownerUser.fullName,
+            email: ownerUser.email,
+            trialUsed: ownerTrialUsedAt != null,
+            trialUsedAt: ownerTrialUsedAt?.toISOString() ?? null,
           }
         : null,
       subscription: entitlement ? toSubscriptionDto(entitlement) : null,
       usage: {
         members: memberCount,
         jobs: jobCount,
-        storageBytes: (storage._sum.sizeBytes ?? 0n).toString(),
+        storageBytes: storageBytes.toString(),
         storageIncludedBytes: entitlement?.plan.maxStorageBytes ?? null,
       },
     };

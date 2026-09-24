@@ -115,24 +115,43 @@ Forbidden:
 - Accept: existing users must be signed in as the invited email; new users create an account on that email. Tokens are never returned in JSON.
 - Last ACTIVE OWNER cannot be demoted or deactivated.
 
-### 3.5 Email verification (architecture ready)
+### 3.5 Email verification
 
-- Signup creates a hashed, single-use `EmailVerificationToken` (24h TTL) in the same transaction as the user.
-- Raw token is emailed via SMTP (Mailpit locally). Mail failure does not roll back signup.
-- `POST /api/auth/verify-email` consumes a valid token and sets `User.emailVerifiedAt`.
-- Login is not blocked on unverified email yet (office onboarding). The verify-email **UI** is next.
+- Signup creates a User with `emailVerifiedAt = null` and a hashed, single-use `EmailVerificationToken` (24h TTL). Organization, membership, and trial are **not** created at signup.
+- Raw token is emailed via `MailService` (SMTP/Mailpit locally; configured provider in production). Link: `{APP_URL}/verify-email?token=…`. Raw tokens are never logged or stored.
+- `POST /api/auth/verify-email` consumes a valid token and sets `User.emailVerifiedAt`. Refreshing or replaying the token fails safely.
+- `POST /api/auth/resend-verification` (authenticated, rate-limited) invalidates unused tokens and issues a new one.
+- `POST /api/auth/create-workspace` (authenticated + verified) creates Organization, OWNER membership, settings, and counter. If `User.trialUsedAt` is null, provisions a Professional trial subscription and sets `trialUsedAt` in the same transaction. If the account already used its trial, requires a `planCode` and creates a `NONE` subscription awaiting activation (no second trial).
+- Tenant organization routes require `emailVerifiedAt != null` (enforced in `OrganizationMembershipGuard`). Auth routes for verify/resend/logout/login/password reset remain available.
+- Organization invitations: accepting an invite for the invited email proves possession — new invitees are created verified; existing unverified users matching the invite email are marked verified on accept.
 
-### 3.6 Signup transaction
+### 3.6 Password reset
+
+- `POST /api/auth/forgot-password` always returns the same public message whether or not an ACTIVE account exists (no email enumeration).
+- Eligible accounts get a hashed, single-use `PasswordResetToken` (30 minute TTL). Prior unused reset tokens for that user are marked used when a new one is issued.
+- Raw token is emailed only via `MailService` (SMTP/Mailpit locally; configured provider in production). The link targets `{APP_URL}/reset-password?token=…`. Raw tokens are never logged or stored.
+- `POST /api/auth/reset-password` validates the hashed token, updates `User.passwordHash`, marks the token used, invalidates other outstanding reset tokens, and revokes all active `RefreshSession` rows for that user.
+- Both endpoints are rate-limited. Audit actions: `auth.password_reset_requested`, `auth.password_reset_completed` (no raw token or password).
+
+### 3.7 Signup and workspace provisioning
 
 `POST /api/auth/signup` atomically creates:
 
-1. `User`
-2. `Organization`
-3. `OrganizationMember` with `OWNER`
-4. `OrganizationSettings` + `OrganizationCounter`
-5. Trial `Subscription` on the default plan (`DEFAULT_PLAN_CODE`, fallback `starter`)
+1. `User` (`emailVerifiedAt` null)
+2. `EmailVerificationToken` (hashed)
 
-Audit rows `auth.signup` and `organization.created` are written in the same transaction.
+Audit row `auth.signup` is written in the same transaction. Mail is sent after commit.
+
+`POST /api/auth/create-workspace` (verified session) locks the user row (`FOR UPDATE`) and atomically creates:
+
+1. `Organization`
+2. `OrganizationMember` with `OWNER`
+3. `OrganizationSettings` + `OrganizationCounter`
+4. `Subscription` — either Professional `TRIALING` (first lifetime trial) or selected plan with status `NONE` (additional workspace)
+5. When trialing: set `User.trialUsedAt` and audit `user.first_trial_consumed` + `TRIAL_STARTED`
+6. When not trialing: audit `organization.created_without_trial`
+
+Audit row `organization.created` is always written in the same transaction.
 
 ---
 
@@ -143,6 +162,7 @@ Audit rows `auth.signup` and `organization.created` are written in the same tran
 | Guard | Effect |
 | --- | --- |
 | `JwtAuthGuard` | Valid access cookie, live session, `User.status = ACTIVE` |
+| `EmailVerifiedGuard` / membership guard | Unverified email → **403** (`EMAIL_NOT_VERIFIED`) on tenant routes |
 | `OrganizationMembershipGuard` | ACTIVE membership in the URL/header org; otherwise **404** |
 | `OrganizationRolesGuard` | `@OrganizationRoles(...)` — in-org but wrong role → **403** |
 

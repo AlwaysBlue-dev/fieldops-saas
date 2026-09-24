@@ -137,7 +137,7 @@ export function TimesheetWorkspace() {
     return <SkeletonBlock className="h-72" />;
   }
   if (loadState === "error" && !sheet) {
-    return <ErrorState title="Time" description={error ?? "Unable to load."} />;
+    return <ErrorState title="Timesheets" description={error ?? "Unable to load."} />;
   }
   if (!sheet || !organizationId) {
     return null;
@@ -156,7 +156,7 @@ export function TimesheetWorkspace() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Time"
+        title="Timesheets"
         description={`${sheet.technician.fullName} · week of ${sheet.weekStart}`}
         hideTitleOnMobile
         actions={

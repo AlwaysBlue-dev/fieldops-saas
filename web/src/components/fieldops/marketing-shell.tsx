@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 const links = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/docs", label: "Documentation" },
   { href: "/trust", label: "Trust" },
 ];
 
@@ -13,7 +14,7 @@ const footer = {
   Product: [
     { href: "/features", label: "Features" },
     { href: "/pricing", label: "Pricing" },
-    { href: "/documentation", label: "Documentation" },
+    { href: "/docs", label: "Documentation" },
     { href: "/support", label: "Support" },
   ],
   Trust: [
@@ -29,14 +30,27 @@ const footer = {
   ],
 };
 
-export function MarketingShell({ children }: { children: ReactNode }) {
+export function MarketingShell({
+  children,
+  wide = false,
+}: {
+  children: ReactNode;
+  /** Wider main column for documentation and similar dense layouts. */
+  wide?: boolean;
+}) {
   return (
     <div className="min-h-dvh overflow-x-hidden bg-workspace">
       <header
         className="sticky top-0 z-20 border-b border-border bg-card/95"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        <div
+          className={
+            wide
+              ? "mx-auto flex h-14 max-w-7xl items-center justify-between px-4"
+              : "mx-auto flex h-14 max-w-6xl items-center justify-between px-4"
+          }
+        >
           <Link href="/" className="flex items-center gap-2">
             <BrandMark />
             <span className="text-sm font-semibold tracking-tight">
@@ -64,14 +78,26 @@ export function MarketingShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl px-4 py-10 md:py-16">
+      <main
+        className={
+          wide
+            ? "mx-auto w-full max-w-7xl px-4 py-6 md:py-10"
+            : "mx-auto w-full max-w-6xl px-4 py-10 md:py-16"
+        }
+      >
         {children}
       </main>
       <footer
         className="border-t border-border"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 text-sm md:grid-cols-4">
+        <div
+          className={
+            wide
+              ? "mx-auto grid max-w-7xl gap-8 px-4 py-8 text-sm md:grid-cols-4"
+              : "mx-auto grid max-w-6xl gap-8 px-4 py-8 text-sm md:grid-cols-4"
+          }
+        >
           {Object.entries(footer).map(([heading, items]) => (
             <div key={heading}>
               <p className="font-medium text-foreground">{heading}</p>

@@ -145,6 +145,21 @@ export default function PlatformOrganizationPage() {
           </dd>
         </div>
         <div>
+          <dt className="text-muted-foreground">Owner free trial used</dt>
+          <dd className="font-medium">
+            {row.owner?.trialUsed == null
+              ? "—"
+              : row.owner.trialUsed
+                ? "Yes"
+                : "No"}
+          </dd>
+          <dd className="text-xs text-muted-foreground">
+            {row.owner?.trialUsedAt
+              ? `First used ${new Date(row.owner.trialUsedAt).toLocaleDateString()}`
+              : "Never used"}
+          </dd>
+        </div>
+        <div>
           <dt className="text-muted-foreground">Created</dt>
           <dd>
             {row.createdAt

@@ -1,5 +1,6 @@
 "use client";
 
+import { AsyncEntityCombobox } from "@/components/fieldops/async-entity-combobox";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { MutationButton } from "@/components/fieldops/mutation-control";
@@ -8,14 +9,15 @@ import { SkeletonBlock } from "@/components/fieldops/skeleton-block";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
-import { listClientSites, listClients, type ClientSummary, type SiteRecord } from "@/lib/clients";
+import { listClientSites, listClients } from "@/lib/clients";
 import { canCreateJobs, resolveCurrentMembership } from "@/lib/current-org";
 import { createJob, JOB_TYPES, jobTypeLabel, type JobWriteBody } from "@/lib/jobs";
-import { listTeams, listTechnicians, type TeamSummary, type TechnicianSummary } from "@/lib/teams";
+import { personDisplayName, personSecondaryLine } from "@/lib/person-label";
+import { listTeams, listTechnicians } from "@/lib/teams";
 import { zonedLocalToUtc } from "@/lib/timezone";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 export function JobFormWorkspace() {
   const params = useParams<{ orgSlug: string }>();
@@ -23,11 +25,17 @@ export function JobFormWorkspace() {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
   const [allowed, setAllowed] = useState(false);
-  const [clients, setClients] = useState<ClientSummary[]>([]);
-  const [sites, setSites] = useState<SiteRecord[]>([]);
-  const [teams, setTeams] = useState<TeamSummary[]>([]);
-  const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
   const [clientId, setClientId] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const [teamId, setTeamId] = useState("");
+  const [supervisorUserId, setSupervisorUserId] = useState("");
+  const [technicianIds, setTechnicianIds] = useState<string[]>([]);
+  const [techOptions, setTechOptions] = useState<
+    Array<{ userId: string; label: string; description: string | null }>
+  >([]);
+  const [techPage, setTechPage] = useState(1);
+  const [techTotal, setTechTotal] = useState(0);
+  const [techSearch, setTechSearch] = useState("");
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -51,15 +59,6 @@ export function JobFormWorkspace() {
         setOrganizationId(membership.organization.id);
         setTimezone(membership.organization.timezone);
         setAllowed(true);
-        const [clientResult, teamResult, techResult] = await Promise.all([
-          listClients(membership.organization.id, { pageSize: 50, status: "ACTIVE" }),
-          listTeams(membership.organization.id, { pageSize: 50, status: "ACTIVE" }),
-          listTechnicians(membership.organization.id, { pageSize: 100 }),
-        ]);
-        if (cancelled) return;
-        setClients(clientResult.items);
-        setTeams(teamResult.items);
-        setTechnicians(techResult.items);
         setLoadState("ready");
       })
       .catch((err: unknown) => {
@@ -72,22 +71,161 @@ export function JobFormWorkspace() {
     };
   }, [params.orgSlug]);
 
-  useEffect(() => {
-    if (!organizationId || !clientId) return;
-    let cancelled = false;
-    listClientSites(organizationId, clientId, { status: "ACTIVE", pageSize: 50 })
-      .then((result) => {
-        if (!cancelled) setSites(result.items);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : "Could not load sites.");
-        }
+  const fetchClients = useCallback(
+    async ({
+      search,
+      page,
+      pageSize,
+    }: {
+      search: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      if (!organizationId) return { items: [], page: 1, pageSize, total: 0 };
+      const result = await listClients(organizationId, {
+        search: search || undefined,
+        status: "ACTIVE",
+        page,
+        pageSize,
       });
+      return {
+        items: result.items.map((client) => ({
+          value: client.id,
+          label: client.name,
+          description: client.clientCode,
+        })),
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total,
+      };
+    },
+    [organizationId],
+  );
+
+  const fetchSites = useCallback(
+    async ({
+      search,
+      page,
+      pageSize,
+    }: {
+      search: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      if (!organizationId || !clientId) {
+        return { items: [], page: 1, pageSize, total: 0 };
+      }
+      const result = await listClientSites(organizationId, clientId, {
+        search: search || undefined,
+        status: "ACTIVE",
+        page,
+        pageSize,
+      });
+      return {
+        items: result.items.map((site) => ({
+          value: site.id,
+          label: site.name,
+          description: site.city,
+        })),
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total,
+      };
+    },
+    [organizationId, clientId],
+  );
+
+  const fetchTeams = useCallback(
+    async ({
+      search,
+      page,
+      pageSize,
+    }: {
+      search: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      if (!organizationId) return { items: [], page: 1, pageSize, total: 0 };
+      const result = await listTeams(organizationId, {
+        search: search || undefined,
+        status: "ACTIVE",
+        page,
+        pageSize,
+      });
+      return {
+        items: result.items.map((team) => ({
+          value: team.id,
+          label: team.name,
+          description: team.code,
+        })),
+        page: result.page ?? page,
+        pageSize: result.pageSize ?? pageSize,
+        total: result.total,
+      };
+    },
+    [organizationId],
+  );
+
+  const fetchSupervisors = useCallback(
+    async ({
+      search,
+      page,
+      pageSize,
+    }: {
+      search: string;
+      page: number;
+      pageSize: number;
+    }) => {
+      if (!organizationId) return { items: [], page: 1, pageSize, total: 0 };
+      const result = await listTechnicians(organizationId, {
+        search: search || undefined,
+        page,
+        pageSize,
+        roles: "OWNER,ADMIN,OPERATIONS_MANAGER,SUPERVISOR",
+      });
+      return {
+        items: result.items.map((person) => ({
+          value: person.userId,
+          label: personDisplayName(person),
+          description: personSecondaryLine(person),
+        })),
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total,
+      };
+    },
+    [organizationId],
+  );
+
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      listTechnicians(organizationId, {
+        search: techSearch.trim() || undefined,
+        page: 1,
+        pageSize: 20,
+        roles: "TECHNICIAN,SUPERVISOR",
+      })
+        .then((result) => {
+          if (cancelled) return;
+          setTechOptions(
+            result.items.map((person) => ({
+              userId: person.userId,
+              label: personDisplayName(person),
+              description: personSecondaryLine(person),
+            })),
+          );
+          setTechPage(result.page);
+          setTechTotal(result.total);
+        })
+        .catch(() => undefined);
+    }, 250);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [organizationId, clientId]);
+  }, [organizationId, techSearch]);
 
   if (loadState === "loading") return <SkeletonBlock rows={8} />;
   if (loadState === "error" || !organizationId || !allowed) {
@@ -95,7 +233,7 @@ export function JobFormWorkspace() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[760px] flex-col gap-4">
+    <div className="mx-auto flex max-w-190 flex-col gap-4">
       <PageHeader
         title="Create job"
         description={`Draft card. Schedule times use ${timezone}. The job number is assigned on save.`}
@@ -110,8 +248,8 @@ export function JobFormWorkspace() {
           const finishTime = String(form.get("finishTime") ?? "");
           const body: JobWriteBody = {
             title: String(form.get("title") ?? "").trim(),
-            clientId: String(form.get("clientId") ?? ""),
-            siteId: String(form.get("siteId") ?? ""),
+            clientId,
+            siteId,
             jobType: String(form.get("jobType") ?? "SERVICE_CALL") as JobWriteBody["jobType"],
             priority: String(form.get("priority") ?? "NORMAL") as JobWriteBody["priority"],
             scheduledStart:
@@ -122,9 +260,9 @@ export function JobFormWorkspace() {
               finishDate && finishTime
                 ? zonedLocalToUtc(finishDate, `${finishTime}:00`, timezone).toISOString()
                 : null,
-            teamId: String(form.get("teamId") ?? "") || null,
-            supervisorUserId: String(form.get("supervisorUserId") ?? "") || null,
-            technicianUserIds: form.getAll("technicianUserIds").map(String),
+            teamId: teamId || null,
+            supervisorUserId: supervisorUserId || null,
+            technicianUserIds: technicianIds,
             workOrderNumber: String(form.get("workOrderNumber") ?? "") || undefined,
             scope: String(form.get("scope") ?? "") || undefined,
             internalNotes: String(form.get("internalNotes") ?? "") || undefined,
@@ -150,44 +288,31 @@ export function JobFormWorkspace() {
       >
         <Section title="Customer" description="Client first, then a site on that account.">
           <FormField>
-            <Label htmlFor="clientId">Client</Label>
-            <select
-              id="clientId"
-              name="clientId"
-              required
+            <Label>Client</Label>
+            <AsyncEntityCombobox
               value={clientId}
-              onChange={(event) => {
-                setClientId(event.target.value);
-                setSites([]);
+              onValueChange={(next) => {
+                setClientId(next);
+                setSiteId("");
               }}
-              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
-            >
-              <option value="">Select client</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
+              fetchPage={fetchClients}
+              placeholder="Search clients…"
+              emptyLabel="No clients found."
+              ariaLabel="Client"
+            />
           </FormField>
           <FormField>
-            <Label htmlFor="siteId">Site</Label>
-            <select
-              id="siteId"
-              name="siteId"
-              required
-              key={clientId || "none"}
+            <Label>Site</Label>
+            <AsyncEntityCombobox
+              key={clientId || "no-client"}
+              value={siteId}
+              onValueChange={setSiteId}
+              fetchPage={fetchSites}
+              placeholder={clientId ? "Search sites…" : "Choose a client first"}
+              emptyLabel="No sites found."
               disabled={!clientId}
-              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
-            >
-              <option value="">{clientId ? "Select site" : "Choose a client first"}</option>
-              {sites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name}
-                  {site.city ? ` · ${site.city}` : ""}
-                </option>
-              ))}
-            </select>
+              ariaLabel="Site"
+            />
           </FormField>
         </Section>
 
@@ -265,69 +390,100 @@ export function JobFormWorkspace() {
 
         <Section title="Assignment">
           <FormField>
-            <Label htmlFor="teamId">Team</Label>
-            <select
-              id="teamId"
-              name="teamId"
-              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
-            >
-              <option value="">Unassigned</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
+            <Label>Team</Label>
+            <AsyncEntityCombobox
+              value={teamId}
+              onValueChange={setTeamId}
+              fetchPage={fetchTeams}
+              placeholder="Search teams…"
+              emptyLabel="No teams found."
+              ariaLabel="Team"
+            />
           </FormField>
           <FormField>
-            <Label htmlFor="supervisorUserId">Supervisor</Label>
-            <select
-              id="supervisorUserId"
-              name="supervisorUserId"
-              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
-            >
-              <option value="">Unassigned</option>
-              {technicians.map((person) => (
-                <option key={person.userId} value={person.userId}>
-                  {person.fullName}
-                </option>
-              ))}
-            </select>
+            <Label>Supervisor</Label>
+            <AsyncEntityCombobox
+              value={supervisorUserId}
+              onValueChange={setSupervisorUserId}
+              fetchPage={fetchSupervisors}
+              placeholder="Search supervisors…"
+              emptyLabel="No supervisors found."
+              ariaLabel="Supervisor"
+            />
           </FormField>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Technicians</legend>
-            {technicians.map((person) => (
-              <label key={person.userId} className="flex min-h-11 items-center gap-2 text-sm">
-                <input type="checkbox" name="technicianUserIds" value={person.userId} />
-                {person.fullName}
+            <Input
+              value={techSearch}
+              onChange={(event) => setTechSearch(event.target.value)}
+              placeholder="Search technicians…"
+              className="h-11 md:h-8"
+              aria-label="Search technicians"
+            />
+            {techOptions.map((person) => (
+              <label key={person.userId} className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={technicianIds.includes(person.userId)}
+                  onChange={(event) => {
+                    setTechnicianIds((current) =>
+                      event.target.checked
+                        ? [...current, person.userId]
+                        : current.filter((id) => id !== person.userId),
+                    );
+                  }}
+                />
+                <span className="min-w-0">
+                  <span className="block">{person.label}</span>
+                  {person.description ? (
+                    <span className="block text-xs text-muted-foreground">
+                      {person.description}
+                    </span>
+                  ) : null}
+                </span>
               </label>
             ))}
+            {techOptions.length < techTotal ? (
+              <MutationButton
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={async () => {
+                  if (!organizationId) return;
+                  const next = await listTechnicians(organizationId, {
+                    search: techSearch.trim() || undefined,
+                    page: techPage + 1,
+                    pageSize: 20,
+                    roles: "TECHNICIAN,SUPERVISOR",
+                  });
+                  setTechPage(next.page);
+                  setTechTotal(next.total);
+                  setTechOptions((current) => {
+                    const seen = new Set(current.map((item) => item.userId));
+                    return [
+                      ...current,
+                      ...next.items
+                        .filter((person) => !seen.has(person.userId))
+                        .map((person) => ({
+                          userId: person.userId,
+                          label: personDisplayName(person),
+                          description: personSecondaryLine(person),
+                        })),
+                    ];
+                  });
+                }}
+              >
+                Load more
+              </MutationButton>
+            ) : null}
           </fieldset>
         </Section>
 
-        <Section title="Safety">
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="requireRiskAssessment" />
-            Risk assessment required
-          </label>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="requirePermit" />
-            Permit required
-          </label>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="requireLoto" />
-            LOTO / isolation required
-          </label>
-        </Section>
-
-        <Section title="Client sign-off">
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <input type="checkbox" name="requireClientSignOff" defaultChecked />
-            Client sign-off required
-          </label>
+        <Section title="Customer contact on site">
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField>
-              <Label htmlFor="clientRepName">Representative</Label>
+              <Label htmlFor="clientRepName">Name</Label>
               <Input id="clientRepName" name="clientRepName" className="h-11 md:h-8" />
             </FormField>
             <FormField>
@@ -345,7 +501,23 @@ export function JobFormWorkspace() {
           </div>
         </Section>
 
-        <Section title="Internal">
+        <Section title="Controls">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="requireRiskAssessment" />
+            Risk assessment required
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="requirePermit" />
+            Permit required
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="requireLoto" />
+            LOTO required
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="requireClientSignOff" />
+            Client sign-off required
+          </label>
           <FormField>
             <Label htmlFor="internalNotes">Internal notes</Label>
             <textarea
@@ -358,17 +530,16 @@ export function JobFormWorkspace() {
         </Section>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <MutationButton type="submit" className="h-11 md:h-8" disabled={pending}>
-            Save draft
-          </MutationButton>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Link
             href={`/app/${params.orgSlug}/jobs`}
-            className="inline-flex h-11 items-center justify-center rounded-lg border border-input px-3 text-sm md:h-8"
+            className="inline-flex h-11 items-center justify-center rounded-md border border-input px-3 text-sm md:h-8"
           >
             Cancel
           </Link>
+          <MutationButton type="submit" className="h-11 md:h-8" disabled={pending || !clientId || !siteId}>
+            {pending ? "Creating…" : "Create job"}
+          </MutationButton>
         </div>
       </ResponsiveForm>
     </div>

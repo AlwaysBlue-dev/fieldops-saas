@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { OrganizationMembership } from "@/lib/auth";
 import {
   desktopPrimaryNav,
   desktopSecondaryNav,
@@ -15,9 +16,8 @@ import { cn } from "cn";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BrandMark } from "./brand-mark";
+import { OrgAvatar } from "./org-avatar";
 import { OrganizationSwitcher } from "./organization-switcher";
-import type { OrganizationMembership } from "@/lib/auth";
 
 export function NavigationRail({
   orgSlug,
@@ -35,68 +35,82 @@ export function NavigationRail({
   const pathname = usePathname();
   const primary = desktopPrimaryNav(orgSlug);
   const secondary = desktopSecondaryNav(orgSlug);
+  const current = memberships.find((item) => item.organization.slug === orgSlug);
+  const orgName = current?.organization.name ?? "Organization";
+  const orgId = current?.organization.id ?? "";
+  const hasLogo = Boolean(current?.organization.hasLogo);
 
   return (
     <aside
       className={cn(
-        "hidden h-dvh shrink-0 flex-col bg-nav text-nav-foreground md:flex",
-        collapsed ? "w-14" : "w-[220px]",
+        "hidden h-dvh shrink-0 flex-col bg-nav text-nav-foreground lg:flex",
+        collapsed ? "w-19" : "w-68",
       )}
     >
-      <div className={cn("flex items-center gap-2 px-2.5 pt-3", collapsed && "justify-center px-1.5")}>
-        <BrandMark inverted />
-        {!collapsed ? (
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold tracking-tight">
-              FieldOps
-            </p>
-            <p className="type-label text-nav-muted">Cloud</p>
-          </div>
-        ) : null}
+      <div
+        className={cn(
+          "flex shrink-0 items-start gap-2 border-b border-white/8 px-2.5 py-3",
+          collapsed && "flex-col items-center px-1.5",
+        )}
+      >
+        <div className={cn("flex min-w-0 flex-1 items-center gap-2", collapsed && "flex-col")}>
+          {orgId ? (
+            <OrgAvatar
+              organizationId={orgId}
+              name={orgName}
+              hasLogo={hasLogo}
+              inverted
+              className="size-9"
+            />
+          ) : null}
+          {!collapsed ? (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-semibold tracking-tight text-white">
+                {orgName}
+              </p>
+              <p className="type-label text-nav-muted">FieldOps Cloud</p>
+            </div>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 text-nav-muted hover:bg-nav-hover hover:text-white"
+          onClick={onToggle}
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+        >
+          {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+        </Button>
       </div>
 
-      <div className={cn("mt-3 px-1.5", collapsed && "px-1")}>
-        {collapsed ? (
-          <p className="sr-only">
-            {memberships.find((item) => item.organization.slug === orgSlug)
-              ?.organization.name}
-          </p>
-        ) : (
+      {!collapsed ? (
+        <div className="shrink-0 px-2 pt-3">
           <OrganizationSwitcher
             currentSlug={orgSlug}
             memberships={memberships}
             inverted
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <p className="sr-only">{orgName}</p>
+      )}
 
-      <nav className="mt-4 flex flex-1 flex-col gap-6 overflow-y-auto px-1.5 pb-3" aria-label="Workspace">
-        <NavGroup
-          items={primary}
-          pathname={pathname}
-          collapsed={collapsed}
-        />
-        <NavGroup
-          items={secondary}
-          pathname={pathname}
-          collapsed={collapsed}
-          label="Workspace"
-        />
-        <NavButton item={helpNavItem} collapsed={collapsed} onClick={onHelp} />
+      <nav
+        className="mt-3 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-1.5 pb-3 scrollbar-thin"
+        aria-label="Workspace"
+      >
+        <NavGroup items={primary} pathname={pathname} collapsed={collapsed} />
+        <div className="mt-auto flex flex-col gap-1">
+          <NavGroup
+            items={secondary}
+            pathname={pathname}
+            collapsed={collapsed}
+            label="Workspace"
+          />
+          <NavButton item={helpNavItem} collapsed={collapsed} onClick={onHelp} />
+        </div>
       </nav>
-
-      <div className="border-t border-white/8 p-1.5">
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-9 w-full justify-center text-nav-muted hover:bg-nav-hover hover:text-white"
-          onClick={onToggle}
-          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-        >
-          {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-          {!collapsed ? <span className="ml-2 text-[13px]">Collapse</span> : null}
-        </Button>
-      </div>
     </aside>
   );
 }
@@ -119,12 +133,13 @@ function NavGroup({
       ) : null}
       <ul className="flex flex-col gap-0.5">
         {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
           const link = (
             <Link
               href={item.href}
               className={cn(
-                "relative flex h-9 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium",
+                "relative flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium",
                 active
                   ? "bg-nav-hover text-white"
                   : "text-nav-muted hover:bg-nav-hover hover:text-white",
@@ -133,7 +148,7 @@ function NavGroup({
               aria-current={active ? "page" : undefined}
             >
               {active ? (
-                <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary" />
+                <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
               ) : null}
               <item.icon className="size-4 shrink-0" />
               {!collapsed ? <span className="truncate">{item.label}</span> : null}
@@ -163,7 +178,7 @@ function NavButton({
   collapsed,
   onClick,
 }: {
-  item: (typeof helpNavItem);
+  item: typeof helpNavItem;
   collapsed: boolean;
   onClick: () => void;
 }) {
@@ -172,7 +187,7 @@ function NavButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex h-9 w-full items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-nav-muted hover:bg-nav-hover hover:text-white",
+        "relative flex h-10 w-full items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-nav-muted hover:bg-nav-hover hover:text-white",
         collapsed && "justify-center px-0",
       )}
     >
@@ -181,9 +196,7 @@ function NavButton({
     </button>
   );
 
-  if (!collapsed) {
-    return button;
-  }
+  if (!collapsed) return button;
 
   return (
     <Tooltip>

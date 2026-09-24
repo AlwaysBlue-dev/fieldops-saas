@@ -237,6 +237,7 @@ export function resolveEffectiveStatus(
   if (input.storedStatus === SubscriptionStatus.PAST_DUE) {
     return 'TRIAL_EXPIRED';
   }
+  // NONE (or any non-paid row without trial dates) — awaiting activation.
   return 'TRIAL_EXPIRED';
 }
 
@@ -250,7 +251,7 @@ export function readOnlyMessage(status: EffectiveSubscriptionStatus): string {
   if (status === 'EXPIRED') {
     return 'Your subscription has expired. This workspace is read-only until it is renewed.';
   }
-  return 'Your trial has ended. This workspace is read-only until it is activated.';
+  return 'This workspace is read-only until a subscription is activated.';
 }
 
 export function toSubscriptionDto(

@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SubscriptionSettings } from "./subscription-settings";
+import { SettingsAppearance } from "./settings-appearance";
+import { SettingsBrandingSection } from "./settings-branding-section";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -16,6 +18,42 @@ export default async function SettingsPage({
         title="Settings"
         description="Organization configuration, members, and workspace preferences."
       />
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">Organization branding</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Logo and workspace identity shown in the sidebar and switcher.
+        </p>
+        <div className="mt-4">
+          <SettingsBrandingSection orgSlug={orgSlug} />
+        </div>
+      </section>
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">Appearance</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Light, dark, or match the system preference.
+        </p>
+        <div className="mt-4">
+          <SettingsAppearance />
+        </div>
+      </section>
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">Storage</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Workspace storage usage, breakdown, and stored files. Quota is shared
+          across the organization.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button asChild className="h-11 md:h-8">
+            <Link href={`/app/${orgSlug}/settings/storage`}>Open storage</Link>
+          </Button>
+          <Link
+            href="/docs/storage-overview"
+            className="text-sm text-primary underline-offset-2 hover:underline"
+          >
+            Learn about storage limits
+          </Link>
+        </div>
+      </section>
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Plan & Usage</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -31,6 +69,12 @@ export default async function SettingsPage({
           <Button asChild variant="outline" className="h-11 md:h-8">
             <Link href={`/app/${orgSlug}/settings/billing`}>Open billing</Link>
           </Button>
+          <Link
+            href="/docs/billing-plans"
+            className="inline-flex h-11 items-center text-sm text-primary underline-offset-2 hover:underline md:h-8"
+          >
+            Billing documentation
+          </Link>
         </div>
       </section>
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">

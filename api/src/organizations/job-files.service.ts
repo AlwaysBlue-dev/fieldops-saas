@@ -15,12 +15,13 @@ import {
   JobFileType,
   JobStatus,
   OrganizationRole,
+  StorageUploadPurpose,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CLOCK, type Clock } from '../subscription/clock.js';
 import { Inject } from '@nestjs/common';
-import { SubscriptionAccessService } from '../subscription/subscription-access.service.js';
+import { StorageQuotaService } from '../storage/storage-quota.service.js';
 import {
   assertAllowedMime,
   categoryFolder,
@@ -51,7 +52,7 @@ export class JobFilesService {
     private readonly execution: JobExecutionService,
     private readonly workflow: JobWorkflowService,
     private readonly teams: TeamsService,
-    private readonly access: SubscriptionAccessService,
+    private readonly storageQuota: StorageQuotaService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -132,11 +133,6 @@ export class JobFilesService {
     );
     const mimeType = detectObjectMime(buffer);
     assertAllowedMime(JobFileType.SIGNATURE, mimeType);
-    await this.access.assertStorageAvailable(
-      ctx.organizationId,
-      buffer.length,
-      actorUserId,
-    );
 
     const fileId = randomUUID();
     const objectKey = jobObjectKey({
@@ -146,7 +142,23 @@ export class JobFilesService {
       fileId,
       extension: extensionForMime(mimeType),
     });
-    await this.storage.put(objectKey, buffer, mimeType);
+    const reservation = await this.storageQuota.reserveUpload({
+      organizationId: ctx.organizationId,
+      userId: actorUserId,
+      objectKey,
+      originalName: 'client-signature.png',
+      mimeType,
+      sizeBytes: buffer.length,
+      purpose: StorageUploadPurpose.JOB_FILE,
+      jobId: job.id,
+      actorUserId,
+    });
+    try {
+      await this.storage.put(objectKey, buffer, mimeType);
+    } catch (error) {
+      await this.storageQuota.failReservation(reservation.id, ctx.organizationId);
+      throw error;
+    }
     const signedAt = this.clock.now();
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -163,6 +175,12 @@ export class JobFilesService {
           uploadedById: actorUserId,
         },
       });
+      await this.storageQuota.completeReservation(
+        reservation.id,
+        ctx.organizationId,
+        file.id,
+        tx,
+      );
       const signature = await tx.jobSignature.create({
         data: {
           id: fileId,
@@ -315,7 +333,7 @@ export class JobFilesService {
     if (file.type === JobFileType.SIGNATURE) {
       throw new BadRequestException('Client signatures cannot be deleted from Files');
     }
-    await this.storage.delete(file.objectKey);
+    await this.storage.delete(file.objectKey, { required: true });
     await this.prisma.$transaction(async (tx) => {
       await tx.jobFile.delete({ where: { id: file.id } });
       await this.audit.record(
@@ -378,11 +396,6 @@ export class JobFilesService {
     }
     const mimeType = detectObjectMime(input.buffer);
     assertAllowedMime(input.type, mimeType);
-    await this.access.assertStorageAvailable(
-      input.ctx.organizationId,
-      input.buffer.length,
-      input.actorUserId,
-    );
 
     const fileId = randomUUID();
     const objectKey = jobObjectKey({
@@ -392,7 +405,26 @@ export class JobFilesService {
       fileId,
       extension: extensionForMime(mimeType),
     });
-    await this.storage.put(objectKey, input.buffer, mimeType);
+    const reservation = await this.storageQuota.reserveUpload({
+      organizationId: input.ctx.organizationId,
+      userId: input.actorUserId,
+      objectKey,
+      originalName: sanitizeOriginalName(input.originalName, 'file'),
+      mimeType,
+      sizeBytes: input.buffer.length,
+      purpose: StorageUploadPurpose.JOB_FILE,
+      jobId: job.id,
+      actorUserId: input.actorUserId,
+    });
+    try {
+      await this.storage.put(objectKey, input.buffer, mimeType);
+    } catch (error) {
+      await this.storageQuota.failReservation(
+        reservation.id,
+        input.ctx.organizationId,
+      );
+      throw error;
+    }
     const created = await this.prisma.$transaction(async (tx) => {
       const row = await tx.jobFile.create({
         data: {
@@ -409,6 +441,12 @@ export class JobFilesService {
           uploadedById: input.actorUserId,
         },
       });
+      await this.storageQuota.completeReservation(
+        reservation.id,
+        input.ctx.organizationId,
+        row.id,
+        tx,
+      );
       await this.audit.record(
         {
           action: AUDIT_FILE_UPLOADED,

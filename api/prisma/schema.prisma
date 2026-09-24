@@ -139,6 +139,19 @@ enum JobFileType {
   OTHER
 }
 
+enum StorageUploadStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum StorageUploadPurpose {
+  JOB_FILE
+  ORGANIZATION_LOGO
+}
+
 enum JobOutcome {
   COMPLETED
   PARTIALLY_COMPLETED
@@ -209,6 +222,9 @@ model User {
   id               String       @id @default(uuid()) @db.Uuid
   email            String       @unique
   emailVerifiedAt  DateTime?    @db.Timestamptz
+  /// When set, this verified account has permanently consumed its one lifetime Professional free trial.
+  /// Never clear under normal product operations (including org deletion).
+  trialUsedAt      DateTime?    @db.Timestamptz
   passwordHash     String
   fullName         String
   phone            String?
@@ -233,6 +249,7 @@ model User {
   authoredWorkLogs        JobWorkLog[]
   addedMaterials          JobMaterial[]
   uploadedJobFiles        JobFile[]
+  storageUploads          StorageUpload[]
   completedSafetyControls JobSafetyControl[]
   capturedSignatures      JobSignature[]
   clockSessions           ClockSession[]
@@ -246,6 +263,7 @@ model User {
   notifications             Notification[]
   auditLogs                 AuditLog[]
   emailVerificationTokens   EmailVerificationToken[]
+  passwordResetTokens       PasswordResetToken[]
   activatedSubscriptions    Subscription[]           @relation("SubscriptionActivator")
   activationRequests        ActivationRequest[]
   invoicesCreated           Invoice[]                @relation("InvoiceCreator")
@@ -267,6 +285,20 @@ model EmailVerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, consumedAt])
+}
+
+/// Hashed, single-use password reset secrets. Raw tokens are never stored.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, usedAt])
 }
 
 model RefreshSession {
@@ -295,6 +327,10 @@ model Organization {
   name                   String
   slug                   String             @unique
   logoUrl                String?
+  /// Private object storage key for the organization logo. Prefer this over logoUrl.
+  logoObjectKey          String?
+  /// Metered size of the current logo object (bytes). Null when no logo is stored.
+  logoSizeBytes          BigInt?
   email                  String
   phone                  String?
   industry               String?
@@ -329,6 +365,7 @@ model Organization {
   jobMaterials           JobMaterial[]
   jobFiles               JobFile[]
   jobSignatures          JobSignature[]
+  storageUploads         StorageUpload[]
   clockSessions          ClockSession[]
   timeEntries            TimeEntry[]
   overtimeAuthorizations OvertimeAuthorization[]
@@ -914,9 +951,38 @@ model JobFile {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   job          Job          @relation(fields: [jobId, organizationId], references: [id, organizationId], onDelete: Restrict)
   uploadedBy   User         @relation(fields: [uploadedById], references: [id], onDelete: Restrict)
+  storageUpload StorageUpload?
 
   @@unique([id, organizationId])
   @@index([organizationId, jobId, type])
+  @@index([organizationId, createdAt])
+}
+
+/// Quota reservation for an in-flight upload. PENDING rows count against org storage until
+/// COMPLETED, FAILED, CANCELLED, or expiresAt passes (treated as inactive without a worker).
+model StorageUpload {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @db.Uuid
+  userId         String               @db.Uuid
+  objectKey      String               @unique
+  originalName   String
+  mimeType       String
+  sizeBytes      BigInt
+  status         StorageUploadStatus  @default(PENDING)
+  purpose        StorageUploadPurpose
+  jobId          String?              @db.Uuid
+  jobFileId      String?              @db.Uuid
+  expiresAt      DateTime             @db.Timestamptz
+  createdAt      DateTime             @default(now()) @db.Timestamptz
+  completedAt    DateTime?            @db.Timestamptz
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  jobFile      JobFile?     @relation(fields: [jobFileId, organizationId], references: [id, organizationId], onDelete: SetNull)
+
+  @@unique([jobFileId, organizationId])
+  @@index([organizationId, status, expiresAt])
+  @@index([organizationId, createdAt])
 }
 
 model JobSignature {

@@ -9,6 +9,8 @@ export type PlatformOwner = {
   id: string;
   fullName: string;
   email: string;
+  trialUsed?: boolean;
+  trialUsedAt?: string | null;
 };
 
 export type PlatformOrganization = {

@@ -6,6 +6,7 @@ import {
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { StorageQuotaService } from '../storage/storage-quota.service.js';
 import { EntitlementService } from './entitlement.service.js';
 import { formatStorageBytes } from './plan-catalog.js';
 import { throwPlanLimitReached } from './plan-limit.exception.js';
@@ -16,6 +17,7 @@ export class UsageService {
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementService,
     private readonly audit: AuditService,
+    private readonly storageQuota: StorageQuotaService,
   ) {}
 
   async countActiveMembers(organizationId: string) {
@@ -30,12 +32,9 @@ export class UsageService {
     });
   }
 
+  /** Confirmed metered bytes (job files + organization logo). */
   async storageUsedBytes(organizationId: string): Promise<bigint> {
-    const storage = await this.prisma.jobFile.aggregate({
-      where: { organizationId },
-      _sum: { sizeBytes: true },
-    });
-    return storage._sum.sizeBytes ?? 0n;
+    return this.storageQuota.confirmedStorageUsage(organizationId);
   }
 
   async jobsCreatedThisMonth(organizationId: string, now = new Date()) {
@@ -144,31 +143,39 @@ export class UsageService {
     }
   }
 
+  /**
+   * Prefer StorageQuotaService.reserveUpload for uploads (concurrency-safe).
+   * Kept for callers that need a preflight check without a reservation.
+   */
   async assertStorageAvailable(
     organizationId: string,
     incomingBytes: number,
     options: { actorUserId?: string | null } = {},
   ) {
+    await this.storageQuota.expireStaleReservations(organizationId);
     const entitlement = await this.entitlements.evaluate(organizationId);
     const limit = BigInt(entitlement.plan.maxStorageBytes);
     const used = await this.storageUsedBytes(organizationId);
-    if (used + BigInt(incomingBytes) > limit) {
+    const reserved =
+      await this.storageQuota.reservedPendingBytes(organizationId);
+    if (used + reserved + BigInt(incomingBytes) > limit) {
+      const displayUsed = used + reserved;
       await this.recordLimitBlocked({
         organizationId,
         actorUserId: options.actorUserId,
         limitType: 'STORAGE',
-        used: used.toString(),
+        used: displayUsed.toString(),
         limit: limit.toString(),
         planCode: entitlement.plan.code,
         incomingBytes,
       });
       throwPlanLimitReached({
         limitType: 'STORAGE',
-        used: used.toString(),
+        used: displayUsed.toString(),
         limit: limit.toString(),
         planCode: entitlement.plan.code,
         planName: entitlement.plan.name,
-        message: `You've reached the ${formatStorageBytes(limit)} storage limit on your ${entitlement.plan.name} plan.`,
+        message: `Storage limit reached. Your organization has used ${formatStorageBytes(displayUsed)} of its ${formatStorageBytes(limit)} allowance.`,
       });
     }
   }

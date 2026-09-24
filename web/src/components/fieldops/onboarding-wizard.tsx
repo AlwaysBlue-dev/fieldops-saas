@@ -79,7 +79,7 @@ export function OnboardingWizard() {
           memberships.find((item) => item.organization.slug === hinted) ??
           memberships[0];
         if (!match) {
-          router.replace("/signup");
+          router.replace("/create-workspace");
           return;
         }
         if (
@@ -332,7 +332,7 @@ function ProfileStep({
           id="industry"
           name="industry"
           defaultValue={org.industry ?? ""}
-          className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          className="h-11 w-full rounded-lg border border-input bg-card px-2.5 text-sm text-foreground dark:bg-input/30"
         >
           <option value="">Select if you want</option>
           {INDUSTRIES.map((item) => (
@@ -352,7 +352,7 @@ function ProfileStep({
           id="timezone"
           name="timezone"
           defaultValue={org.timezone}
-          className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+          className="h-11 w-full rounded-lg border border-input bg-card px-2.5 text-sm text-foreground dark:bg-input/30"
         >
           {TIMEZONES.map((zone) => (
             <option key={zone} value={zone}>

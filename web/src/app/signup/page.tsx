@@ -1,9 +1,9 @@
-import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import type { Metadata } from "next";
+import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = {
-  title: "Create workspace",
+  title: "Create account",
 };
 
 export default async function SignupPage() {
@@ -12,8 +12,8 @@ export default async function SignupPage() {
   const trialDays = catalog?.trialDays;
   const planName = professional?.name ?? "FieldOps Cloud Professional";
   const description = trialDays
-    ? `${trialDays}-day free trial of ${planName}. No credit card required.`
-    : `Free trial of ${planName}. No credit card required.`;
+    ? `Create your account, verify your work email, then start a ${trialDays}-day free trial of ${planName}.`
+    : `Create your account, verify your work email, then start a free trial of ${planName}.`;
 
   return <SignupForm description={description} />;
 }

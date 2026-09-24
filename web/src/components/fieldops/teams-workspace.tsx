@@ -25,7 +25,9 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InviteTechnicianSheet } from "./invite-technician-sheet";
 import { MutationButton } from "./mutation-control";
+import { PaginationControls } from "./pagination-controls";
 import { TeamFormSheet } from "./team-form-sheet";
+import { personDisplayName, personSecondaryLine } from "@/lib/person-label";
 
 export function TeamsWorkspace() {
   const params = useParams<{ orgSlug: string }>();
@@ -36,12 +38,23 @@ export function TeamsWorkspace() {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<TeamStatus | "">("");
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,28 +85,31 @@ export function TeamsWorkspace() {
     if (!organizationId) return;
     const [teamResult, techResult] = await Promise.all([
       listTeams(organizationId, {
-        search: search.trim() || undefined,
+        search: debouncedSearch || undefined,
         status,
-        pageSize: 50,
+        page,
+        pageSize,
       }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 20 }),
     ]);
     setTeams(teamResult.items);
     setTotal(teamResult.total);
     setTechnicians(techResult.items);
     setLoadState("ready");
-  }, [organizationId, search, status]);
+  }, [organizationId, debouncedSearch, status, page, pageSize]);
 
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
+    setLoadState("loading");
     Promise.all([
       listTeams(organizationId, {
-        search: search.trim() || undefined,
+        search: debouncedSearch || undefined,
         status,
-        pageSize: 50,
+        page,
+        pageSize,
       }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 20 }),
     ])
       .then(([teamResult, techResult]) => {
         if (cancelled) return;
@@ -110,7 +126,7 @@ export function TeamsWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, search, status]);
+  }, [organizationId, debouncedSearch, status, page, pageSize]);
 
   const counts = useMemo(
     () => ({
@@ -128,7 +144,7 @@ export function TeamsWorkspace() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
+    <div className="mx-auto flex max-w-350 flex-col gap-4">
       <PageHeader
         title="Teams"
         description="Crews, supervisors, and field coverage for this organization."
@@ -171,7 +187,10 @@ export function TeamsWorkspace() {
           aria-label="Filter by status"
           className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
           value={status}
-          onChange={(event) => setStatus(event.target.value as TeamStatus | "")}
+          onChange={(event) => {
+            setStatus(event.target.value as TeamStatus | "");
+            setPage(1);
+          }}
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -192,7 +211,7 @@ export function TeamsWorkspace() {
             <button
               key={team.id}
               type="button"
-              className="flex min-h-[168px] flex-col rounded-lg border border-border bg-card px-4 py-4 text-left hover:bg-muted/50"
+              className="flex min-h-42 flex-col rounded-lg border border-border bg-card px-4 py-4 text-left hover:bg-muted/50"
               onClick={() => router.push(`/app/${params.orgSlug}/teams/${team.id}`)}
             >
               <div className="flex items-start justify-between gap-3">
@@ -282,11 +301,15 @@ export function TeamsWorkspace() {
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">
-                      {person.fullName}
+                      {personDisplayName(person)}
                     </span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {person.teams.map((team) => team.name).join(", ") || "Unassigned"}
-                      {person.skills.length > 0 ? ` · ${person.skills.slice(0, 3).join(", ")}` : ""}
+                      {personSecondaryLine(person) ??
+                        (person.teams.map((team) => team.name).join(", ") ||
+                          "Unassigned")}
+                      {person.skills.length > 0
+                        ? ` · ${person.skills.slice(0, 3).join(", ")}`
+                        : ""}
                     </span>
                   </span>
                   <StatusPill label={person.role.replaceAll("_", " ")} tone="cobalt" />
@@ -310,11 +333,21 @@ export function TeamsWorkspace() {
         ) : null}
       </div>
 
+      <PaginationControls
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
+
       <TeamFormSheet
         open={createOpen}
         onOpenChange={setCreateOpen}
         organizationId={organizationId}
-        technicians={technicians}
         onSaved={() => void load()}
       />
       <InviteTechnicianSheet

@@ -119,7 +119,20 @@ Indexes: unique `email`; `platformRole` not required.
 | userAgent, ip | Optional telemetry |
 | createdAt | |
 
-Rotate on refresh: revoke old row, insert new. Logout password-change revokes all for user.
+Rotate on refresh: revoke old row, insert new. Logout and password reset revoke all live sessions for the user.
+
+### 4.3 PasswordResetToken
+
+| Column | Notes |
+| --- | --- |
+| id | UUID PK |
+| userId | FK User |
+| tokenHash | Unique; SHA-256 of emailed secret (raw never stored) |
+| expiresAt | Short TTL (30 minutes) |
+| usedAt | Null until consumed or superseded |
+| createdAt | |
+
+Issuing a new token marks prior unused tokens for that user as used. Successful reset marks the token used, invalidates other outstanding reset tokens, and revokes all `RefreshSession` rows for the user.
 
 ---
 

@@ -45,6 +45,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
           'limit',
           'planCode',
           'planName',
+          'existingOrganization',
         ] as const) {
           if (payload[key] !== undefined) {
             extras[key] = payload[key];

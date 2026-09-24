@@ -9,16 +9,19 @@ describe('plan-features', () => {
     expect(flags.CLIENT_SIGNATURE).toBe(true);
     expect(flags.ADVANCED_REPORTS).toBe(false);
     expect(flags.CUSTOM_BRANDING).toBe(false);
+    expect(flags.ADVANCED_BRANDING).toBe(false);
   });
 
   it('honors explicit feature keys and legacy gps/reports aliases', () => {
     const flags = resolvePlanFeatures({
       [PLAN_FEATURES.CUSTOM_BRANDING]: true,
+      [PLAN_FEATURES.ADVANCED_BRANDING]: true,
       gps: false,
       reports: 'advanced',
     });
     expect(flags.GPS).toBe(false);
     expect(flags.ADVANCED_REPORTS).toBe(true);
     expect(flags.CUSTOM_BRANDING).toBe(true);
+    expect(flags.ADVANCED_BRANDING).toBe(true);
   });
 });

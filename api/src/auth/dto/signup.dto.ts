@@ -4,44 +4,32 @@ import {
   IsBoolean,
   IsEmail,
   IsNotEmpty,
-  IsOptional,
   IsString,
-  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
 
 export class SignupDto {
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
-  @IsEmail()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
+  @IsEmail({}, { message: 'Enter a valid work email address.' })
   email!: string;
 
   @IsString()
-  @MinLength(10)
-  @MaxLength(128)
+  @MinLength(10, { message: 'Password must be at least 10 characters.' })
+  @MaxLength(128, { message: 'Password must be 128 characters or fewer.' })
   password!: string;
 
   @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
+  @IsNotEmpty({ message: 'Enter your full name.' })
+  @MaxLength(120, { message: 'Full name must be 120 characters or fewer.' })
   fullName!: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
-  organizationName!: string;
-
-  @IsOptional()
-  @IsString()
-  @Matches(/^[A-Za-z_]+\/[A-Za-z_]+$/, {
-    message: 'timezone must be an IANA identifier such as America/Chicago',
-  })
-  timezone?: string;
 
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   @Equals(true, {
-    message: 'You must agree to the Terms of Service and Privacy Policy.',
+    message: 'Please agree to the Terms of Service and Privacy Policy.',
   })
   acceptTerms!: boolean;
 }

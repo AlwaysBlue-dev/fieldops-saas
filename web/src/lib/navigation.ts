@@ -10,6 +10,7 @@ import {
   BriefcaseBusiness,
   BarChart3,
   HelpCircle,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,7 +29,7 @@ export function desktopPrimaryNav(orgSlug: string): AppNavItem[] {
     { href: `${base}/jobs`, label: "Jobs", icon: FolderKanban },
     { href: `${base}/clients`, label: "Clients", icon: BriefcaseBusiness },
     { href: `${base}/teams`, label: "Teams", icon: Users },
-    { href: `${base}/time`, label: "Time", icon: Clock3 },
+    { href: `${base}/time`, label: "Timesheets", icon: Clock3 },
     { href: `${base}/approvals`, label: "Approvals", icon: ClipboardCheck },
     { href: `${base}/reports`, label: "Reports", icon: BarChart3 },
   ];
@@ -37,6 +38,7 @@ export function desktopPrimaryNav(orgSlug: string): AppNavItem[] {
 export function desktopSecondaryNav(orgSlug: string): AppNavItem[] {
   return [
     { href: `/app/${orgSlug}/settings`, label: "Settings", icon: Settings },
+    { href: "/docs", label: "Documentation", icon: BookOpen },
   ];
 }
 
@@ -59,7 +61,7 @@ export function mobilePrimaryNav(
     home,
     { href: `${base}/jobs`, label: "Jobs", icon: FolderKanban },
     { href: `${base}/schedule`, label: "Schedule", icon: CalendarDays },
-    { href: `${base}/time`, label: "Time", icon: Clock3 },
+    { href: `${base}/time`, label: "Timesheets", icon: Clock3 },
   ];
 }
 
@@ -84,6 +86,9 @@ export function pageTitleFromPath(pathname: string) {
   if (parts.includes("plan-usage")) {
     return "Plan & Usage";
   }
+  if (parts.includes("storage")) {
+    return "Storage";
+  }
   if (parts.includes("billing")) {
     return "Billing";
   }
@@ -100,7 +105,7 @@ export function pageTitleFromPath(pathname: string) {
     jobs: "Jobs",
     clients: "Clients",
     teams: "Teams",
-    time: "Time",
+    time: "Timesheets",
     approvals: "Approvals",
     reports: "Reports",
     settings: "Settings",

@@ -1,7 +1,9 @@
 import type { User } from '../generated/prisma/client.js';
 import type { AuthUser } from '../tenancy/request-context.js';
 
-export function toPublicUser(user: User): AuthUser {
+type UserLike = User & { trialUsedAt?: Date | null };
+
+export function toPublicUser(user: UserLike): AuthUser {
   return {
     id: user.id,
     email: user.email,
@@ -11,5 +13,6 @@ export function toPublicUser(user: User): AuthUser {
     platformRole: user.platformRole,
     status: user.status,
     emailVerifiedAt: user.emailVerifiedAt,
+    trialEligible: user.trialUsedAt == null,
   };
 }

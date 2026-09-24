@@ -17,9 +17,13 @@ import type { AuthUser } from '../tenancy/request-context.js';
 import { CurrentUser } from '../tenancy/current-user.decorator.js';
 import { clearAuthCookies, setAuthCookies } from './auth-cookies.js';
 import { AuthService } from './auth.service.js';
+import { CreateWorkspaceDto } from './dto/create-workspace.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { SignupDto } from './dto/signup.dto.js';
 import { VerifyEmailDto } from './dto/verify-email.dto.js';
+import { EmailVerifiedGuard } from './email-verified.guard.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { JwtOptionalGuard } from './jwt-optional.guard.js';
 
@@ -89,13 +93,48 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  me(@CurrentUser() user: AuthUser) {
-    return { user };
+  async me(@CurrentUser() user: AuthUser) {
+    return { user: await this.auth.me(user.id) };
   }
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.auth.verifyEmail(dto.token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  resendVerification(@CurrentUser() user: AuthUser) {
+    return this.auth.resendVerification(user.id);
+  }
+
+  @Post('create-workspace')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, EmailVerifiedGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  createWorkspace(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateWorkspaceDto,
+    @Req() request: Request,
+  ) {
+    return this.auth.createWorkspace(user.id, dto, request);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() request: Request) {
+    return this.auth.forgotPassword(dto, request);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 8, ttl: 60_000 } })
+  resetPassword(@Body() dto: ResetPasswordDto, @Req() request: Request) {
+    return this.auth.resetPassword(dto, request);
   }
 }

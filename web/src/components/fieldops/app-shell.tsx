@@ -1,12 +1,20 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { OrganizationMembership, PublicUser } from "@/lib/auth";
-import { getMe, getMyOrganizations, logout } from "@/lib/auth";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api";
+import {
+  getMe,
+  getMyOrganizations,
+  logout,
+  type OrganizationMembership,
+  type PublicUser,
+} from "@/lib/auth";
 import { desktopPrimaryNav } from "@/lib/navigation";
+import { unreadNotificationCount } from "@/lib/notifications";
 import { cn } from "cn";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -17,20 +25,18 @@ import {
 import { CommandLauncher } from "./command-launcher";
 import { ErrorState } from "./error-state";
 import { MobileBottomNav } from "./mobile-bottom-nav";
-import { MutationButton } from "./mutation-control";
 import { NavigationRail } from "./navigation-rail";
 import { NotificationCenter } from "./notification-center";
+import { OfflineBanner } from "./offline-banner";
+import { QuickCreateSheet } from "./quick-create-sheet";
 import { ResponsiveDrawer } from "./responsive-drawer";
 import { SkeletonBlock } from "./skeleton-block";
-import { OfflineBanner } from "./offline-banner";
 import { SubscriptionBanners } from "./subscription-banners";
 import {
   membershipOrganizationId,
   SubscriptionProvider,
 } from "./subscription-provider";
 import { TopBar } from "./top-bar";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { unreadNotificationCount } from "@/lib/notifications";
 
 const RAIL_KEY = "fieldops.rail-collapsed";
 
@@ -72,48 +78,51 @@ export function AppShell({
   const [createOpen, setCreateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const applySession = useCallback(
-    (nextUser: PublicUser, orgs: OrganizationMembership[]) => {
+  const loadSession = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const [{ user: nextUser }, orgs] = await Promise.all([
+        getMe(),
+        getMyOrganizations(),
+      ]);
+      if (!nextUser.emailVerifiedAt) {
+        router.replace("/verify-email");
+        return;
+      }
       setUser(nextUser);
       setMemberships(orgs);
-      setStatus("ready");
       if (orgs.length === 0) {
-        router.replace("/onboarding");
+        router.replace("/create-workspace");
         return;
       }
-      const current = orgs.find((item) => item.organization.slug === orgSlug);
-      if (!current) {
-        router.replace(`/app/${orgs[0].organization.slug}/overview`);
+      setStatus("ready");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        router.replace("/login");
         return;
       }
-      const canOnboard =
-        current.role === "OWNER" || current.role === "ADMIN";
-      if (canOnboard && !current.organization.onboardingCompletedAt) {
-        router.replace(`/onboarding?org=${current.organization.slug}`);
-      }
-    },
-    [orgSlug, router],
-  );
+      setStatus("error");
+    }
+  }, [router]);
 
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([getMe(), getMyOrganizations()])
-      .then(([{ user: nextUser }, orgs]) => {
-        if (cancelled) return;
-        applySession(nextUser, orgs);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        if (error instanceof ApiError && error.status === 401) {
-          router.replace("/login");
-          return;
-        }
-        setStatus("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [applySession, router]);
+    void loadSession();
+  }, [loadSession]);
+
+  useEffect(() => {
+    if (status !== "ready" || memberships.length === 0) return;
+    const current = memberships.find(
+      (item) => item.organization.slug === orgSlug,
+    );
+    if (!current) {
+      router.replace(`/app/${memberships[0].organization.slug}/overview`);
+      return;
+    }
+    const canOnboard = current.role === "OWNER" || current.role === "ADMIN";
+    if (canOnboard && !current.organization.onboardingCompletedAt) {
+      router.replace(`/onboarding?org=${current.organization.slug}`);
+    }
+  }, [status, memberships, orgSlug, router]);
 
   const previewOrgId = membershipOrganizationId(memberships, orgSlug);
 
@@ -130,23 +139,6 @@ export function AppShell({
     };
   }, [previewOrgId, notifyOpen]);
 
-  const load = useCallback(async () => {
-    setStatus("loading");
-    try {
-      const [{ user: nextUser }, orgs] = await Promise.all([
-        getMe(),
-        getMyOrganizations(),
-      ]);
-      applySession(nextUser, orgs);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        router.replace("/login");
-        return;
-      }
-      setStatus("error");
-    }
-  }, [applySession, router]);
-
   const toggleRail = () => {
     const next = !collapsed;
     window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
@@ -156,7 +148,7 @@ export function AppShell({
   if (status === "error") {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
-        <ErrorState onRetry={() => void load()} />
+        <ErrorState onRetry={() => void loadSession()} />
       </div>
     );
   }
@@ -164,7 +156,7 @@ export function AppShell({
   if (status === "loading" || !user) {
     return (
       <div className="flex min-h-dvh">
-        <div className="hidden w-[220px] bg-nav md:block" />
+        <div className="hidden w-68 bg-nav lg:block" />
         <div className="flex-1 px-4 py-6">
           <SkeletonBlock rows={8} />
         </div>
@@ -196,7 +188,7 @@ export function AppShell({
           onToggle={toggleRail}
           onHelp={() => setHelpOpen(true)}
         />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
           <TopBar
             orgSlug={orgSlug}
             memberships={memberships}
@@ -218,7 +210,7 @@ export function AppShell({
             id="workspace-main"
             className={cn(
               "min-w-0 flex-1 overflow-x-hidden px-4 py-4 md:px-6 md:py-5",
-              "pb-mobile-nav md:pb-5",
+              "pb-mobile-nav lg:pb-5",
             )}
           >
             {children}
@@ -235,6 +227,16 @@ export function AppShell({
           onOpenChange={setCommandOpen}
           onHelp={() => setHelpOpen(true)}
         />
+        {organizationId ? (
+          <QuickCreateSheet
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            orgSlug={orgSlug}
+            organizationId={organizationId}
+            membership={currentMembership ?? null}
+            userId={user.id}
+          />
+        ) : null}
         <ResponsiveDrawer
           open={moreOpen}
           onOpenChange={setMoreOpen}
@@ -299,6 +301,16 @@ export function AppShell({
               className="h-11 justify-start"
               onClick={() => {
                 setMoreOpen(false);
+                router.push(`/app/${orgSlug}/settings/storage`);
+              }}
+            >
+              Storage
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-11 justify-start"
+              onClick={() => {
+                setMoreOpen(false);
                 router.push(`/app/${orgSlug}/notifications`);
               }}
             >
@@ -316,6 +328,16 @@ export function AppShell({
                 Platform
               </Button>
             ) : null}
+            <Button
+              variant="ghost"
+              className="h-11 justify-start"
+              onClick={() => {
+                setMoreOpen(false);
+                router.push("/docs");
+              }}
+            >
+              Documentation
+            </Button>
             <Button
               variant="ghost"
               className="h-11 justify-start"
@@ -359,33 +381,27 @@ export function AppShell({
           )}
         </ResponsiveDrawer>
         <ResponsiveDrawer
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          title="Quick create"
-          description="Business records will be created from here once modules are live."
-        >
-          <div className="flex flex-col gap-2">
-            {["Job", "Client", "Time entry"].map((label) => (
-              <MutationButton
-                key={label}
-                variant="outline"
-                className="h-11 w-full justify-start"
-              >
-                {label}
-              </MutationButton>
-            ))}
-          </div>
-        </ResponsiveDrawer>
-        <ResponsiveDrawer
           open={helpOpen}
           onOpenChange={setHelpOpen}
           title="Help"
           description="FieldOps Cloud workspace"
         >
-          <p className="text-sm text-muted-foreground">
-            Use the command launcher to jump between views. Core operational
-            modules are being connected to the API next.
-          </p>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Use Ctrl+K to search views. Create records from New / Quick create.
+              Owners can manage branding under Settings.
+            </p>
+            <p>
+              <Link
+                href="/docs"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+                onClick={() => setHelpOpen(false)}
+              >
+                Open Documentation
+              </Link>{" "}
+              for product guides, storage limits, billing, and troubleshooting.
+            </p>
+          </div>
         </ResponsiveDrawer>
       </div>
       </SubscriptionProvider>

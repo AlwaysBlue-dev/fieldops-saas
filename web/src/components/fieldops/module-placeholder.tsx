@@ -24,7 +24,7 @@ export function ModulePlaceholder({
   actionLabel?: string;
 }) {
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-3">
+    <div className="mx-auto flex max-w-350 flex-col gap-3">
       <PageHeader
         title={title}
         description={description}

@@ -11,7 +11,7 @@ import {
   notificationHref,
   unreadNotificationCount,
 } from "@/lib/notifications";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "./empty-state";
@@ -33,19 +33,23 @@ export function NotificationCenter({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
     "loading",
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (nextPage = 1, append = false) => {
     try {
       const [list, unread] = await Promise.all([
-        listNotifications(organizationId, { take: 40 }),
+        listNotifications(organizationId, { page: nextPage, pageSize: 20 }),
         unreadNotificationCount(organizationId),
       ]);
-      setItems(list.items);
+      setItems((current) => (append ? [...current, ...list.items] : list.items));
+      setPage(list.page);
+      setTotal(list.total);
       onUnreadChange?.(unread.count);
       setError(null);
       setLoadState("ready");
@@ -64,7 +68,7 @@ export function NotificationCenter({
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- drawer open triggers fetch
     setLoadState("loading");
-    refresh().catch(() => {
+    refresh(1, false).catch(() => {
       if (!cancelled) setLoadState("error");
     });
     return () => {
@@ -106,7 +110,7 @@ export function NotificationCenter({
     setBusy(true);
     try {
       await markAllNotificationsRead(organizationId);
-      await refresh();
+      await refresh(1, false);
     } catch (caught) {
       setError(
         caught instanceof ApiError
@@ -183,6 +187,16 @@ export function NotificationCenter({
           })}
         </ul>
       )}
+      {items.length < total ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 md:h-8"
+          onClick={() => void refresh(page + 1, true)}
+        >
+          Load more
+        </Button>
+      ) : null}
       <Button
         type="button"
         variant="ghost"

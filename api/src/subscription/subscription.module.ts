@@ -14,6 +14,7 @@ import { SubscriptionNotificationService } from './subscription-notification.ser
 import { SubscriptionReconciliationService } from './subscription-reconciliation.service.js';
 import { SubscriptionService } from './subscription.service.js';
 import { UsageService } from './usage.service.js';
+import { StorageQuotaService } from '../storage/storage-quota.service.js';
 
 @Module({
   imports: [AuthModule],
@@ -26,6 +27,7 @@ import { UsageService } from './usage.service.js';
     { provide: CLOCK, useValue: systemClock },
     CatalogService,
     EntitlementService,
+    StorageQuotaService,
     UsageService,
     SubscriptionAccessService,
     SubscriptionAccessGuard,
@@ -38,6 +40,7 @@ import { UsageService } from './usage.service.js';
   exports: [
     CatalogService,
     EntitlementService,
+    StorageQuotaService,
     UsageService,
     SubscriptionAccessService,
     SubscriptionAccessGuard,

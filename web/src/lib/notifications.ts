@@ -17,15 +17,26 @@ export type AppNotification = {
 
 export function listNotifications(
   organizationId: string,
-  query: { unreadOnly?: boolean; take?: number } = {},
+  query: {
+    unreadOnly?: boolean;
+    take?: number;
+    page?: number;
+    pageSize?: number;
+  } = {},
 ) {
   const params = new URLSearchParams();
   if (query.unreadOnly) params.set("unreadOnly", "true");
-  if (query.take) params.set("take", String(query.take));
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  else if (query.take) params.set("pageSize", String(query.take));
   const suffix = params.toString() ? `?${params}` : "";
-  return apiRequest<{ items: AppNotification[] }>(
-    `/organizations/${organizationId}/notifications${suffix}`,
-  );
+  return apiRequest<{
+    items: AppNotification[];
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  }>(`/organizations/${organizationId}/notifications${suffix}`);
 }
 
 export function unreadNotificationCount(organizationId: string) {

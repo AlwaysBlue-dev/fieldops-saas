@@ -1,20 +1,30 @@
+/**
+ * OPTIONAL demo / sample seed for local development and e2e fixtures.
+ *
+ * Creates Northstar Electrical, BluePeak HVAC, demo users, jobs, etc.
+ * Also upserts plans (via shared plans-catalog) and a local platform.admin.
+ *
+ * Not required for the app to run. Prefer:
+ *   npm run db:bootstrap   — plans only
+ *   npm run admin:create   — SUPER_ADMIN
+ *   npm run db:seed:demo   — this file (optional sample tenants)
+ */
 import { config } from 'dotenv';
 import { hash } from 'bcrypt';
 import {
   ClockSessionStatus,
-  BillingInterval,
   InvitationStatus,
   JobPriority,
   JobStatus,
   MembershipStatus,
   OrganizationRole,
-  PlanStatus,
   PlatformRole,
   PrismaClient,
   SubscriptionStatus,
   UserStatus,
 } from '../src/generated/prisma/client.js';
 import { createPrismaClient } from '../src/prisma/create-prisma-client.js';
+import { upsertPlans } from './plans-catalog.js';
 
 config();
 
@@ -85,8 +95,6 @@ type OrgSeedInput = {
     clientRepName: string;
   }>;
 };
-
-const GB = 1024n * 1024n * 1024n;
 
 const organizations: OrgSeedInput[] = [
   {
@@ -427,130 +435,6 @@ const organizations: OrgSeedInput[] = [
   },
 ];
 
-async function seedPlans(prisma: PrismaClient) {
-  const plans = [
-    {
-      code: 'starter',
-      name: 'Starter',
-      monthlyPriceCents: 4900,
-      annualPriceCents: 49000,
-      displayPrice: null,
-      currency: 'USD',
-      billingInterval: BillingInterval.ANNUAL,
-      publiclyVisible: false,
-      contactSales: false,
-      sortOrder: 90,
-      maxUsers: 8,
-      maxStorageBytes: 5n * GB,
-      features: {
-        JOBS: true,
-        TIMESHEETS: true,
-        GPS: true,
-        CLIENT_SIGNATURE: true,
-        ADVANCED_REPORTS: false,
-        CUSTOM_BRANDING: false,
-        gps: true,
-        approvals: false,
-        reports: 'basic',
-      },
-    },
-    {
-      code: 'professional',
-      name: 'Professional',
-      monthlyPriceCents: null,
-      annualPriceCents: 49900,
-      displayPrice: null,
-      currency: 'USD',
-      billingInterval: BillingInterval.ANNUAL,
-      publiclyVisible: true,
-      contactSales: false,
-      sortOrder: 10,
-      maxUsers: 10,
-      maxStorageBytes: 20n * GB,
-      features: {
-        JOBS: true,
-        TIMESHEETS: true,
-        GPS: true,
-        CLIENT_SIGNATURE: true,
-        ADVANCED_REPORTS: true,
-        CUSTOM_BRANDING: false,
-        gps: true,
-        approvals: true,
-        reports: 'standard',
-        support: 'standard',
-        productUpdates: true,
-        publicHighlights: [
-          'Scheduling & Dispatch',
-          'Job Management',
-          'Technician Mobile Experience',
-          'Clock In/Out & GPS Evidence',
-          'Safety & Job Execution',
-          'Materials & Work Logs',
-          'Standard Support',
-          'Product Updates',
-        ],
-      },
-    },
-    {
-      code: 'business',
-      name: 'Business',
-      monthlyPriceCents: null,
-      annualPriceCents: null,
-      displayPrice: null,
-      currency: 'USD',
-      billingInterval: BillingInterval.CUSTOM,
-      publiclyVisible: true,
-      contactSales: true,
-      sortOrder: 20,
-      maxUsers: 100,
-      maxStorageBytes: 250n * GB,
-      features: {
-        JOBS: true,
-        TIMESHEETS: true,
-        GPS: true,
-        CLIENT_SIGNATURE: true,
-        ADVANCED_REPORTS: true,
-        CUSTOM_BRANDING: true,
-        gps: true,
-        approvals: true,
-        reports: 'standard',
-        support: 'standard',
-        productUpdates: true,
-      },
-    },
-  ];
-
-  const byCode: Record<string, { id: string }> = {};
-
-  for (const plan of plans) {
-    const row = await prisma.plan.upsert({
-      where: { code: plan.code },
-      update: {
-        name: plan.name,
-        status: PlanStatus.ACTIVE,
-        monthlyPriceCents: plan.monthlyPriceCents,
-        annualPriceCents: plan.annualPriceCents,
-        displayPrice: plan.displayPrice,
-        currency: plan.currency,
-        billingInterval: plan.billingInterval,
-        publiclyVisible: plan.publiclyVisible,
-        contactSales: plan.contactSales,
-        sortOrder: plan.sortOrder,
-        maxUsers: plan.maxUsers,
-        maxStorageBytes: plan.maxStorageBytes,
-        features: plan.features,
-      },
-      create: {
-        ...plan,
-        status: PlanStatus.ACTIVE,
-      },
-    });
-    byCode[plan.code] = row;
-  }
-
-  return byCode;
-}
-
 async function seedOrganization(
   prisma: PrismaClient,
   passwordHash: string,
@@ -648,6 +532,8 @@ async function seedOrganization(
   const userIds: Record<string, string> = {};
 
   for (const person of input.users) {
+    const consumedTrial =
+      person.role === OrganizationRole.OWNER ? new Date() : undefined;
     const user = await prisma.user.upsert({
       where: { email: person.email },
       update: {
@@ -656,6 +542,9 @@ async function seedOrganization(
         passwordHash,
         status: UserStatus.ACTIVE,
         emailVerifiedAt: new Date(),
+        ...(consumedTrial
+          ? ({ trialUsedAt: consumedTrial } as Record<string, Date>)
+          : {}),
       },
       create: {
         email: person.email,
@@ -664,7 +553,10 @@ async function seedOrganization(
         passwordHash,
         status: UserStatus.ACTIVE,
         emailVerifiedAt: new Date(),
-      },
+        ...(consumedTrial
+          ? ({ trialUsedAt: consumedTrial } as Record<string, Date>)
+          : {}),
+      } as never,
     });
     userIds[person.email] = user.id;
 
@@ -1101,7 +993,8 @@ async function seedPlatformAdmin(prisma: PrismaClient, passwordHash: string) {
 async function main() {
   const prisma = createPrismaClient();
   const passwordHash = await hash(SEED_PASSWORD, BCRYPT_ROUNDS);
-  const plans = await seedPlans(prisma);
+  // Ensure required plans exist (same catalog as db:bootstrap), then load demo tenants.
+  const plans = await upsertPlans(prisma);
 
   for (const org of organizations) {
     const plan = plans[org.planCode];
@@ -1114,10 +1007,11 @@ async function main() {
   await seedClockSessions(prisma);
   await seedPlatformAdmin(prisma, passwordHash);
 
-  console.log('FieldOps Cloud development seed complete.');
+  console.log('FieldOps Cloud DEMO seed complete.');
   console.log(`Shared local password: ${SEED_PASSWORD}`);
   console.log('Organizations: northstar-electrical, bluepeak-hvac');
   console.log('Platform admin: platform.admin@fieldops.local');
+  console.log('For plans-only bootstrap without demo data, use: npm run db:bootstrap');
 
   await prisma.$disconnect();
 }

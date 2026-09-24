@@ -29,6 +29,7 @@ import type { CreateSkillDto } from './dto/create-skill.dto.js';
 import type { ListQueryDto } from './dto/list-query.dto.js';
 import { emptyToNull } from './dto/text.util.js';
 import { TeamsService } from './teams.service.js';
+import { parseMemberRoles } from './dto/list-members-query.dto.js';
 
 @Injectable()
 export class TechniciansService {
@@ -89,14 +90,16 @@ export class TechniciansService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
     const search = query.search?.trim();
-    const visibleUserIds = await this.visibleUserIds(ctx, actorUserId);
+    const roles = parseMemberRoles(query.roles);
+    const visibleUserIds = await this.visibleUserIds(ctx, actorUserId, roles);
     if (visibleUserIds.length === 0) {
-      return { items: [], page, pageSize, total: 0 };
+      return { items: [], page, pageSize, total: 0, totalPages: 1 };
     }
 
     const where: Prisma.OrganizationMemberWhereInput = {
       organizationId: ctx.organizationId,
       userId: { in: visibleUserIds },
+      ...(roles ? { role: { in: roles } } : {}),
       ...(query.status
         ? { status: query.status as never }
         : { status: MembershipStatus.ACTIVE }),
@@ -129,7 +132,7 @@ export class TechniciansService {
       }),
     ]);
 
-    const userIds = rows.map((row) => row.userId);
+    const userIds = [...new Set(rows.map((row) => row.userId))];
     const [teamMemberships, skills] = await Promise.all([
       this.prisma.teamMember.findMany({
         where: { organizationId: ctx.organizationId, userId: { in: userIds } },
@@ -141,8 +144,14 @@ export class TechniciansService {
       }),
     ]);
 
-    return {
-      items: rows.map((row) => {
+    const seen = new Set<string>();
+    const items = rows
+      .filter((row) => {
+        if (seen.has(row.userId)) return false;
+        seen.add(row.userId);
+        return true;
+      })
+      .map((row) => {
         const viewer = this.viewerFor(ctx, actorUserId, row.userId);
         return {
           userId: row.user.id,
@@ -171,10 +180,14 @@ export class TechniciansService {
           ],
           viewer,
         };
-      }),
+      });
+
+    return {
+      items,
       page,
       pageSize,
       total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
     };
   }
 
@@ -407,19 +420,34 @@ export class TechniciansService {
   private async visibleUserIds(
     ctx: OrganizationContext,
     actorUserId: string,
+    roles?: OrganizationRole[],
   ) {
     if (canManageCrew(ctx.role)) {
       const members = await this.prisma.organizationMember.findMany({
         where: {
           organizationId: ctx.organizationId,
-          OR: [
-            {
-              role: {
-                in: [OrganizationRole.TECHNICIAN, OrganizationRole.SUPERVISOR],
-              },
-            },
-            { user: { teamMemberships: { some: { organizationId: ctx.organizationId } } } },
-          ],
+          status: MembershipStatus.ACTIVE,
+          ...(roles
+            ? { role: { in: roles } }
+            : {
+                OR: [
+                  {
+                    role: {
+                      in: [
+                        OrganizationRole.TECHNICIAN,
+                        OrganizationRole.SUPERVISOR,
+                      ],
+                    },
+                  },
+                  {
+                    user: {
+                      teamMemberships: {
+                        some: { organizationId: ctx.organizationId },
+                      },
+                    },
+                  },
+                ],
+              }),
         },
         select: { userId: true },
       });

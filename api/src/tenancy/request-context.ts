@@ -11,6 +11,8 @@ export type AuthUser = {
   platformRole: PlatformRole;
   status: UserStatus;
   emailVerifiedAt: Date | null;
+  /** True when this account has never consumed its one lifetime free trial. */
+  trialEligible: boolean;
 };
 
 export type OrganizationContext = {

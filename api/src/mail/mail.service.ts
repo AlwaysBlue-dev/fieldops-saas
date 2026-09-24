@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createTransport, type Transporter } from 'nodemailer';
 import type { EnvironmentVariables } from '../config/env.js';
 import {
   activationAckMail,
@@ -10,34 +9,59 @@ import {
   jobAssignedMail,
   jobReturnedMail,
   overtimeDecisionMail,
+  passwordResetMail,
   timesheetReturnedMail,
   trialEndingMail,
   trialExpiredMail,
   trialGraceMail,
   type MailContent,
 } from './mail-templates.js';
+import type { MailTransport } from './mail-transport.js';
+import { ResendMailTransport } from './resend-mail.transport.js';
+import { SmtpMailTransport } from './smtp-mail.transport.js';
+import { PASSWORD_RESET_TTL_MINUTES } from '../common/constants.js';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly transport: Transporter | null;
+  private readonly transport: MailTransport;
+  private readonly fromAddress: string;
+  private readonly replyTo: string | undefined;
 
   constructor(private readonly config: ConfigService<EnvironmentVariables, true>) {
-    const host = this.config.get('SMTP_HOST', { infer: true });
-    if (!host) {
-      this.transport = null;
-      return;
+    this.fromAddress =
+      this.config.get('EMAIL_FROM', { infer: true }) ??
+      'FieldOps Cloud <no-reply@fieldops.local>';
+    this.replyTo = this.config.get('EMAIL_REPLY_TO', { infer: true });
+    this.transport = this.createTransport();
+    this.logger.log(`Mail transport: ${this.transport.name}`);
+  }
+
+  private createTransport(): MailTransport {
+    const raw = (
+      this.config.get('EMAIL_PROVIDER', { infer: true }) ?? 'smtp'
+    ).toLowerCase();
+    const provider = raw === 'mailpit' ? 'smtp' : raw;
+    if (provider === 'resend') {
+      return new ResendMailTransport(
+        this.config.get('RESEND_API_KEY', { infer: true }),
+      );
     }
-    this.transport = createTransport({
-      host,
+    if (provider === 'none') {
+      return {
+        name: 'none',
+        send: async () => {
+          this.logger.warn('EMAIL_PROVIDER=none; email skipped');
+          return 'skipped';
+        },
+      };
+    }
+    return new SmtpMailTransport({
+      host: this.config.get('SMTP_HOST', { infer: true }),
       port: this.config.get('SMTP_PORT', { infer: true }),
       secure: this.config.get('SMTP_SECURE', { infer: true }),
-      auth: this.config.get('SMTP_USER', { infer: true })
-        ? {
-            user: this.config.get('SMTP_USER', { infer: true }),
-            pass: this.config.get('SMTP_PASSWORD', { infer: true }),
-          }
-        : undefined,
+      user: this.config.get('SMTP_USER', { infer: true }),
+      password: this.config.get('SMTP_PASSWORD', { infer: true }),
     });
   }
 
@@ -47,8 +71,17 @@ export class MailService {
 
   async sendEmailVerification(to: string, rawToken: string) {
     const verifyUrl = `${this.appUrl()}/verify-email?token=${encodeURIComponent(rawToken)}`;
-    const content = emailVerificationMail({ verifyUrl });
+    const content = emailVerificationMail({ verifyUrl, email: to });
     await this.dispatch({ to, content, logLabel: 'verification' });
+  }
+
+  async sendPasswordReset(to: string, rawToken: string) {
+    const resetUrl = `${this.appUrl()}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    const content = passwordResetMail({
+      resetUrl,
+      expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+    });
+    await this.dispatch({ to, content, logLabel: 'password-reset' });
   }
 
   async sendOrganizationInvitation(input: {
@@ -245,29 +278,18 @@ export class MailService {
     content: MailContent;
     logLabel: string;
   }): Promise<'sent' | 'skipped' | 'failed'> {
-    const from =
-      this.config.get('EMAIL_FROM', { infer: true }) ??
-      'FieldOps Cloud <no-reply@fieldops.local>';
-    if (!this.transport) {
-      this.logger.warn(`SMTP not configured; ${input.logLabel} email skipped`);
-      return 'skipped';
+    const result = await this.transport.send({
+      to: input.to,
+      from: this.fromAddress,
+      replyTo: this.replyTo,
+      subject: input.content.subject,
+      text: input.content.text,
+      html: input.content.html,
+    });
+    if (result === 'failed') {
+      this.logger.error(`Failed to send ${input.logLabel} email`);
     }
-    try {
-      await this.transport.sendMail({
-        from,
-        to: input.to,
-        subject: input.content.subject,
-        text: input.content.text,
-        html: input.content.html,
-      });
-      return 'sent';
-    } catch (error) {
-      this.logger.error(
-        `Failed to send ${input.logLabel} email`,
-        error instanceof Error ? error.stack : String(error),
-      );
-      return 'failed';
-    }
+    return result;
   }
 }
 

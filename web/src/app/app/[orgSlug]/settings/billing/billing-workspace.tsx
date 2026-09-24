@@ -111,7 +111,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       <section className="rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Invoices</h2>
         <div className="mt-3 scroll-x-pane">
-          <table className="w-full min-w-[36rem] text-left text-sm">
+          <table className="w-full min-w-xl text-left text-sm">
             <thead className="text-muted-foreground">
               <tr>
                 <th className="py-2 font-medium">Invoice</th>

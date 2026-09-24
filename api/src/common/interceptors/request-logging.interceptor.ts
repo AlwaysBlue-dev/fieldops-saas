@@ -19,9 +19,12 @@ const REDACTED_KEYS = new Set([
   'passwordhash',
 ]);
 
+const SLOW_MS = 750;
+
 @Injectable()
 export class RequestLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
+  private readonly verbose = process.env.NODE_ENV !== 'production';
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const http = context.switchToHttp();
@@ -30,17 +33,45 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     const started = Date.now();
 
     return next.handle().pipe(
-      tap(() => {
-        if (request.path.includes('/health')) {
-          return;
-        }
-        const userId = request.user?.id ?? '-';
-        const organizationId = request.organization?.organizationId ?? '-';
-        this.logger.log(
-          `${request.method} ${request.originalUrl} ${response.statusCode} ${Date.now() - started}ms user=${userId} org=${organizationId}`,
-        );
+      tap({
+        next: () => this.writeLog(request, response.statusCode, started),
+        error: (error: unknown) => {
+          const status =
+            typeof error === 'object' &&
+            error !== null &&
+            'status' in error &&
+            typeof (error as { status?: unknown }).status === 'number'
+              ? (error as { status: number }).status
+              : 500;
+          this.writeLog(request, status, started);
+        },
       }),
     );
+  }
+
+  private writeLog(
+    request: AuthenticatedRequest,
+    statusCode: number,
+    started: number,
+  ) {
+    if (request.path.includes('/health')) {
+      return;
+    }
+    const elapsed = Date.now() - started;
+    const noteworthy = statusCode >= 400 || elapsed >= SLOW_MS;
+    if (!this.verbose && !noteworthy) {
+      return;
+    }
+    const userId = request.user?.id ?? '-';
+    const organizationId = request.organization?.organizationId ?? '-';
+    const line = `${request.method} ${request.originalUrl} ${statusCode} ${elapsed}ms user=${userId} org=${organizationId}`;
+    if (statusCode >= 500) {
+      this.logger.error(line);
+    } else if (statusCode >= 400 || elapsed >= SLOW_MS) {
+      this.logger.warn(line);
+    } else {
+      this.logger.log(line);
+    }
   }
 }
 

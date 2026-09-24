@@ -8,13 +8,20 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
+import { cleanOrganizationDisplayName } from '../../common/organization-name.js';
 
 export class UpdateOrganizationDto {
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? cleanOrganizationDisplayName(value) : value,
+  )
   @IsString()
+  @MinLength(2, { message: 'Company name must be at least 2 characters.' })
   @MaxLength(120)
   name?: string;
+
 
   @IsOptional()
   @IsString()
