@@ -1040,6 +1040,11 @@ export class JobsService {
     if (!team) {
       throw new NotFoundException();
     }
+    if (team.status !== EntityStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Inactive teams cannot be selected for new job assignments',
+      );
+    }
     return team;
   }
 

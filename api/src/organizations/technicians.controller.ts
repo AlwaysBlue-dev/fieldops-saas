@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -76,6 +79,19 @@ export class TechniciansController {
     return this.technicians.assignSkill(organization, userId, dto.skillId, user.id);
   }
 
+  @Delete('technicians/:userId/skills/:skillId')
+  @HttpCode(HttpStatus.OK)
+  @RequiresActiveSubscription()
+  @OrganizationRoles(...CREW_MANAGE_ROLES)
+  removeSkill(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('userId') userId: string,
+    @Param('skillId') skillId: string,
+  ) {
+    return this.technicians.removeSkill(organization, userId, skillId, user.id);
+  }
+
   @Post('technicians/:userId/certifications')
   @RequiresActiveSubscription()
   @OrganizationRoles(...CREW_MANAGE_ROLES)
@@ -103,6 +119,24 @@ export class TechniciansController {
       userId,
       certificationId,
       dto,
+      user.id,
+    );
+  }
+
+  @Delete('technicians/:userId/certifications/:certificationId')
+  @HttpCode(HttpStatus.OK)
+  @RequiresActiveSubscription()
+  @OrganizationRoles(...CREW_MANAGE_ROLES)
+  removeCertification(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('userId') userId: string,
+    @Param('certificationId') certificationId: string,
+  ) {
+    return this.technicians.removeCertification(
+      organization,
+      userId,
+      certificationId,
       user.id,
     );
   }

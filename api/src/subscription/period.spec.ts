@@ -10,11 +10,11 @@ describe('subscription periods', () => {
     expect(period.currentPeriodEnd.toISOString()).toBe(addUtcYears(now, 1).toISOString());
   });
 
-  it('extends an in-term renewal from the current period end', () => {
+  it('extends an in-term renewal from the current period end without shortening', () => {
     const currentPeriodEnd = addUtcDays(now, 40);
     const currentPeriodStart = addUtcDays(now, -325);
     const period = resolveRenewalPeriod(now, currentPeriodEnd, currentPeriodStart);
-    expect(period.currentPeriodStart.toISOString()).toBe(currentPeriodStart.toISOString());
+    expect(period.currentPeriodStart.toISOString()).toBe(currentPeriodEnd.toISOString());
     expect(period.currentPeriodEnd.toISOString()).toBe(
       addUtcYears(currentPeriodEnd, 1).toISOString(),
     );

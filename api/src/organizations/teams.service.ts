@@ -238,17 +238,21 @@ export class TeamsService {
             name: row.skill.name,
           })),
       })),
-      skills: skillNames.map((name) => ({
-        name,
-        holders: skills
-          .filter((row) => row.skill.name === name)
-          .map((row) => ({
+      skills: skillNames.map((name) => {
+        const rows = skills.filter((row) => row.skill.name === name);
+        return {
+          name,
+          skillId: rows[0]?.skillId ?? null,
+          memberCount: rows.length,
+          holders: rows.map((row) => ({
             userId: row.userId,
             fullName:
               team.members.find((member) => member.userId === row.userId)?.user
                 .fullName ?? '',
+            assignmentId: row.id,
           })),
-      })),
+        };
+      }),
       certifications: certifications.map((row) => ({
         ...serializeCertification(row, now, viewer),
         holderName:
@@ -402,6 +406,15 @@ export class TeamsService {
       ctx,
       teamId,
       { status: EntityStatus.INACTIVE },
+      actorUserId,
+    );
+  }
+
+  async reactivate(ctx: OrganizationContext, teamId: string, actorUserId: string) {
+    return this.update(
+      ctx,
+      teamId,
+      { status: EntityStatus.ACTIVE },
       actorUserId,
     );
   }

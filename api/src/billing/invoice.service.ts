@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -13,6 +14,10 @@ import {
   AUDIT_INVOICE_OVERDUE,
   AUDIT_INVOICE_PAID,
   AUDIT_INVOICE_PAYMENT_NOTICE,
+  AUDIT_INVOICE_PAYMENT_NOT_FOUND,
+  AUDIT_INVOICE_PAYMENT_REPORTED,
+  AUDIT_INVOICE_PAYMENT_URL_SET,
+  AUDIT_INVOICE_PAYMENT_VERIFIED,
   AUDIT_INVOICE_VOIDED,
   AUDIT_SUBSCRIPTION_ACTIVATED,
   AUDIT_SUBSCRIPTION_RENEWED,
@@ -22,25 +27,44 @@ import {
 import {
   InvoiceStatus,
   InvoiceType,
+  MembershipStatus,
+  OrganizationRole,
   PlanStatus,
+  Prisma,
   SubscriptionStatus,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
 import { LegalService } from '../legal/legal.service.js';
 import { MailService } from '../mail/mail.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CLOCK, addUtcDays, type Clock } from '../subscription/clock.js';
 import {
   resolveActivationPeriod,
   resolveRenewalPeriod,
 } from '../subscription/period.js';
+import { formatCentsUsd } from '../subscription/plan-catalog.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import { BillingSettingsService } from './billing-settings.service.js';
 import type { CreateInvoiceDto } from './dto/create-invoice.dto.js';
+import type { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
 import type { PaymentNoticeDto } from './dto/payment-notice.dto.js';
+import type { UpdateInvoicePaymentDto } from './dto/update-invoice-payment.dto.js';
 import { nextInvoiceNumber } from './invoice-number.js';
 import { InvoicePdfService } from './invoice-pdf.service.js';
+import { assertHttpsPaymentUrl, invoiceStatusLabel } from './invoice-status.js';
 import { serializeInvoice } from './invoice.presenter.js';
+
+const PAYABLE_STATUSES: InvoiceStatus[] = [
+  InvoiceStatus.ISSUED,
+  InvoiceStatus.PAYMENT_REPORTED,
+  InvoiceStatus.OVERDUE,
+];
+
+const PREPARABLE_STATUSES: InvoiceStatus[] = [
+  InvoiceStatus.DRAFT,
+  InvoiceStatus.PREPARING,
+];
 
 @Injectable()
 export class InvoiceService {
@@ -53,6 +77,7 @@ export class InvoiceService {
     private readonly legal: LegalService,
     private readonly settings: BillingSettingsService,
     private readonly pdf: InvoicePdfService,
+    private readonly notifications: NotificationsService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -67,13 +92,30 @@ export class InvoiceService {
     const plan = await this.resolvePlan(dto.planId, dto.planCode ?? TRIAL_PLAN_CODE);
     const now = this.clock.now();
     const amountCents = dto.amountCents ?? plan.annualPriceCents ?? 0;
-    const { currentPeriodStart, currentPeriodEnd } = resolveActivationPeriod(
-      now,
-      dto.billingPeriodStart,
-      dto.billingPeriodEnd,
-    );
-    const issuedAt = dto.issuedAt ? new Date(dto.issuedAt) : now;
-    const dueAt = dto.dueAt ? new Date(dto.dueAt) : addUtcDays(issuedAt, INVOICE_DUE_DAYS);
+    const subscription = organization.subscription;
+
+    let period: { currentPeriodStart: Date; currentPeriodEnd: Date };
+    if (dto.type === InvoiceType.RENEWAL && subscription) {
+      period = resolveRenewalPeriod(
+        now,
+        subscription.currentPeriodEnd,
+        subscription.currentPeriodStart,
+        dto.billingPeriodStart,
+        dto.billingPeriodEnd,
+      );
+    } else {
+      period = resolveActivationPeriod(
+        now,
+        dto.billingPeriodStart,
+        dto.billingPeriodEnd,
+      );
+    }
+
+    const dueAt = dto.dueAt
+      ? new Date(dto.dueAt)
+      : addUtcDays(now, INVOICE_DUE_DAYS);
+
+    const owner = await this.resolveOrganizationOwner(organization.id);
 
     const invoice = await this.prisma.$transaction(async (tx) => {
       const invoiceNumber = await nextInvoiceNumber(tx, now);
@@ -81,20 +123,24 @@ export class InvoiceService {
         data: {
           invoiceNumber,
           organizationId: organization.id,
-          subscriptionId: organization.subscription?.id ?? null,
+          subscriptionId: subscription?.id ?? null,
           planId: plan.id,
           type: dto.type,
-          status: InvoiceStatus.DRAFT,
+          status: InvoiceStatus.PREPARING,
           currency: dto.currency ?? plan.currency ?? 'USD',
           subtotalCents: amountCents,
           totalCents: amountCents,
-          billingPeriodStart: currentPeriodStart,
-          billingPeriodEnd: currentPeriodEnd,
-          issuedAt,
+          billingPeriodStart: period.currentPeriodStart,
+          billingPeriodEnd: period.currentPeriodEnd,
+          issuedAt: null,
           dueAt,
           createdByPlatformUserId: actorUserId,
-          customerName: dto.customerName?.trim() || organization.name,
-          customerBillingEmail: dto.customerBillingEmail?.trim() || organization.email,
+          customerName:
+            dto.customerName?.trim() || owner?.fullName || organization.name,
+          customerBillingEmail:
+            dto.customerBillingEmail?.trim() ||
+            owner?.email ||
+            organization.email,
           internalNotes: dto.internalNotes?.trim() || null,
         },
         include: this.include(),
@@ -110,6 +156,7 @@ export class InvoiceService {
             invoiceNumber: created.invoiceNumber,
             type: created.type,
             totalCents: created.totalCents,
+            status: InvoiceStatus.PREPARING,
           },
         },
         tx,
@@ -120,13 +167,120 @@ export class InvoiceService {
     return this.present(invoice, { includeInstructions: false, includeInternal: true });
   }
 
+  async updatePaymentDetails(
+    invoiceId: string,
+    actorUserId: string,
+    dto: UpdateInvoicePaymentDto,
+  ) {
+    const invoice = await this.requireInvoice(invoiceId);
+    if (invoice.status === InvoiceStatus.PAID || invoice.status === InvoiceStatus.VOID) {
+      throw new BadRequestException('Paid or void invoices cannot be edited');
+    }
+
+    const data: Prisma.InvoiceUpdateInput = {};
+    if (dto.paymentUrl !== undefined) {
+      try {
+        data.paymentUrl = assertHttpsPaymentUrl(dto.paymentUrl);
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error ? error.message : 'Invalid payment URL',
+        );
+      }
+    }
+    if (dto.externalReference !== undefined) {
+      data.externalReference = dto.externalReference.trim() || null;
+    }
+    if (dto.dueAt !== undefined) {
+      data.dueAt = new Date(dto.dueAt);
+    }
+    if (
+      dto.customerName !== undefined ||
+      dto.customerBillingEmail !== undefined
+    ) {
+      if (!PREPARABLE_STATUSES.includes(invoice.status)) {
+        throw new BadRequestException(
+          'Billing contact can only be edited before the invoice is issued',
+        );
+      }
+      if (dto.customerName !== undefined) {
+        const name = dto.customerName.trim();
+        if (!name) {
+          throw new BadRequestException('Billing contact name is required');
+        }
+        data.customerName = name;
+      }
+      if (dto.customerBillingEmail !== undefined) {
+        const email = dto.customerBillingEmail.trim();
+        if (!email) {
+          throw new BadRequestException('Billing contact email is required');
+        }
+        data.customerBillingEmail = email;
+      }
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('No payment fields to update');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.invoice.update({
+        where: { id: invoice.id },
+        data,
+        include: this.include(),
+      });
+      await this.audit.record(
+        {
+          action: AUDIT_INVOICE_PAYMENT_URL_SET,
+          entityType: 'Invoice',
+          entityId: row.id,
+          organizationId: row.organizationId,
+          actorUserId,
+          oldValues: {
+            hasPaymentUrl: Boolean(invoice.paymentUrl),
+            dueAt: invoice.dueAt?.toISOString() ?? null,
+          },
+          newValues: {
+            hasPaymentUrl: Boolean(row.paymentUrl),
+            dueAt: row.dueAt?.toISOString() ?? null,
+            externalReferenceSet: Boolean(row.externalReference),
+          },
+        },
+        tx,
+      );
+      return row;
+    });
+
+    return this.present(updated, { includeInstructions: true, includeInternal: true });
+  }
+
   async issue(invoiceId: string, actorUserId: string) {
     const invoice = await this.requireInvoice(invoiceId);
-    if (invoice.status !== InvoiceStatus.DRAFT && invoice.status !== InvoiceStatus.ISSUED) {
-      throw new BadRequestException('Only draft invoices can be issued');
+    if (
+      !PREPARABLE_STATUSES.includes(invoice.status) &&
+      invoice.status !== InvoiceStatus.ISSUED
+    ) {
+      throw new BadRequestException(
+        'Only preparing invoices can be issued',
+      );
     }
+    if (!invoice.paymentUrl) {
+      throw new BadRequestException(
+        'Add a secure payment URL before issuing the invoice',
+      );
+    }
+    try {
+      assertHttpsPaymentUrl(invoice.paymentUrl);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Invalid payment URL',
+      );
+    }
+
+    if (invoice.status === InvoiceStatus.ISSUED) {
+      return this.present(invoice, { includeInstructions: true, includeInternal: true });
+    }
+
     const now = this.clock.now();
-    const instructions = await this.settings.instructionsText();
+    const instructions = await this.customerPaymentInstructions();
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.invoice.update({
         where: { id: invoice.id },
@@ -153,139 +307,177 @@ export class InvoiceService {
     });
 
     const appUrl = this.billingLink(updated.organization.slug);
+    const amount = `${formatCentsUsd(updated.totalCents)} ${updated.currency}`;
     await this.mail.sendText({
       to: updated.customerBillingEmail,
-      subject: `Invoice ${updated.invoiceNumber} is ready`,
+      subject: 'Your FieldOps Cloud invoice is ready',
       text: [
-        `Invoice ${updated.invoiceNumber} has been issued for ${updated.organization.name}.`,
-        `Amount: ${updated.totalCents / 100} ${updated.currency}`,
+        `Invoice ${updated.invoiceNumber} is ready.`,
+        '',
+        `Plan: ${updated.plan.name}`,
+        `Amount: ${amount}`,
         `Due: ${updated.dueAt?.toISOString().slice(0, 10) ?? '—'}`,
         '',
-        'Sign in to your FieldOps Cloud account to view verified payment instructions.',
+        'Sign in to Billing and select Pay Invoice to open the secure payment page.',
         appUrl,
         '',
-        'FieldOps Cloud will never ask you to provide your password, full card number, CVV, or authentication credentials by email, support message, or chat.',
+        'FieldOps Cloud subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.',
+        '',
+        'Use only the payment link shown in your authenticated FieldOps Cloud Billing area or provided through an official FieldOps communication.',
+        'FieldOps will never ask for your password, authentication code, full card number, or CVV through support messages.',
       ].join('\n'),
+    });
+
+    await this.notifyOwners(updated.organizationId, {
+      type: 'INVOICE_READY',
+      title: 'Invoice ready',
+      message: `Invoice ${updated.invoiceNumber} is ready in Billing.`,
+      organizationSlug: updated.organization.slug,
     });
 
     return this.present(updated, { includeInstructions: true, includeInternal: true });
   }
 
+  /** @deprecated Prefer markPaidAndActivate / markPaidAndRenew — kept for compatibility. */
   async markPaid(invoiceId: string, actorUserId: string) {
+    return this.markPaidOnly(invoiceId, actorUserId);
+  }
+
+  async markPaidAndActivate(invoiceId: string, actorUserId: string) {
+    return this.confirmPaidAndApply(invoiceId, actorUserId, 'activate');
+  }
+
+  async markPaidAndRenew(invoiceId: string, actorUserId: string) {
+    return this.confirmPaidAndApply(invoiceId, actorUserId, 'renew');
+  }
+
+  /** Legacy two-step activate after mark-paid. Prefer markPaidAndActivate/Renew. */
+  async activateFromInvoice(invoiceId: string, actorUserId: string) {
     const invoice = await this.requireInvoice(invoiceId);
-    if (invoice.status === InvoiceStatus.VOID) {
-      throw new BadRequestException('A void invoice cannot be marked paid');
+    if (invoice.status !== InvoiceStatus.PAID) {
+      throw new BadRequestException('Confirm payment before activating or renewing');
     }
-    if (invoice.status === InvoiceStatus.PAID) {
-      return this.present(invoice, { includeInstructions: true, includeInternal: true });
+    const mode =
+      invoice.type === InvoiceType.RENEWAL || Boolean(
+        (
+          await this.prisma.subscription.findFirst({
+            where: { organizationId: invoice.organizationId },
+            select: { activatedAt: true },
+          })
+        )?.activatedAt,
+      )
+        ? 'renew'
+        : 'activate';
+    return this.confirmPaidAndApply(invoiceId, actorUserId, mode);
+  }
+
+  async markOverdue(invoiceId: string, actorUserId: string) {
+    const invoice = await this.requireInvoice(invoiceId);
+    if (invoice.status !== InvoiceStatus.ISSUED && invoice.status !== InvoiceStatus.PAYMENT_REPORTED) {
+      throw new BadRequestException('Only issued invoices can be marked overdue');
     }
-    const now = this.clock.now();
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.invoice.update({
         where: { id: invoice.id },
-        data: { status: InvoiceStatus.PAID, paidAt: now },
+        data: { status: InvoiceStatus.OVERDUE },
         include: this.include(),
       });
       await this.audit.record(
         {
-          action: AUDIT_INVOICE_PAID,
+          action: AUDIT_INVOICE_OVERDUE,
           entityType: 'Invoice',
           entityId: row.id,
           organizationId: row.organizationId,
           actorUserId,
           oldValues: { status: invoice.status },
-          newValues: { status: InvoiceStatus.PAID },
+          newValues: { status: InvoiceStatus.OVERDUE },
+        },
+        tx,
+      );
+      return row;
+    });
+    return this.present(updated, { includeInstructions: true, includeInternal: true });
+  }
+
+  /**
+   * PAYMENT_REPORTED → ISSUED when external payment cannot be verified.
+   * Preserves paymentReportedAt and payment notices for history.
+   * Does not activate, renew, set paidAt, or change billing period.
+   */
+  async markPaymentNotFound(invoiceId: string, actorUserId: string) {
+    const invoice = await this.requireInvoice(invoiceId);
+    if (invoice.status !== InvoiceStatus.PAYMENT_REPORTED) {
+      if (invoice.status === InvoiceStatus.ISSUED) {
+        return this.present(invoice, {
+          includeInstructions: true,
+          includeInternal: true,
+        });
+      }
+      throw new BadRequestException(
+        'Only payment-reported invoices can be returned to Payment Due',
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.invoice.updateMany({
+        where: {
+          id: invoice.id,
+          status: InvoiceStatus.PAYMENT_REPORTED,
+        },
+        data: {
+          status: InvoiceStatus.ISSUED,
+          // Keep paymentReportedAt for history; never set paid/verified fields.
+        },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'Invoice is no longer awaiting payment verification',
+        );
+      }
+      const row = await tx.invoice.findFirstOrThrow({
+        where: { id: invoice.id },
+        include: this.include(),
+      });
+      await this.audit.record(
+        {
+          action: AUDIT_INVOICE_PAYMENT_NOT_FOUND,
+          entityType: 'Invoice',
+          entityId: row.id,
+          organizationId: row.organizationId,
+          actorUserId,
+          oldValues: { status: InvoiceStatus.PAYMENT_REPORTED },
+          newValues: {
+            status: InvoiceStatus.ISSUED,
+            paymentReportedAt:
+              invoice.paymentReportedAt?.toISOString() ?? null,
+          },
         },
         tx,
       );
       return row;
     });
 
+    const billingUrl = this.billingLink(updated.organization.slug);
     await this.mail.sendText({
       to: updated.customerBillingEmail,
-      subject: `Payment confirmed for invoice ${updated.invoiceNumber}`,
+      subject: 'Payment could not be confirmed',
       text: [
-        `Payment for invoice ${updated.invoiceNumber} has been confirmed.`,
-        'Subscription access is updated only after FieldOps completes the separate activation or renewal step.',
+        `We could not confirm payment for invoice ${updated.invoiceNumber}.`,
+        'The invoice has been returned to Payment Due.',
+        'Please review the payment details and try again.',
+        '',
+        billingUrl,
       ].join('\n'),
     });
 
-    return this.present(updated, { includeInstructions: true, includeInternal: true });
-  }
-
-  async activateFromInvoice(invoiceId: string, actorUserId: string) {
-    const invoice = await this.requireInvoice(invoiceId);
-    if (invoice.status !== InvoiceStatus.PAID) {
-      throw new BadRequestException('Confirm payment before activating or renewing');
-    }
-    const now = this.clock.now();
-    const subscription = await this.prisma.subscription.findFirst({
-      where: { organizationId: invoice.organizationId },
-    });
-    if (!subscription) {
-      throw new NotFoundException();
-    }
-
-    const isRenewal =
-      invoice.type === InvoiceType.RENEWAL || Boolean(subscription.activatedAt);
-    const period = isRenewal
-      ? resolveRenewalPeriod(
-          now,
-          subscription.currentPeriodEnd,
-          subscription.currentPeriodStart,
-          invoice.billingPeriodStart.toISOString(),
-          invoice.billingPeriodEnd.toISOString(),
-        )
-      : {
-          currentPeriodStart: invoice.billingPeriodStart,
-          currentPeriodEnd: invoice.billingPeriodEnd,
-        };
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: SubscriptionStatus.ACTIVE,
-          planId: invoice.planId,
-          currentPeriodStart: period.currentPeriodStart,
-          currentPeriodEnd: period.currentPeriodEnd,
-          activatedAt: subscription.activatedAt ?? now,
-          activatedByUserId: actorUserId,
-          cancelAtPeriodEnd: false,
-        },
-      });
-      await this.audit.record(
-        {
-          action: isRenewal ? AUDIT_SUBSCRIPTION_RENEWED : AUDIT_SUBSCRIPTION_ACTIVATED,
-          entityType: 'Subscription',
-          entityId: subscription.id,
-          organizationId: invoice.organizationId,
-          actorUserId,
-          oldValues: { status: subscription.status, planId: subscription.planId },
-          newValues: {
-            status: SubscriptionStatus.ACTIVE,
-            planId: invoice.planId,
-            invoiceId: invoice.id,
-            currentPeriodStart: period.currentPeriodStart.toISOString(),
-            currentPeriodEnd: period.currentPeriodEnd.toISOString(),
-          },
-        },
-        tx,
-      );
+    await this.notifyOwners(updated.organizationId, {
+      type: 'INVOICE_PAYMENT_NOT_FOUND',
+      title: 'Payment could not be confirmed',
+      message: `Payment for invoice ${updated.invoiceNumber} could not be confirmed. The invoice is back to Payment Due.`,
+      organizationSlug: updated.organization.slug,
     });
 
-    await this.mail.sendText({
-      to: invoice.customerBillingEmail,
-      subject: isRenewal
-        ? 'Your FieldOps Cloud subscription was renewed'
-        : 'Your FieldOps Cloud subscription is active',
-      text: [
-        `The ${invoice.plan.name} subscription for ${invoice.organization.name} is now ${isRenewal ? 'renewed' : 'active'}.`,
-        `Current period ends ${period.currentPeriodEnd.toISOString().slice(0, 10)}.`,
-      ].join('\n'),
-    });
-
-    return this.present(await this.requireInvoice(invoiceId), {
+    return this.present(updated, {
       includeInstructions: true,
       includeInternal: true,
     });
@@ -324,14 +516,8 @@ export class InvoiceService {
     return this.present(updated, { includeInstructions: false, includeInternal: true });
   }
 
-  async listPlatform() {
-    const rows = await this.prisma.invoice.findMany({
-      include: this.include(),
-      orderBy: { createdAt: 'desc' },
-    });
-    return rows.map((row) =>
-      this.present(row, { includeInstructions: true, includeInternal: true }),
-    );
+  async listPlatform(query: ListInvoicesQueryDto = {}) {
+    return this.listInvoices(query, { includeInternal: true });
   }
 
   async getPlatform(invoiceId: string) {
@@ -341,17 +527,10 @@ export class InvoiceService {
     });
   }
 
-  async listForOrganization(organizationId: string) {
-    const rows = await this.prisma.invoice.findMany({
-      where: { organizationId },
-      include: this.include(),
-      orderBy: { createdAt: 'desc' },
-    });
-    return rows.map((row) =>
-      this.present(row, {
-        includeInstructions: this.canShowInstructions(row.status),
-        includeInternal: false,
-      }),
+  async listForOrganization(organizationId: string, query: ListInvoicesQueryDto = {}) {
+    return this.listInvoices(
+      { ...query, organizationId },
+      { includeInternal: false },
     );
   }
 
@@ -402,10 +581,37 @@ export class InvoiceService {
       invoice.status !== InvoiceStatus.ISSUED &&
       invoice.status !== InvoiceStatus.OVERDUE
     ) {
-      throw new ForbiddenException('Payment can only be reported for an issued invoice');
+      if (invoice.status === InvoiceStatus.PAYMENT_REPORTED) {
+        return {
+          id: invoice.id,
+          invoiceId: invoice.id,
+          createdAt: invoice.paymentReportedAt?.toISOString() ?? invoice.updatedAt.toISOString(),
+          status: invoice.status,
+          statusLabel: invoiceStatusLabel(invoice.status),
+          alreadyReported: true,
+        };
+      }
+      throw new ForbiddenException(
+        'Payment can only be reported for an issued invoice',
+      );
     }
 
+    const now = this.clock.now();
     const notice = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.invoice.updateMany({
+        where: {
+          id: invoice.id,
+          organizationId: organization.organizationId,
+          status: { in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE] },
+        },
+        data: {
+          status: InvoiceStatus.PAYMENT_REPORTED,
+          paymentReportedAt: now,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('Payment was already reported for this invoice');
+      }
       const created = await tx.invoicePaymentNotice.create({
         data: {
           invoiceId: invoice.id,
@@ -415,6 +621,21 @@ export class InvoiceService {
           message: dto.message?.trim() || null,
         },
       });
+      await this.audit.record(
+        {
+          action: AUDIT_INVOICE_PAYMENT_REPORTED,
+          entityType: 'Invoice',
+          entityId: invoice.id,
+          organizationId: organization.organizationId,
+          actorUserId: user.id,
+          oldValues: { status: invoice.status },
+          newValues: {
+            status: InvoiceStatus.PAYMENT_REPORTED,
+            noticeId: created.id,
+          },
+        },
+        tx,
+      );
       await this.audit.record(
         {
           action: AUDIT_INVOICE_PAYMENT_NOTICE,
@@ -435,22 +656,368 @@ export class InvoiceService {
 
     await this.mail.sendText({
       to: this.legal.salesEmail(),
-      subject: `Payment reported for ${invoice.invoiceNumber}`,
+      subject: `${organization.name} reported payment for ${invoice.invoiceNumber}`,
       text: [
-        `${user.fullName} reported payment for invoice ${invoice.invoiceNumber} (${organization.name}).`,
-        `This does not mark the invoice paid or activate the subscription.`,
-        dto.reference ? `Reference: ${dto.reference}` : '',
+        `${organization.name} reported payment for ${invoice.invoiceNumber}.`,
+        `Reported by: ${user.fullName} <${user.email}>`,
+        `Amount: ${formatCentsUsd(invoice.totalCents)} ${invoice.currency}`,
+        '',
+        'This does not mark the invoice paid or activate the subscription.',
+        'Verify payment externally, then use Mark Paid & Activate or Mark Paid & Renew.',
+        dto.reference ? `Customer reference: ${dto.reference}` : '',
         dto.message ? `Message: ${dto.message}` : '',
       ]
         .filter(Boolean)
         .join('\n'),
     });
 
+    await this.mail.sendText({
+      to: invoice.customerBillingEmail,
+      subject: "We've received your payment notification",
+      text: [
+        `We've received your payment notification for invoice ${invoice.invoiceNumber}.`,
+        '',
+        'Your payment is awaiting verification.',
+        "We'll update your subscription after payment has been confirmed.",
+        '',
+        this.billingLink(organization.slug),
+      ].join('\n'),
+    });
+
     return {
       id: notice.id,
       invoiceId: invoice.id,
       createdAt: notice.createdAt.toISOString(),
-      status: invoice.status,
+      status: InvoiceStatus.PAYMENT_REPORTED,
+      statusLabel: invoiceStatusLabel(InvoiceStatus.PAYMENT_REPORTED),
+      alreadyReported: false,
+    };
+  }
+
+  private async confirmPaidAndApply(
+    invoiceId: string,
+    actorUserId: string,
+    mode: 'activate' | 'renew',
+  ) {
+    const invoice = await this.requireInvoice(invoiceId);
+    if (invoice.status === InvoiceStatus.VOID) {
+      throw new BadRequestException('A void invoice cannot be marked paid');
+    }
+
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { organizationId: invoice.organizationId },
+    });
+    if (!subscription) {
+      throw new NotFoundException();
+    }
+
+    const now = this.clock.now();
+    const isRenewal =
+      mode === 'renew' ||
+      invoice.type === InvoiceType.RENEWAL ||
+      Boolean(subscription.activatedAt);
+
+    const period = isRenewal
+      ? resolveRenewalPeriod(
+          now,
+          subscription.currentPeriodEnd,
+          subscription.currentPeriodStart,
+          invoice.billingPeriodStart.toISOString(),
+          invoice.billingPeriodEnd.toISOString(),
+        )
+      : {
+          currentPeriodStart: invoice.billingPeriodStart,
+          currentPeriodEnd: invoice.billingPeriodEnd,
+        };
+
+    const alreadyPaid = invoice.status === InvoiceStatus.PAID;
+    if (alreadyPaid) {
+      const alreadyApplied =
+        subscription.status === SubscriptionStatus.ACTIVE &&
+        subscription.planId === invoice.planId &&
+        subscription.currentPeriodEnd &&
+        subscription.currentPeriodEnd.getTime() >= period.currentPeriodEnd.getTime();
+      if (alreadyApplied) {
+        return this.present(invoice, {
+          includeInstructions: true,
+          includeInternal: true,
+        });
+      }
+    } else if (!PAYABLE_STATUSES.includes(invoice.status)) {
+      throw new BadRequestException(
+        'Only issued, payment-reported, or overdue invoices can be confirmed',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (!alreadyPaid) {
+        const claimed = await tx.invoice.updateMany({
+          where: {
+            id: invoice.id,
+            status: { in: PAYABLE_STATUSES },
+          },
+          data: {
+            status: InvoiceStatus.PAID,
+            paidAt: now,
+            paymentVerifiedAt: now,
+            verifiedByUserId: actorUserId,
+          },
+        });
+        if (claimed.count === 0) {
+          const current = await tx.invoice.findFirst({ where: { id: invoice.id } });
+          if (current?.status !== InvoiceStatus.PAID) {
+            throw new ConflictException('Invoice payment could not be confirmed');
+          }
+        } else {
+          await this.audit.record(
+            {
+              action: AUDIT_INVOICE_PAYMENT_VERIFIED,
+              entityType: 'Invoice',
+              entityId: invoice.id,
+              organizationId: invoice.organizationId,
+              actorUserId,
+              oldValues: { status: invoice.status },
+              newValues: {
+                status: InvoiceStatus.PAID,
+                paymentVerifiedAt: now.toISOString(),
+              },
+            },
+            tx,
+          );
+          await this.audit.record(
+            {
+              action: AUDIT_INVOICE_PAID,
+              entityType: 'Invoice',
+              entityId: invoice.id,
+              organizationId: invoice.organizationId,
+              actorUserId,
+              oldValues: { status: invoice.status },
+              newValues: { status: InvoiceStatus.PAID, paidAt: now.toISOString() },
+            },
+            tx,
+          );
+        }
+      }
+
+      await tx.subscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          planId: invoice.planId,
+          currentPeriodStart: period.currentPeriodStart,
+          currentPeriodEnd: period.currentPeriodEnd,
+          activatedAt: subscription.activatedAt ?? now,
+          activatedByUserId: actorUserId,
+          cancelAtPeriodEnd: false,
+          trialEndsAt: null,
+          graceEndsAt: null,
+        },
+      });
+
+      await this.audit.record(
+        {
+          action: isRenewal ? AUDIT_SUBSCRIPTION_RENEWED : AUDIT_SUBSCRIPTION_ACTIVATED,
+          entityType: 'Subscription',
+          entityId: subscription.id,
+          organizationId: invoice.organizationId,
+          actorUserId,
+          oldValues: {
+            status: subscription.status,
+            planId: subscription.planId,
+            currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+          },
+          newValues: {
+            status: SubscriptionStatus.ACTIVE,
+            planId: invoice.planId,
+            invoiceId: invoice.id,
+            currentPeriodStart: period.currentPeriodStart.toISOString(),
+            currentPeriodEnd: period.currentPeriodEnd.toISOString(),
+          },
+        },
+        tx,
+      );
+    });
+
+    const refreshed = await this.requireInvoice(invoiceId);
+    const through = period.currentPeriodEnd.toISOString().slice(0, 10);
+    await this.mail.sendText({
+      to: refreshed.customerBillingEmail,
+      subject: isRenewal
+        ? 'Your FieldOps Cloud subscription was renewed'
+        : 'Your FieldOps Cloud subscription is active',
+      text: [
+        `Payment for invoice ${refreshed.invoiceNumber} has been confirmed.`,
+        '',
+        `${refreshed.plan.name}`,
+        `Active through ${through}`,
+        '',
+        this.billingLink(refreshed.organization.slug),
+      ].join('\n'),
+    });
+
+    await this.notifyOwners(refreshed.organizationId, {
+      type: isRenewal ? 'SUBSCRIPTION_RENEWED' : 'SUBSCRIPTION_ACTIVATED',
+      title: isRenewal ? 'Subscription renewed' : 'Subscription activated',
+      message: `${refreshed.plan.name} is active through ${through}.`,
+      organizationSlug: refreshed.organization.slug,
+    });
+
+    return this.present(refreshed, {
+      includeInstructions: true,
+      includeInternal: true,
+    });
+  }
+
+  private async markPaidOnly(invoiceId: string, actorUserId: string) {
+    const invoice = await this.requireInvoice(invoiceId);
+    if (invoice.status === InvoiceStatus.VOID) {
+      throw new BadRequestException('A void invoice cannot be marked paid');
+    }
+    if (invoice.status === InvoiceStatus.PAID) {
+      return this.present(invoice, { includeInstructions: true, includeInternal: true });
+    }
+    if (!PAYABLE_STATUSES.includes(invoice.status)) {
+      throw new BadRequestException(
+        'Only issued, payment-reported, or overdue invoices can be marked paid',
+      );
+    }
+    const now = this.clock.now();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.invoice.updateMany({
+        where: { id: invoice.id, status: { in: PAYABLE_STATUSES } },
+        data: {
+          status: InvoiceStatus.PAID,
+          paidAt: now,
+          paymentVerifiedAt: now,
+          verifiedByUserId: actorUserId,
+        },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException('Invoice was already processed');
+      }
+      const row = await tx.invoice.findFirstOrThrow({
+        where: { id: invoice.id },
+        include: this.include(),
+      });
+      await this.audit.record(
+        {
+          action: AUDIT_INVOICE_PAYMENT_VERIFIED,
+          entityType: 'Invoice',
+          entityId: row.id,
+          organizationId: row.organizationId,
+          actorUserId,
+          oldValues: { status: invoice.status },
+          newValues: { status: InvoiceStatus.PAID },
+        },
+        tx,
+      );
+      await this.audit.record(
+        {
+          action: AUDIT_INVOICE_PAID,
+          entityType: 'Invoice',
+          entityId: row.id,
+          organizationId: row.organizationId,
+          actorUserId,
+          oldValues: { status: invoice.status },
+          newValues: { status: InvoiceStatus.PAID },
+        },
+        tx,
+      );
+      return row;
+    });
+
+    await this.mail.sendText({
+      to: updated.customerBillingEmail,
+      subject: `Payment confirmed for invoice ${updated.invoiceNumber}`,
+      text: [
+        `Payment for invoice ${updated.invoiceNumber} has been confirmed.`,
+        'Your subscription will be updated once activation or renewal is completed.',
+      ].join('\n'),
+    });
+
+    return this.present(updated, { includeInstructions: true, includeInternal: true });
+  }
+
+  private async listInvoices(
+    query: ListInvoicesQueryDto,
+    options: { includeInternal: boolean },
+  ) {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.pageSize ?? 20, 100);
+    const sortBy = query.sortBy ?? 'createdAt';
+    const sortOrder = query.sortOrder ?? 'desc';
+
+    const where: Prisma.InvoiceWhereInput = {};
+    if (query.organizationId) {
+      where.organizationId = query.organizationId;
+    }
+    if (query.status) {
+      where.status = query.status as InvoiceStatus;
+    }
+    if (query.invoiceType) {
+      where.type = query.invoiceType as InvoiceType;
+    }
+    if (query.planId) {
+      where.planId = query.planId;
+    }
+    if (query.planCode) {
+      where.plan = { code: query.planCode };
+    }
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { invoiceNumber: { contains: q, mode: 'insensitive' } },
+        { customerName: { contains: q, mode: 'insensitive' } },
+        { customerBillingEmail: { contains: q, mode: 'insensitive' } },
+        { organization: { name: { contains: q, mode: 'insensitive' } } },
+        {
+          organization: {
+            members: {
+              some: {
+                role: OrganizationRole.OWNER,
+                status: MembershipStatus.ACTIVE,
+                user: {
+                  OR: [
+                    { fullName: { contains: q, mode: 'insensitive' } },
+                    { email: { contains: q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ];
+      if (options.includeInternal) {
+        where.OR.push({
+          externalReference: { contains: q, mode: 'insensitive' },
+        });
+      }
+    }
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.invoice.count({ where }),
+      this.prisma.invoice.findMany({
+        where,
+        include: this.include(),
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items: rows.map((row) =>
+        this.present(row, {
+          includeInstructions: options.includeInternal
+            ? true
+            : this.canShowInstructions(row.status),
+          includeInternal: options.includeInternal,
+        }),
+      ),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
     };
   }
 
@@ -462,7 +1029,7 @@ export class InvoiceService {
       invoiceNumber: invoice.invoiceNumber,
       issuedAt: invoice.issuedAt,
       dueAt: invoice.dueAt,
-      status: invoice.status,
+      status: invoiceStatusLabel(invoice.status),
       currency: invoice.currency,
       subtotalCents: invoice.subtotalCents,
       totalCents: invoice.totalCents,
@@ -525,9 +1092,9 @@ export class InvoiceService {
           subject: `Invoice ${invoice.invoiceNumber} is overdue`,
           text: [
             `Invoice ${invoice.invoiceNumber} for ${invoice.organization.name} is past due.`,
-            `Amount: ${invoice.totalCents / 100} ${invoice.currency}`,
+            `Amount: ${formatCentsUsd(invoice.totalCents)} ${invoice.currency}`,
             '',
-            'Sign in to your FieldOps Cloud account to view verified payment instructions.',
+            'Sign in to Billing to pay your invoice.',
             this.billingLink(invoice.organization.slug),
           ].join('\n'),
         });
@@ -545,20 +1112,68 @@ export class InvoiceService {
   private canShowInstructions(status: InvoiceStatus) {
     return (
       status === InvoiceStatus.ISSUED ||
+      status === InvoiceStatus.PAYMENT_REPORTED ||
       status === InvoiceStatus.OVERDUE ||
       status === InvoiceStatus.PAID
     );
   }
 
+  private async customerPaymentInstructions() {
+    const configured = await this.settings.instructionsText();
+    const b2b =
+      'FieldOps Cloud subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.';
+    const trust =
+      'Use only the payment link shown in your authenticated FieldOps Cloud Billing area or provided through an official FieldOps communication. FieldOps will never ask for your password, authentication code, full card number, or CVV through support messages.';
+    if (!configured?.trim()) {
+      return [b2b, '', trust].join('\n');
+    }
+    return [configured.trim(), '', b2b, '', trust].join('\n');
+  }
+
   private include() {
     return {
       plan: { select: { id: true, code: true, name: true } },
-      organization: { select: { id: true, name: true, slug: true, email: true } },
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          email: true,
+          members: {
+            where: {
+              role: OrganizationRole.OWNER,
+              status: MembershipStatus.ACTIVE,
+            },
+            take: 1,
+            orderBy: { joinedAt: 'asc' as const },
+            select: {
+              user: {
+                select: { id: true, fullName: true, email: true },
+              },
+            },
+          },
+        },
+      },
       paymentNotices: {
         include: { submittedBy: { select: { fullName: true, email: true } } },
         orderBy: { createdAt: 'desc' as const },
       },
     };
+  }
+
+  private async resolveOrganizationOwner(organizationId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        role: OrganizationRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      },
+      orderBy: { joinedAt: 'asc' },
+      select: {
+        user: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+    return membership?.user ?? null;
   }
 
   private async requireInvoice(invoiceId: string) {
@@ -589,5 +1204,36 @@ export class InvoiceService {
   private billingLink(orgSlug: string) {
     const webUrl = process.env.WEB_URL ?? 'http://localhost:3000';
     return `${webUrl}/app/${orgSlug}/settings/billing`;
+  }
+
+  private async notifyOwners(
+    organizationId: string,
+    input: {
+      type: string;
+      title: string;
+      message: string;
+      organizationSlug: string;
+    },
+  ) {
+    const owners = await this.prisma.organizationMember.findMany({
+      where: {
+        organizationId,
+        status: MembershipStatus.ACTIVE,
+        role: OrganizationRole.OWNER,
+      },
+      select: { userId: true },
+    });
+    if (owners.length === 0) return;
+    await this.notifications.notify({
+      organizationId,
+      recipientUserIds: owners.map((row) => row.userId),
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      relatedEntityType: 'Organization',
+      relatedEntityId: organizationId,
+      payload: { organizationSlug: input.organizationSlug },
+      dedupeUnread: true,
+    });
   }
 }

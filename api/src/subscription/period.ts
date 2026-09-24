@@ -39,9 +39,11 @@ export function resolveRenewalPeriod(
     return { currentPeriodStart, currentPeriodEnd };
   }
 
+  // Early renewal: do not shorten the current paid year — start the next
+  // period at the existing period end (e.g. pay Oct 1, renew Oct 15 → Oct 14+1y).
   if (existingEnd && existingEnd.getTime() > now.getTime()) {
     return {
-      currentPeriodStart: existingStart ?? now,
+      currentPeriodStart: existingEnd,
       currentPeriodEnd: addUtcYears(existingEnd, ANNUAL_PERIOD_YEARS),
     };
   }

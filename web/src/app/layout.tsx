@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegister } from "@/components/fieldops/pwa-register";
+import { PwaThemeMeta } from "@/components/fieldops/pwa-theme-meta";
 import { ThemeProvider } from "@/components/fieldops/theme-provider";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -27,6 +28,13 @@ export const metadata: Metadata = {
     capable: true,
     title: "FieldOps",
     statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   formatDetection: {
     telephone: false,
@@ -58,6 +66,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground">
         <ThemeProvider>
           {children}
+          <PwaThemeMeta />
           <PwaRegister />
           <Toaster
             richColors

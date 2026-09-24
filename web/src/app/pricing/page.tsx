@@ -251,8 +251,20 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
 
 const FAQ_ITEMS = [
   {
+    q: "How do I pay for FieldOps Cloud?",
+    a: "When your subscription invoice is ready, a secure payment link will appear in Billing. Payments are confirmed before your subscription is activated or renewed.",
+  },
+  {
+    q: "Do you automatically charge my card?",
+    a: "No. FieldOps Cloud does not currently automatically charge a stored card.",
+  },
+  {
+    q: "What happens after I pay?",
+    a: "Your payment is verified and your subscription is activated or renewed. You'll receive confirmation once complete.",
+  },
+  {
     q: "What happens after the trial?",
-    a: "Request activation from your workspace billing page. FieldOps sends an official invoice; after payment is confirmed, a platform administrator activates your paid subscription.",
+    a: "An activation invoice becomes available in Billing before your trial or grace period ends. After payment is confirmed, your paid subscription is activated.",
   },
   {
     q: "Do I need a credit card for the trial?",
@@ -276,7 +288,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change plan later?",
-    a: "Yes. Owners and admins can submit a plan-change request from billing. FieldOps handles the commercial change manually — there is no self-serve checkout.",
+    a: "Yes. Owners and admins can submit a plan-change request from billing. FieldOps handles the commercial change with an invoice when needed — there is no self-serve checkout that charges a card automatically.",
   },
   {
     q: "What happens if I exceed users or storage?",

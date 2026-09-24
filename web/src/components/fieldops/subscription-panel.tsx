@@ -5,8 +5,13 @@ import {
   formatStorageBytes,
   isNearExpiry,
 } from "@/lib/subscription";
-import { RequestActivationButton, RequestPlanChangeButton, RequestRenewalButton } from "./subscription-banners";
+import {
+  RequestActivationButton,
+  RequestPlanChangeButton,
+  RequestRenewalButton,
+} from "./subscription-banners";
 import { useSubscription } from "./subscription-provider";
+import { useParams } from "next/navigation";
 
 const SUPPORT_INCLUDED = [
   "Product usage assistance",
@@ -37,6 +42,8 @@ export function SubscriptionPanel({
   organizationId: string;
   canManage: boolean;
 }) {
+  const params = useParams<{ orgSlug: string }>();
+  const orgSlug = params.orgSlug;
   const { subscription, loading } = useSubscription();
   if (loading || !subscription) {
     return (
@@ -48,6 +55,26 @@ export function SubscriptionPanel({
   const users = subscription.usage?.users;
   const storage = subscription.usage?.storage;
   const nearExpiry = isNearExpiry(subscription);
+  const activationState = subscription.activationProgress?.state ?? "none";
+  const showActivationControl =
+    canManage &&
+    activationState !== "none";
+  const showRenewal =
+    canManage &&
+    (subscription.availableActions.requestRenewal ||
+      subscription.openRequests.some(
+        (row) =>
+          row.requestType === "RENEWAL" &&
+          (row.status === "OPEN" || row.status === "CONTACTED"),
+      ));
+  const showPlanChange =
+    canManage &&
+    (subscription.availableActions.requestPlanChange ||
+      subscription.openRequests.some(
+        (row) =>
+          row.requestType === "PLAN_CHANGE" &&
+          (row.status === "OPEN" || row.status === "CONTACTED"),
+      ));
 
   return (
     <div className="flex flex-col gap-5">
@@ -111,24 +138,27 @@ export function SubscriptionPanel({
       </dl>
 
       {canManage ? (
-        <div className="flex flex-wrap gap-2">
-          {subscription.availableActions.requestActivation ? (
-            <RequestActivationButton organizationId={organizationId} />
+        <div className="flex flex-wrap items-center gap-2">
+          {showActivationControl ? (
+            <RequestActivationButton
+              organizationId={organizationId}
+              orgSlug={orgSlug}
+            />
           ) : null}
-          {subscription.availableActions.requestRenewal ? (
+          {showRenewal ? (
             <RequestRenewalButton
               organizationId={organizationId}
               label={nearExpiry ? "Renew Subscription" : "Request Renewal"}
             />
           ) : null}
-          {subscription.availableActions.requestPlanChange ? (
+          {showPlanChange ? (
             <RequestPlanChangeButton
               organizationId={organizationId}
               variant="outline"
             />
           ) : null}
           {subscription.availableActions.contactSupport ? (
-            <Button asChild variant="outline" className="h-9 md:h-8">
+            <Button asChild variant="outline" className="h-9 min-w-[9rem] md:h-8">
               <a href={`mailto:${supportEmail}`}>Contact Sales</a>
             </Button>
           ) : null}

@@ -8,12 +8,18 @@ import {
   requestActivation,
   requestPlanChange,
   requestRenewal,
+  type OrganizationSubscription,
 } from "@/lib/subscription";
 import { cn } from "cn";
+import { Check, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useCanMutate } from "./mutation-control";
 import { useSubscription } from "./subscription-provider";
+
+const ACTIVATION_CONTROL_CLASS =
+  "h-9 min-w-[13rem] justify-center px-3 md:h-8 md:min-w-[13rem]";
 
 export function SubscriptionBanners({
   organizationId,
@@ -36,7 +42,10 @@ export function SubscriptionBanners({
           description="Contact us to activate the workspace before it becomes read-only."
           action={
             canManage ? (
-              <RequestActivationButton organizationId={organizationId} />
+              <RequestActivationButton
+                organizationId={organizationId}
+                orgSlug={orgSlug}
+              />
             ) : null
           }
         />
@@ -58,7 +67,10 @@ export function SubscriptionBanners({
         description="Existing work continues for now. Contact us to activate this workspace."
         action={
           canManage ? (
-            <RequestActivationButton organizationId={organizationId} />
+            <RequestActivationButton
+              organizationId={organizationId}
+              orgSlug={orgSlug}
+            />
           ) : null
         }
       />
@@ -112,6 +124,10 @@ export function SubscriptionBanners({
           : subscription.effectiveStatus === "SUSPENDED"
             ? "This workspace is suspended and read-only."
             : "This workspace subscription is cancelled and read-only.";
+    const showActivation =
+      canManage &&
+      subscription.activationProgress?.state !== "none" &&
+      subscription.activationProgress?.state !== "active";
     return (
       <Banner
         tone="critical"
@@ -123,8 +139,11 @@ export function SubscriptionBanners({
         }
         action={
           <div className="flex flex-wrap gap-2">
-            {canManage && subscription.availableActions.requestActivation ? (
-              <RequestActivationButton organizationId={organizationId} />
+            {showActivation ? (
+              <RequestActivationButton
+                organizationId={organizationId}
+                orgSlug={orgSlug}
+              />
             ) : null}
             {canManage && subscription.availableActions.requestRenewal ? (
               <RequestRenewalButton organizationId={organizationId} />
@@ -166,25 +185,145 @@ function Banner({
           <p className="text-sm font-semibold">{title}</p>
           <p className="mt-0.5 text-sm opacity-90">{description}</p>
         </div>
-        {action}
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
     </div>
   );
 }
 
+function progressFromSubscription(subscription: OrganizationSubscription | null) {
+  return (
+    subscription?.activationProgress ?? {
+      state: "none" as const,
+      label: "",
+      invoiceId: null,
+      canPay: false,
+      statusLabel: null,
+    }
+  );
+}
+
 export function RequestActivationButton({
   organizationId,
+  orgSlug,
 }: {
   organizationId: string;
+  orgSlug?: string;
 }) {
+  const { subscription, refresh } = useSubscription();
+  const progress = progressFromSubscription(subscription);
+  const [pending, setPending] = useState(false);
+  const billingHref = `/app/${orgSlug ?? "workspace"}/settings/billing`;
+
+  if (progress.state === "none") {
+    return null;
+  }
+
+  if (progress.state === "active") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Subscription active"
+      >
+        <Check className="size-3.5" aria-hidden />
+        Active
+      </Button>
+    );
+  }
+
+  if (progress.state === "awaiting_verification") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Payment awaiting verification"
+      >
+        Payment Awaiting Verification
+      </Button>
+    );
+  }
+
+  if (progress.state === "invoice_preparing") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Invoice being prepared"
+      >
+        Invoice Being Prepared
+      </Button>
+    );
+  }
+
+  if (progress.state === "pay_invoice" || progress.state === "view_invoice") {
+    return (
+      <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
+        <Link href={billingHref}>{progress.label}</Link>
+      </Button>
+    );
+  }
+
+  if (progress.state === "request_sent") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Activation request sent"
+      >
+        <Check className="size-3.5" aria-hidden />
+        Request Sent
+      </Button>
+    );
+  }
+
   return (
-    <CommercialRequestButton
-      organizationId={organizationId}
-      action={requestActivation}
-      idleLabel="Request Activation"
-      successLabel="Activation request sent. We will contact you shortly."
-      defaultMessage="Please activate this FieldOps Cloud workspace."
-    />
+    <Button
+      type="button"
+      className={ACTIVATION_CONTROL_CLASS}
+      disabled={pending}
+      aria-busy={pending}
+      aria-label={pending ? "Requesting activation" : "Request activation"}
+      onClick={async () => {
+        if (pending) return;
+        setPending(true);
+        try {
+          const result = await requestActivation(
+            organizationId,
+            "Please activate this FieldOps Cloud workspace.",
+          );
+          if (!result.alreadyOpen) {
+            toast.success("Activation request sent.");
+          }
+          await refresh();
+        } catch (error) {
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : "Could not send the activation request.",
+          );
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          Requesting...
+        </>
+      ) : (
+        "Request Activation"
+      )}
+    </Button>
   );
 }
 
@@ -200,8 +339,10 @@ export function RequestRenewalButton({
       organizationId={organizationId}
       action={requestRenewal}
       idleLabel={label}
-      successLabel="Renewal request sent. We will contact you shortly."
+      successLabel="Request Sent"
+      toastSuccess="Renewal request sent."
       defaultMessage="Please renew this FieldOps Cloud workspace."
+      openRequestType="RENEWAL"
     />
   );
 }
@@ -220,9 +361,11 @@ export function RequestPlanChangeButton({
       organizationId={organizationId}
       action={requestPlanChange}
       idleLabel={label}
-      successLabel="Plan change request sent. We will contact you shortly."
+      successLabel="Request Sent"
+      toastSuccess="Plan change request sent."
       defaultMessage="Please change the plan for this FieldOps Cloud workspace."
       variant={variant}
+      openRequestType="PLAN_CHANGE"
     />
   );
 }
@@ -232,49 +375,84 @@ function CommercialRequestButton({
   action,
   idleLabel,
   successLabel,
+  toastSuccess,
   defaultMessage,
   variant = "default",
+  openRequestType,
 }: {
   organizationId: string;
-  action: (organizationId: string, message?: string) => Promise<unknown>;
+  action: (organizationId: string, message?: string) => Promise<{
+    alreadyOpen?: boolean;
+  }>;
   idleLabel: string;
   successLabel: string;
+  toastSuccess: string;
   defaultMessage: string;
   variant?: "default" | "outline";
+  openRequestType: "RENEWAL" | "PLAN_CHANGE";
 }) {
-  const { refresh } = useSubscription();
+  const { subscription, refresh } = useSubscription();
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const alreadyOpen = Boolean(
+    subscription?.openRequests.some(
+      (row) =>
+        row.requestType === openRequestType &&
+        (row.status === "OPEN" || row.status === "CONTACTED"),
+    ),
+  );
 
-  return (
-    <div className="flex flex-col items-start gap-1">
+  if (alreadyOpen) {
+    return (
       <Button
         type="button"
-        variant={variant}
-        className="h-9 md:h-8"
-        disabled={pending}
-        onClick={async () => {
-          setPending(true);
-          setMessage(null);
-          try {
-            await action(organizationId, defaultMessage);
-            setMessage(successLabel);
-            await refresh();
-          } catch (error) {
-            setMessage(
-              error instanceof ApiError
-                ? error.message
-                : "Could not send the request.",
-            );
-          } finally {
-            setPending(false);
-          }
-        }}
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label={`${idleLabel} sent`}
       >
-        {pending ? "Sending…" : idleLabel}
+        <Check className="size-3.5" aria-hidden />
+        {successLabel}
       </Button>
-      {message ? <p className="text-xs">{message}</p> : null}
-    </div>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      className={ACTIVATION_CONTROL_CLASS}
+      disabled={pending}
+      aria-busy={pending}
+      aria-label={pending ? `Requesting ${idleLabel}` : idleLabel}
+      onClick={async () => {
+        if (pending) return;
+        setPending(true);
+        try {
+          const result = await action(organizationId, defaultMessage);
+          if (!result?.alreadyOpen) {
+            toast.success(toastSuccess);
+          }
+          await refresh();
+        } catch (error) {
+          toast.error(
+            error instanceof ApiError
+              ? error.message
+              : "Could not send the request.",
+          );
+        } finally {
+          setPending(false);
+        }
+      }}
+    >
+      {pending ? (
+        <>
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          Requesting...
+        </>
+      ) : (
+        idleLabel
+      )}
+    </Button>
   );
 }
 

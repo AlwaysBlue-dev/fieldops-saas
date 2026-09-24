@@ -10,14 +10,18 @@ import {
   type CrewViewer,
 } from './crew-access.js';
 
-export type CertificationStatus = 'VALID' | 'EXPIRING_SOON' | 'EXPIRED';
+export type CertificationStatus =
+  | 'VALID'
+  | 'EXPIRING_SOON'
+  | 'EXPIRED'
+  | 'NO_EXPIRY';
 
 export function certificationStatus(
   expiresAt: Date | null,
   now: Date,
 ): CertificationStatus {
   if (!expiresAt) {
-    return 'VALID';
+    return 'NO_EXPIRY';
   }
   if (expiresAt.getTime() < now.getTime()) {
     return 'EXPIRED';

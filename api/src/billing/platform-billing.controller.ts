@@ -5,8 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Put,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -17,7 +19,9 @@ import { CurrentUser } from '../tenancy/current-user.decorator.js';
 import type { AuthUser } from '../tenancy/request-context.js';
 import { BillingSettingsService } from './billing-settings.service.js';
 import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
+import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
 import { UpdateBillingSettingsDto } from './dto/update-billing-settings.dto.js';
+import { UpdateInvoicePaymentDto } from './dto/update-invoice-payment.dto.js';
 import { InvoiceService } from './invoice.service.js';
 
 @Controller('platform')
@@ -42,8 +46,8 @@ export class PlatformBillingController {
   }
 
   @Get('invoices')
-  list() {
-    return this.invoices.listPlatform();
+  list(@Query() query: ListInvoicesQueryDto) {
+    return this.invoices.listPlatform(query);
   }
 
   @Post('invoices')
@@ -54,6 +58,15 @@ export class PlatformBillingController {
   @Get('invoices/:invoiceId')
   get(@Param('invoiceId') invoiceId: string) {
     return this.invoices.getPlatform(invoiceId);
+  }
+
+  @Patch('invoices/:invoiceId/payment')
+  updatePayment(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateInvoicePaymentDto,
+  ) {
+    return this.invoices.updatePaymentDetails(invoiceId, user.id, dto);
   }
 
   @Get('invoices/:invoiceId/pdf')
@@ -74,6 +87,42 @@ export class PlatformBillingController {
   @HttpCode(HttpStatus.OK)
   markPaid(@Param('invoiceId') invoiceId: string, @CurrentUser() user: AuthUser) {
     return this.invoices.markPaid(invoiceId, user.id);
+  }
+
+  @Post('invoices/:invoiceId/mark-paid-activate')
+  @HttpCode(HttpStatus.OK)
+  markPaidActivate(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.invoices.markPaidAndActivate(invoiceId, user.id);
+  }
+
+  @Post('invoices/:invoiceId/mark-paid-renew')
+  @HttpCode(HttpStatus.OK)
+  markPaidRenew(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.invoices.markPaidAndRenew(invoiceId, user.id);
+  }
+
+  @Post('invoices/:invoiceId/mark-overdue')
+  @HttpCode(HttpStatus.OK)
+  markOverdue(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.invoices.markOverdue(invoiceId, user.id);
+  }
+
+  @Post('invoices/:invoiceId/payment-not-found')
+  @HttpCode(HttpStatus.OK)
+  paymentNotFound(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.invoices.markPaymentNotFound(invoiceId, user.id);
   }
 
   @Post('invoices/:invoiceId/activate')

@@ -4,7 +4,7 @@ export const billingPlans: DocArticle = {
   slug: "billing-plans",
   title: "Plans, pricing, and billing",
   description:
-    "Starter $299/year (5 users, 5 GB), Professional $499/year (10 users, 20 GB), Business contact sales (100 users, 250 GB). One free trial per verified account; manual invoice activation.",
+    "Starter $299/year (5 users, 5 GB), Professional $499/year (10 users, 20 GB), Business contact sales. One free trial per verified account; secure payment link activation.",
   categoryId: "billing",
   keywords: [
     "pricing",
@@ -14,13 +14,20 @@ export const billingPlans: DocArticle = {
     "invoice",
     "seats",
     "trial",
+    "billing",
   ],
   relatedSlugs: [
+    "understanding-subscription",
+    "understanding-invoice",
+    "paying-an-invoice",
+    "payment-verification",
+    "activating-subscription",
+    "renewing-subscription",
+    "trial-expiry-grace",
+    "billing-history",
     "trial-onboarding",
     "storage-overview",
     "workspace-readonly",
-    "organization-settings",
-    "workspace-concept",
   ],
   sections: [
     {
@@ -44,8 +51,9 @@ export const billingPlans: DocArticle = {
       id: "how-pay",
       heading: "How payment works",
       paragraphs: [
-        "No payment provider is connected in-app. Customers trial the product (once per verified account), request activation, arrange payment with FieldOps, and a platform operator activates or renews the workspace by hand against a manual invoice process.",
-        "Owners and admins can also open renewal and plan-change requests from Plan & Subscription. Duplicate open requests of the same type are rejected so sales is not flooded with repeats.",
+        "When your subscription invoice is ready, a secure payment link appears in Settings → Billing. Select Pay Invoice and complete payment on the secure payment page. FieldOps confirms payment before activating or renewing the subscription. There is no automatic card charge in the product today.",
+        "Owners and admins request activation from the trial banner or Plan & Subscription. After you select Request Activation, the control becomes Request Sent until an invoice is ready — duplicate open activation requests are not created. See Activating your subscription for the full sequence.",
+        "Renewal and plan-change requests from Plan & Subscription also block duplicates while a request is already open or being handled.",
       ],
     },
     {

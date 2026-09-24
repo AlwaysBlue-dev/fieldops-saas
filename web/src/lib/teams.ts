@@ -1,7 +1,11 @@
 import { apiRequest } from "./api";
 
 export type TeamStatus = "ACTIVE" | "INACTIVE";
-export type CertificationStatus = "VALID" | "EXPIRING_SOON" | "EXPIRED";
+export type CertificationStatus =
+  | "VALID"
+  | "EXPIRING_SOON"
+  | "EXPIRED"
+  | "NO_EXPIRY";
 export type CrewViewer = "manager" | "supervisor" | "self" | "teammate";
 
 export type TeamMemberSummary = {
@@ -31,11 +35,15 @@ export type TeamSummary = {
 export type TeamDetail = TeamSummary & {
   skills: Array<{
     name: string;
-    holders: Array<{ userId: string; fullName: string }>;
+    skillId: string | null;
+    memberCount?: number;
+    holders: Array<{
+      userId: string;
+      fullName: string;
+      assignmentId?: string;
+    }>;
   }>;
-  certifications: Array<
-    CertificationRecord & { holderName: string }
-  >;
+  certifications: Array<CertificationRecord & { holderName: string }>;
 };
 
 export type CertificationRecord = {
@@ -149,6 +157,13 @@ export function deactivateTeam(organizationId: string, teamId: string) {
   );
 }
 
+export function reactivateTeam(organizationId: string, teamId: string) {
+  return apiRequest<TeamSummary>(
+    `/organizations/${organizationId}/teams/${teamId}/reactivate`,
+    { method: "POST" },
+  );
+}
+
 export function assignSupervisor(
   organizationId: string,
   teamId: string,
@@ -255,6 +270,17 @@ export function assignSkill(
   );
 }
 
+export function removeSkill(
+  organizationId: string,
+  userId: string,
+  skillId: string,
+) {
+  return apiRequest<{ removed: boolean }>(
+    `/organizations/${organizationId}/technicians/${userId}/skills/${skillId}`,
+    { method: "DELETE" },
+  );
+}
+
 export function addCertification(
   organizationId: string,
   userId: string,
@@ -290,14 +316,27 @@ export function updateCertification(
   );
 }
 
+export function removeCertification(
+  organizationId: string,
+  userId: string,
+  certificationId: string,
+) {
+  return apiRequest<{ removed: boolean }>(
+    `/organizations/${organizationId}/technicians/${userId}/certifications/${certificationId}`,
+    { method: "DELETE" },
+  );
+}
+
 export function certificationTone(status: CertificationStatus) {
   if (status === "EXPIRED") return "crimson" as const;
   if (status === "EXPIRING_SOON") return "amber" as const;
+  if (status === "NO_EXPIRY") return "muted" as const;
   return "emerald" as const;
 }
 
 export function certificationLabel(status: CertificationStatus) {
   if (status === "EXPIRED") return "Expired";
   if (status === "EXPIRING_SOON") return "Expiring soon";
+  if (status === "NO_EXPIRY") return "No expiry";
   return "Valid";
 }

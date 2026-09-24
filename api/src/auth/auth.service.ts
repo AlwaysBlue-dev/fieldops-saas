@@ -598,22 +598,7 @@ export class AuthService {
 
   async me(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    if ('trialUsedAt' in user) {
-      return toPublicUser(user as typeof user & { trialUsedAt: Date | null });
-    }
-    try {
-      const rows = await this.prisma.$queryRaw<
-        Array<{ trialUsedAt: Date | null }>
-      >`
-        SELECT "trialUsedAt" FROM "User" WHERE id = ${userId}::uuid
-      `;
-      return toPublicUser({
-        ...user,
-        trialUsedAt: rows[0]?.trialUsedAt ?? null,
-      });
-    } catch {
-      return toPublicUser({ ...user, trialUsedAt: null });
-    }
+    return toPublicUser(user);
   }
 
   async listOrganizations(userId: string) {

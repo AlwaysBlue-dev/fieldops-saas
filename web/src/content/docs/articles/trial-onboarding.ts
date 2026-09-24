@@ -51,7 +51,7 @@ export const trialOnboarding: DocArticle = {
       id: "activation",
       heading: "Request activation and manual invoice",
       paragraphs: [
-        "There is no self-serve checkout button. Owners and admins request activation from Plan & Subscription. FieldOps receives the request, arranges payment offline, and a platform operator activates the chosen plan (Starter, Professional, or Business) by hand. Invoices are issued manually — the product does not charge cards in-app.",
+        "There is no self-serve checkout button. Owners and admins request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent until FieldOps prepares an invoice. FieldOps arranges payment offline, and a platform operator activates the chosen plan (Starter, Professional, or Business) after payment is confirmed. Invoices are issued manually — the product does not charge cards in-app.",
         "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
       ],
     },

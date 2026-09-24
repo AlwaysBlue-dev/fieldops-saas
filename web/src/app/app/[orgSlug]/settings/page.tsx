@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SubscriptionSettings } from "./subscription-settings";
 import { SettingsAppearance } from "./settings-appearance";
+import { SettingsAppDevice } from "./settings-app-device";
 import { SettingsBrandingSection } from "./settings-branding-section";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -34,6 +35,16 @@ export default async function SettingsPage({
         </p>
         <div className="mt-4">
           <SettingsAppearance />
+        </div>
+      </section>
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">App & device</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Install FieldOps Cloud on your phone for an app-like workspace
+          experience.
+        </p>
+        <div className="mt-4">
+          <SettingsAppDevice orgSlug={orgSlug} />
         </div>
       </section>
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">

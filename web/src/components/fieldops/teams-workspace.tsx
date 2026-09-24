@@ -42,7 +42,7 @@ export function TeamsWorkspace() {
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState<TeamStatus | "">("");
+  const [status, setStatus] = useState<TeamStatus | "">("ACTIVE");
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -192,9 +192,9 @@ export function TeamsWorkspace() {
             setPage(1);
           }}
         >
-          <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
+          <option value="">All statuses</option>
         </select>
       </FilterBar>
 
@@ -202,8 +202,18 @@ export function TeamsWorkspace() {
         {teams.length === 0 ? (
           <div className="col-span-full rounded-lg border border-border bg-card">
             <EmptyState
-              title="No teams yet"
-              description="Create a crew to group technicians for dispatch. This view only shows live organization records."
+              title={
+                status === "INACTIVE"
+                  ? "No inactive teams"
+                  : status === "ACTIVE"
+                    ? "No active teams"
+                    : "No teams yet"
+              }
+              description={
+                status === "INACTIVE"
+                  ? "Deactivated teams appear here so you can review history or reactivate them."
+                  : "Create a crew to group technicians for dispatch. This view only shows live organization records."
+              }
             />
           </div>
         ) : (
@@ -253,8 +263,18 @@ export function TeamsWorkspace() {
       <MobileList
         empty={
           <EmptyState
-            title="No teams yet"
-            description="Crews you can see will appear here as cards."
+            title={
+              status === "INACTIVE"
+                ? "No inactive teams"
+                : status === "ACTIVE"
+                  ? "No active teams"
+                  : "No teams yet"
+            }
+            description={
+              status === "INACTIVE"
+                ? "Deactivated teams appear here so you can reactivate them."
+                : "Crews you can see will appear here as cards."
+            }
           />
         }
       >

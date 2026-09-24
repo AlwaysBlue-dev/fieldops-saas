@@ -254,6 +254,22 @@ export function readOnlyMessage(status: EffectiveSubscriptionStatus): string {
   return 'This workspace is read-only until a subscription is activated.';
 }
 
+export type ActivationProgress = {
+  state:
+    | 'none'
+    | 'can_request'
+    | 'request_sent'
+    | 'invoice_preparing'
+    | 'view_invoice'
+    | 'pay_invoice'
+    | 'awaiting_verification'
+    | 'active';
+  label: string;
+  invoiceId: string | null;
+  canPay: boolean;
+  statusLabel: string | null;
+};
+
 export function toSubscriptionDto(
   entitlement: Entitlement,
   extras: {
@@ -273,6 +289,7 @@ export function toSubscriptionDto(
       status: string;
       createdAt: string;
     }>;
+    activationProgress?: ActivationProgress;
     supportEmail?: string;
   } = {},
 ) {
@@ -311,6 +328,13 @@ export function toSubscriptionDto(
       contactSupport: true,
     },
     openRequests: extras.openRequests ?? [],
+    activationProgress: extras.activationProgress ?? {
+      state: 'none' as const,
+      label: '',
+      invoiceId: null,
+      canPay: false,
+      statusLabel: null,
+    },
     supportEmail: extras.supportEmail ?? null,
   };
 }

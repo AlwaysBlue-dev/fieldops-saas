@@ -86,6 +86,18 @@ export class TeamsController {
     return this.teams.deactivate(organization, teamId, user.id);
   }
 
+  @Post(':teamId/reactivate')
+  @HttpCode(HttpStatus.OK)
+  @RequiresActiveSubscription()
+  @OrganizationRoles(...CREW_MANAGE_ROLES)
+  reactivate(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('teamId') teamId: string,
+  ) {
+    return this.teams.reactivate(organization, teamId, user.id);
+  }
+
   @Post(':teamId/supervisor')
   @HttpCode(HttpStatus.OK)
   @RequiresActiveSubscription()

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { OrganizationMembershipGuard } from '../tenancy/organization-membership.
 import { OrganizationRoles } from '../tenancy/organization-roles.decorator.js';
 import { OrganizationRolesGuard } from '../tenancy/organization-roles.guard.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
+import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
 import { PaymentNoticeDto } from './dto/payment-notice.dto.js';
 import { InvoiceService } from './invoice.service.js';
 
@@ -26,8 +28,11 @@ export class InvoicesController {
   constructor(private readonly invoices: InvoiceService) {}
 
   @Get()
-  list(@CurrentOrganization() organization: OrganizationContext) {
-    return this.invoices.listForOrganization(organization.organizationId);
+  list(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListInvoicesQueryDto,
+  ) {
+    return this.invoices.listForOrganization(organization.organizationId, query);
   }
 
   @Get(':invoiceId')

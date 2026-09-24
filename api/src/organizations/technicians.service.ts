@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import {
   AUDIT_CERTIFICATION_ADDED,
+  AUDIT_CERTIFICATION_REMOVED,
   AUDIT_CERTIFICATION_UPDATED,
   AUDIT_SKILL_ASSIGNED,
+  AUDIT_SKILL_REMOVED,
 } from '../common/constants.js';
 import {
   MembershipStatus,
@@ -53,11 +55,23 @@ export class TechniciansService {
     dto: CreateSkillDto,
     actorUserId: string,
   ) {
+    const name = dto.name.trim();
+    const duplicate = await this.prisma.skill.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        name: { equals: name, mode: 'insensitive' },
+      },
+    });
+    if (duplicate) {
+      throw new ConflictException(
+        'A skill with this name already exists in the organization',
+      );
+    }
     try {
       const skill = await this.prisma.skill.create({
         data: {
           organizationId: ctx.organizationId,
-          name: dto.name.trim(),
+          name,
         },
       });
       await this.audit.record({
@@ -321,6 +335,44 @@ export class TechniciansService {
     }
   }
 
+  async removeSkill(
+    ctx: OrganizationContext,
+    userId: string,
+    skillId: string,
+    actorUserId: string,
+  ) {
+    const assignment = await this.prisma.technicianSkill.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        userId,
+        skillId,
+      },
+      include: { skill: { select: { name: true } } },
+    });
+    if (!assignment) {
+      throw new NotFoundException();
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.technicianSkill.delete({ where: { id: assignment.id } });
+      await this.audit.record(
+        {
+          action: AUDIT_SKILL_REMOVED,
+          entityType: 'TechnicianSkill',
+          entityId: assignment.id,
+          organizationId: ctx.organizationId,
+          actorUserId,
+          oldValues: {
+            userId,
+            skillId,
+            name: assignment.skill.name,
+          },
+        },
+        tx,
+      );
+    });
+    return { removed: true, skillId, userId };
+  }
+
   async addCertification(
     ctx: OrganizationContext,
     userId: string,
@@ -415,6 +467,39 @@ export class TechniciansService {
       return row;
     });
     return serializeCertification(updated, this.clock.now(), 'manager');
+  }
+
+  async removeCertification(
+    ctx: OrganizationContext,
+    userId: string,
+    certificationId: string,
+    actorUserId: string,
+  ) {
+    const existing = await this.prisma.technicianCertification.findFirst({
+      where: {
+        id: certificationId,
+        organizationId: ctx.organizationId,
+        userId,
+      },
+    });
+    if (!existing) {
+      throw new NotFoundException();
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.technicianCertification.delete({ where: { id: existing.id } });
+      await this.audit.record(
+        {
+          action: AUDIT_CERTIFICATION_REMOVED,
+          entityType: 'TechnicianCertification',
+          entityId: existing.id,
+          organizationId: ctx.organizationId,
+          actorUserId,
+          oldValues: { userId, name: existing.name },
+        },
+        tx,
+      );
+    });
+    return { removed: true, id: certificationId, userId };
   }
 
   private async visibleUserIds(

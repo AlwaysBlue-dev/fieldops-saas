@@ -174,6 +174,30 @@ export default function PlatformOrganizationPage() {
       </dl>
 
       <section className="mt-8 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">Billing contact</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Default contact for invoices and payment reconciliation. Resolved from
+          the organization Owner membership.
+        </p>
+        <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-muted-foreground">Owner</dt>
+            <dd className="font-medium">{row.owner?.fullName ?? "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Email</dt>
+            <dd className="font-medium">{row.owner?.email ?? "—"}</dd>
+          </div>
+        </dl>
+        <Link
+          href={`/platform/invoices?organizationId=${row.id}`}
+          className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+        >
+          View organization invoices
+        </Link>
+      </section>
+
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Subscription</h2>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
           <div>

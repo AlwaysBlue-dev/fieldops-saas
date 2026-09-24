@@ -15,11 +15,13 @@ import {
   NOTIFICATION_TRIAL_EXPIRED,
   NOTIFICATION_TRIAL_EXPIRING,
   NOTIFICATION_TRIAL_GRACE,
+  NOTIFICATION_TRIAL_GRACE_ENDING,
+  NOTIFICATION_TRIAL_REMINDER_PREFIX,
   NOTIFICATION_WORKSPACE_READ_ONLY,
   RENEWAL_REMINDER_DAYS,
   TRIAL_DAYS,
-  TRIAL_ENDING_SOON_DAYS,
   TRIAL_GRACE_DAYS,
+  TRIAL_REMINDER_DAYS,
 } from '../common/constants.js';
 import type { EnvironmentVariables } from '../config/env.js';
 import { MailService } from '../mail/mail.service.js';
@@ -74,7 +76,7 @@ export class SubscriptionNotificationService {
         '',
         input.message ? `Message:\n${input.message}` : 'No message was provided.',
         '',
-        'Activate this workspace from platform administration. Online payment is not available.',
+        'Prepare an activation invoice in platform billing when ready.',
       ].join('\n'),
     });
 
@@ -125,7 +127,7 @@ export class SubscriptionNotificationService {
         '',
         input.message ? `Message:\n${input.message}` : 'No message was provided.',
         '',
-        'Renew this workspace from platform administration. Online payment is not available.',
+        'Prepare a renewal invoice in platform billing when ready.',
       ].join('\n'),
     });
   }
@@ -159,7 +161,7 @@ export class SubscriptionNotificationService {
         '',
         input.message ? `Message:\n${input.message}` : 'No message was provided.',
         '',
-        'Assign a new plan from platform administration. Online payment is not available.',
+        'Assign a new plan from platform administration.',
       ].join('\n'),
     });
 
@@ -189,8 +191,7 @@ export class SubscriptionNotificationService {
       text: [
         `The ${input.planName} subscription for ${input.organizationName} is now active.`,
         '',
-        `Current period ends ${input.currentPeriodEnd.toISOString().slice(0, 10)}.`,
-        'There is no in-app checkout. Contact FieldOps when you are ready to renew.',
+        `Active through ${input.currentPeriodEnd.toISOString().slice(0, 10)}.`,
       ].join('\n'),
       inApp: {
         type: NOTIFICATION_SUBSCRIPTION_ACTIVATED,
@@ -213,7 +214,7 @@ export class SubscriptionNotificationService {
       text: [
         `The ${input.planName} subscription for ${input.organizationName} was renewed.`,
         '',
-        `The new period ends ${input.currentPeriodEnd.toISOString().slice(0, 10)}.`,
+        `Active through ${input.currentPeriodEnd.toISOString().slice(0, 10)}.`,
       ].join('\n'),
       inApp: {
         type: NOTIFICATION_SUBSCRIPTION_RENEWED,
@@ -229,45 +230,65 @@ export class SubscriptionNotificationService {
     organizationSlug: string,
     entitlement: Entitlement,
   ) {
+    const billingUrl = this.billingLink(organizationSlug);
+
+    const now = new Date();
     if (
       entitlement.effectiveStatus === 'TRIALING' &&
-      entitlement.trialDaysRemaining > 0 &&
-      entitlement.trialDaysRemaining <= TRIAL_ENDING_SOON_DAYS &&
-      entitlement.trialEndsAt
+      entitlement.trialEndsAt &&
+      entitlement.trialDaysRemaining >= 0
     ) {
-      await this.mailOwners(organizationId, {
-        kind: NOTIFICATION_TRIAL_ENDING,
-        periodKey: entitlement.trialEndsAt.toISOString(),
-        subject: 'Your FieldOps Cloud trial is ending soon',
-        text: [
-          `The FieldOps Cloud trial for ${organizationName} ends in ${entitlement.trialDaysRemaining} day${entitlement.trialDaysRemaining === 1 ? '' : 's'}.`,
-          '',
-          'Request activation from Plan & Subscription. No credit card is required in the product.',
-        ].join('\n'),
-        template: async (to) =>
-          this.mail.sendTrialEnding({
-            to,
-            organizationName,
-            orgSlug: organizationSlug,
-            daysRemaining: entitlement.trialDaysRemaining,
-          }),
-        inApp: {
-          type: NOTIFICATION_TRIAL_EXPIRING,
-          title: 'Trial ending soon',
-          message: `Your trial ends in ${entitlement.trialDaysRemaining} day${entitlement.trialDaysRemaining === 1 ? '' : 's'}.`,
-        },
-      });
+      for (const days of TRIAL_REMINDER_DAYS) {
+        if (days === 0) {
+          if (!isSameUtcDay(now, entitlement.trialEndsAt)) continue;
+        } else if (entitlement.trialDaysRemaining !== days) {
+          continue;
+        }
+        const dayLabel =
+          days === 0
+            ? 'today'
+            : `in ${days} day${days === 1 ? '' : 's'}`;
+        await this.mailOwners(organizationId, {
+          kind: `${NOTIFICATION_TRIAL_REMINDER_PREFIX}${days}`,
+          periodKey: entitlement.trialEndsAt.toISOString(),
+          subject: 'Your FieldOps Cloud trial ends soon',
+          text: [
+            `Your Professional trial for ${organizationName} ends ${dayLabel}.`,
+            '',
+            'An activation invoice will be available in Billing before your trial/grace period ends.',
+            'FieldOps Cloud does not automatically charge a card.',
+            '',
+            billingUrl,
+          ].join('\n'),
+          template: async (to) =>
+            this.mail.sendTrialEnding({
+              to,
+              organizationName,
+              orgSlug: organizationSlug,
+              daysRemaining: Math.max(days, 1),
+            }),
+          inApp: {
+            type: days <= 1 ? NOTIFICATION_TRIAL_EXPIRING : NOTIFICATION_TRIAL_ENDING,
+            title: days === 0 ? 'Trial ends today' : 'Trial ending soon',
+            message:
+              days === 0
+                ? 'Your Professional trial ends today.'
+                : `Your Professional trial ends in ${days} day${days === 1 ? '' : 's'}.`,
+          },
+        });
+      }
     }
 
     if (entitlement.effectiveStatus === 'GRACE' && entitlement.graceEndsAt) {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_TRIAL_GRACE,
         periodKey: entitlement.graceEndsAt.toISOString(),
-        subject: 'Your FieldOps Cloud trial grace period is active',
+        subject: 'Your FieldOps Cloud trial grace period has started',
         text: [
-          `The trial for ${organizationName} has ended. You are in a grace window.`,
+          `The trial for ${organizationName} has ended. Your grace period has started.`,
           '',
-          'Request activation soon to keep full write access.',
+          'An activation invoice will be available in Billing before your grace period ends.',
+          billingUrl,
         ].join('\n'),
         template: async (to) =>
           this.mail.sendTrialGrace({
@@ -278,10 +299,29 @@ export class SubscriptionNotificationService {
           }),
         inApp: {
           type: NOTIFICATION_TRIAL_GRACE,
-          title: 'Trial grace period',
-          message: 'Your trial ended. Activate soon to keep write access.',
+          title: 'Trial grace period started',
+          message: 'Your trial ended. Check Billing for your activation invoice.',
         },
       });
+
+      if (entitlement.graceDaysRemaining === 1) {
+        await this.mailOwners(organizationId, {
+          kind: NOTIFICATION_TRIAL_GRACE_ENDING,
+          periodKey: entitlement.graceEndsAt.toISOString(),
+          subject: 'Your FieldOps Cloud trial grace period ends soon',
+          text: [
+            `The trial grace period for ${organizationName} ends soon.`,
+            '',
+            'Pay your activation invoice in Billing to keep write access.',
+            billingUrl,
+          ].join('\n'),
+          inApp: {
+            type: NOTIFICATION_TRIAL_GRACE_ENDING,
+            title: 'Grace period ending soon',
+            message: 'Your trial grace period ends soon. Check Billing.',
+          },
+        });
+      }
     }
 
     if (entitlement.effectiveStatus === 'TRIAL_EXPIRED' && entitlement.graceEndsAt) {
@@ -292,7 +332,8 @@ export class SubscriptionNotificationService {
         text: [
           `The FieldOps Cloud trial for ${organizationName} has ended. The workspace is read-only.`,
           '',
-          'Existing records are kept. Request activation to restore writes.',
+          'Existing records are kept. Complete payment from Billing to restore writes.',
+          billingUrl,
         ].join('\n'),
         template: async (to) =>
           this.mail.sendTrialExpired({
@@ -311,14 +352,14 @@ export class SubscriptionNotificationService {
         periodKey: `trial:${entitlement.graceEndsAt.toISOString()}`,
         subject: 'Your FieldOps Cloud workspace is read-only',
         text: [
-          `${organizationName} is now read-only. You can still sign in and view historical work.`,
+          `${organizationName} is now read-only. You can still sign in, view history, and open Billing.`,
           '',
-          'Request activation from Plan & Subscription to restore the workspace.',
+          billingUrl,
         ].join('\n'),
         inApp: {
           type: NOTIFICATION_WORKSPACE_READ_ONLY,
           title: 'Workspace read-only',
-          message: 'This workspace is read-only until activation.',
+          message: 'This workspace is read-only until payment is confirmed.',
         },
       });
     }
@@ -326,21 +367,36 @@ export class SubscriptionNotificationService {
     if (
       entitlement.effectiveStatus === 'ACTIVE' &&
       entitlement.currentPeriodEnd &&
-      entitlement.daysUntilExpiration > 0
+      entitlement.daysUntilExpiration >= 0
     ) {
       for (const days of RENEWAL_REMINDER_DAYS) {
-        if (entitlement.daysUntilExpiration <= days) {
-          await this.mailOwners(organizationId, {
-            kind: `${NOTIFICATION_RENEWAL_PREFIX}${days}`,
-            periodKey: entitlement.currentPeriodEnd.toISOString(),
-            subject: `Your FieldOps Cloud subscription renews in ${days} day${days === 1 ? '' : 's'}`,
-            text: [
-              `The paid period for ${organizationName} ends in ${entitlement.daysUntilExpiration} day${entitlement.daysUntilExpiration === 1 ? '' : 's'}.`,
-              '',
-              'Request renewal from Plan & Subscription. Payment is arranged with FieldOps outside the product.',
-            ].join('\n'),
-          });
+        if (days === 0) {
+          if (!isSameUtcDay(now, entitlement.currentPeriodEnd)) continue;
+        } else if (entitlement.daysUntilExpiration !== days) {
+          continue;
         }
+        const renewDate = entitlement.currentPeriodEnd.toISOString().slice(0, 10);
+        await this.mailOwners(organizationId, {
+          kind: `${NOTIFICATION_RENEWAL_PREFIX}${days}`,
+          periodKey: entitlement.currentPeriodEnd.toISOString(),
+          subject:
+            days === 0
+              ? 'Your FieldOps Cloud subscription renews today'
+              : `Your FieldOps Cloud subscription renews in ${days} day${days === 1 ? '' : 's'}`,
+          text: [
+            `Your FieldOps Cloud subscription renews on ${renewDate}.`,
+            '',
+            'Your renewal invoice will be available in Billing.',
+            'FieldOps Cloud does not automatically charge a stored card.',
+            '',
+            billingUrl,
+          ].join('\n'),
+          inApp: {
+            type: `${NOTIFICATION_RENEWAL_PREFIX}${days}`,
+            title: days === 0 ? 'Renewal due today' : 'Renewal coming up',
+            message: `Your subscription renews on ${renewDate}.`,
+          },
+        });
       }
     }
 
@@ -352,6 +408,9 @@ export class SubscriptionNotificationService {
         text: [
           `The paid period for ${organizationName} has ended.`,
           `Renew within ${entitlement.graceDaysRemaining} day${entitlement.graceDaysRemaining === 1 ? '' : 's'} to avoid the workspace becoming read-only.`,
+          '',
+          'Your renewal invoice is available in Billing.',
+          billingUrl,
         ].join('\n'),
       });
     }
@@ -364,10 +423,16 @@ export class SubscriptionNotificationService {
         text: [
           `${organizationName} is now read-only because the renewal grace period ended.`,
           '',
-          'Existing records are kept. Request renewal to restore writes.',
+          'Existing records are kept. You can still open Billing to pay and restore writes.',
+          billingUrl,
         ].join('\n'),
       });
     }
+  }
+
+  private billingLink(orgSlug: string) {
+    const webUrl = this.config.get('WEB_URL', { infer: true }) ?? 'http://localhost:3000';
+    return `${webUrl}/app/${orgSlug}/settings/billing`;
   }
 
   private async mailOwners(
@@ -474,4 +539,8 @@ export class SubscriptionNotificationService {
     }
     return true;
   }
+}
+
+function isSameUtcDay(a: Date, b: Date) {
+  return a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
 }

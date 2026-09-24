@@ -18,6 +18,7 @@ export const navigationTheme: DocArticle = {
     "quick-create-overview",
     "my-day",
     "workspace-concept",
+    "install-fieldops-on-phone",
   ],
   sections: [
     {

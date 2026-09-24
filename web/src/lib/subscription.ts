@@ -61,6 +61,21 @@ export type OrganizationSubscription = {
     status: string;
     createdAt: string;
   }>;
+  activationProgress: {
+    state:
+      | "none"
+      | "can_request"
+      | "request_sent"
+      | "invoice_preparing"
+      | "view_invoice"
+      | "pay_invoice"
+      | "awaiting_verification"
+      | "active";
+    label: string;
+    invoiceId: string | null;
+    canPay: boolean;
+    statusLabel: string | null;
+  };
   supportEmail: string | null;
 };
 
@@ -71,6 +86,7 @@ export type CommercialRequest = {
   status: "OPEN" | "CONTACTED" | "COMPLETED" | "CLOSED";
   message: string | null;
   createdAt: string;
+  alreadyOpen?: boolean;
 };
 
 export const ACTIVATION_UNAVAILABLE_MESSAGE =

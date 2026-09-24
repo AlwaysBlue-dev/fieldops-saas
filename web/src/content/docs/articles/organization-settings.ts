@@ -19,6 +19,7 @@ export const organizationSettings: DocArticle = {
     "storage-overview",
     "billing-plans",
     "security-privacy",
+    "install-fieldops-on-phone",
   ],
   sections: [
     {
@@ -41,7 +42,15 @@ export const organizationSettings: DocArticle = {
       heading: "Branding, storage, and plan",
       paragraphs: [
         "Settings → Storage shows org-wide quota usage. Branding/logo upload requires CUSTOM_BRANDING on the effective plan (Professional trial and paid Professional/Business). Logo files should stay near the ~2 MB guidance.",
-        "Plan & Subscription shows effective status, trial/renewal dates, usage, and request actions for activation, renewal, or plan change. Theme appearance preferences are UI chrome and do not change tenant data.",
+        "Plan & Subscription shows effective status, trial/renewal dates, usage, and request actions for activation, renewal, or plan change. Request Activation becomes Request Sent after submission and follows invoice progress (prepare → pay → verify → active).",
+        "Theme appearance preferences are UI chrome and do not change tenant data.",
+      ],
+    },
+    {
+      id: "app-device",
+      heading: "App & device",
+      paragraphs: [
+        "Settings → App & device shows Install FieldOps Cloud for the current workspace, installation status, and a link to the phone install guide. Use More → Install Workspace on mobile for the same flow. This installs a Progressive Web App — not a native store app — and requires a network connection for current workspace data.",
       ],
     },
   ],

@@ -5,6 +5,7 @@ import { createAccountWorkspace } from "./articles/create-account-workspace";
 import { verifyWorkEmail } from "./articles/verify-work-email";
 import { trialOnboarding } from "./articles/trial-onboarding";
 import { navigationTheme } from "./articles/navigation-theme";
+import { installFieldopsOnPhone } from "./articles/install-fieldops-on-phone";
 import { quickCreateOverview } from "./articles/quick-create-overview";
 
 import { workspaceConcept } from "./articles/workspace-concept";
@@ -38,6 +39,16 @@ import { storageOverview } from "./articles/storage-overview";
 import { storageLimitReached } from "./articles/storage-limit-reached";
 
 import { billingPlans } from "./articles/billing-plans";
+import {
+  activatingSubscription,
+  billingHistoryDoc,
+  payingAnInvoice,
+  paymentVerification,
+  renewingSubscription,
+  trialExpiryGrace,
+  understandingInvoice,
+  understandingSubscription,
+} from "./articles/billing-flow";
 
 import { organizationSettings } from "./articles/organization-settings";
 
@@ -55,7 +66,7 @@ export const allCategories: DocCategory[] = [
     id: "getting-started",
     title: "Getting started",
     description:
-      "Product overview, account setup, trial, and how to move around the app.",
+      "Product overview, account setup, trial, phone install, and how to move around the app.",
     order: 10,
     primarySlug: "what-is-fieldops",
   },
@@ -154,7 +165,8 @@ export const allCategories: DocCategory[] = [
   {
     id: "billing",
     title: "Billing & plans",
-    description: "Starter, Professional, Business, trial, and manual activation.",
+    description:
+      "Plans, invoices, secure payment, verification, activation, and renewals.",
     order: 150,
     primarySlug: "billing-plans",
   },
@@ -192,6 +204,7 @@ export const allArticles: DocArticle[] = [
   forgotPassword,
   trialOnboarding,
   navigationTheme,
+  installFieldopsOnPhone,
   quickCreateOverview,
   workspaceConcept,
   membersInvitations,
@@ -212,6 +225,14 @@ export const allArticles: DocArticle[] = [
   storageOverview,
   storageLimitReached,
   billingPlans,
+  understandingSubscription,
+  understandingInvoice,
+  payingAnInvoice,
+  paymentVerification,
+  activatingSubscription,
+  renewingSubscription,
+  trialExpiryGrace,
+  billingHistoryDoc,
   organizationSettings,
   securityPrivacy,
   cannotInvite,

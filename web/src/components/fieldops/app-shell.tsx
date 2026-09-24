@@ -24,10 +24,12 @@ import {
 } from "react";
 import { CommandLauncher } from "./command-launcher";
 import { ErrorState } from "./error-state";
+import { InstallWorkspaceDialog } from "./install-workspace";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { NavigationRail } from "./navigation-rail";
 import { NotificationCenter } from "./notification-center";
 import { OfflineBanner } from "./offline-banner";
+import { PwaInstallProvider, usePwaInstall } from "./pwa-install-provider";
 import { QuickCreateSheet } from "./quick-create-sheet";
 import { ResponsiveDrawer } from "./responsive-drawer";
 import { SkeletonBlock } from "./skeleton-block";
@@ -37,6 +39,8 @@ import {
   SubscriptionProvider,
 } from "./subscription-provider";
 import { TopBar } from "./top-bar";
+import { WorkspaceManifestLink } from "./workspace-manifest-link";
+import { Download } from "lucide-react";
 
 const RAIL_KEY = "fieldops.rail-collapsed";
 
@@ -77,6 +81,7 @@ export function AppShell({
   const [unreadCount, setUnreadCount] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
 
   const loadSession = useCallback(async () => {
     setStatus("loading");
@@ -173,7 +178,14 @@ export function AppShell({
 
   return (
     <TooltipProvider>
+      <PwaInstallProvider>
       <SubscriptionProvider organizationId={organizationId}>
+      {currentMembership ? (
+        <WorkspaceManifestLink
+          orgSlug={orgSlug}
+          orgName={currentMembership.organization.name}
+        />
+      ) : null}
       <div className="flex min-h-dvh overflow-x-hidden bg-workspace">
         <a
           href="#workspace-main"
@@ -197,6 +209,7 @@ export function AppShell({
             onSearch={() => setCommandOpen(true)}
             onNotifications={() => setNotifyOpen(true)}
             onQuickCreate={() => setCreateOpen(true)}
+            onInstallWorkspace={() => setInstallOpen(true)}
           />
           <OfflineBanner />
           {organizationId ? (
@@ -306,6 +319,12 @@ export function AppShell({
             >
               Storage
             </Button>
+            <MoreInstallWorkspaceButton
+              onInstall={() => {
+                setMoreOpen(false);
+                setInstallOpen(true);
+              }}
+            />
             <Button
               variant="ghost"
               className="h-11 justify-start"
@@ -403,8 +422,38 @@ export function AppShell({
             </p>
           </div>
         </ResponsiveDrawer>
+        {currentMembership ? (
+          <InstallWorkspaceDialog
+            open={installOpen}
+            onOpenChange={setInstallOpen}
+            orgName={currentMembership.organization.name}
+          />
+        ) : null}
       </div>
       </SubscriptionProvider>
+      </PwaInstallProvider>
     </TooltipProvider>
+  );
+}
+
+function MoreInstallWorkspaceButton({ onInstall }: { onInstall: () => void }) {
+  const { isInstalled } = usePwaInstall();
+  if (isInstalled) {
+    return (
+      <Button variant="ghost" className="h-11 justify-start" disabled>
+        <Download />
+        Installed
+      </Button>
+    );
+  }
+  return (
+    <Button
+      variant="ghost"
+      className="h-11 justify-start"
+      onClick={onInstall}
+    >
+      <Download />
+      Install Workspace
+    </Button>
   );
 }

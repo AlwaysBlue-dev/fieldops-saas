@@ -12,7 +12,7 @@ export default async function BillingPage({
     <div className="mx-auto max-w-3xl">
       <PageHeader
         title="Billing"
-        description="Invoices and verified payment instructions. FieldOps does not collect cards in the application."
+        description="Current plan, invoices, and secure payment. FieldOps does not collect or store card details in the app."
       />
       <BillingWorkspace orgSlug={orgSlug} />
     </div>

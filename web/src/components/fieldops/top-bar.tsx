@@ -14,11 +14,12 @@ import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { logout } from "@/lib/auth";
 import { canInviteMembers } from "@/lib/current-org";
 import { pageTitleFromPath } from "@/lib/navigation";
-import { Bell, Plus, Search } from "lucide-react";
+import { Bell, Download, Plus, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "./brand-mark";
 import { MutationButton } from "./mutation-control";
 import { OrganizationSwitcher } from "./organization-switcher";
+import { usePwaInstallOptional } from "./pwa-install-provider";
 import { ThemeMenuItems } from "./theme-menu";
 import { TrialChip } from "./subscription-banners";
 
@@ -30,6 +31,7 @@ export function TopBar({
   onSearch,
   onNotifications,
   onQuickCreate,
+  onInstallWorkspace,
 }: {
   orgSlug: string;
   memberships: OrganizationMembership[];
@@ -38,9 +40,11 @@ export function TopBar({
   onSearch: () => void;
   onNotifications: () => void;
   onQuickCreate: () => void;
+  onInstallWorkspace?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const pwa = usePwaInstallOptional();
   const title = pageTitleFromPath(pathname);
   const initials = user.fullName
     .split(" ")
@@ -179,6 +183,17 @@ export function TopBar({
                   }
                 >
                   Manage members
+                </DropdownMenuItem>
+              ) : null}
+              {pwa?.isInstalled ? (
+                <DropdownMenuItem disabled>
+                  <Download className="size-4" />
+                  Installed
+                </DropdownMenuItem>
+              ) : onInstallWorkspace ? (
+                <DropdownMenuItem onClick={onInstallWorkspace}>
+                  <Download className="size-4" />
+                  Install Workspace
                 </DropdownMenuItem>
               ) : null}
               <ThemeMenuItems />

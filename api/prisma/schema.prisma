@@ -98,7 +98,9 @@ enum InvoiceType {
 
 enum InvoiceStatus {
   DRAFT
+  PREPARING
   ISSUED
+  PAYMENT_REPORTED
   PAID
   VOID
   OVERDUE
@@ -267,6 +269,7 @@ model User {
   activatedSubscriptions    Subscription[]           @relation("SubscriptionActivator")
   activationRequests        ActivationRequest[]
   invoicesCreated           Invoice[]                @relation("InvoiceCreator")
+  invoicesVerified          Invoice[]                @relation("InvoiceVerifier")
   paymentNotices            InvoicePaymentNotice[]
 
   @@index([status])
@@ -566,7 +569,7 @@ model Invoice {
   subscriptionId             String?       @db.Uuid
   planId                     String        @db.Uuid
   type                       InvoiceType
-  status                     InvoiceStatus @default(DRAFT)
+  status                     InvoiceStatus @default(PREPARING)
   currency                   String        @default("USD")
   subtotalCents              Int
   totalCents                 Int
@@ -575,6 +578,13 @@ model Invoice {
   issuedAt                   DateTime?     @db.Timestamptz
   dueAt                      DateTime?     @db.Timestamptz
   paidAt                     DateTime?     @db.Timestamptz
+  /// External secure payment page URL (https only). Customer-facing UI never names the provider.
+  paymentUrl                 String?
+  /// Internal reconciliation reference (not shown to customers).
+  externalReference          String?
+  paymentReportedAt          DateTime?     @db.Timestamptz
+  paymentVerifiedAt          DateTime?     @db.Timestamptz
+  verifiedByUserId           String?       @db.Uuid
   createdByPlatformUserId    String        @db.Uuid
   customerName               String
   customerBillingEmail       String
@@ -587,12 +597,14 @@ model Invoice {
   subscription Subscription?          @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
   plan         Plan                   @relation(fields: [planId], references: [id], onDelete: Restrict)
   createdBy    User                   @relation("InvoiceCreator", fields: [createdByPlatformUserId], references: [id], onDelete: Restrict)
+  verifiedBy   User?                  @relation("InvoiceVerifier", fields: [verifiedByUserId], references: [id], onDelete: Restrict)
   paymentNotices InvoicePaymentNotice[]
 
   @@index([organizationId, status, createdAt])
   @@index([planId])
   @@index([subscriptionId])
   @@index([createdByPlatformUserId])
+  @@index([verifiedByUserId])
 }
 
 model InvoicePaymentNotice {

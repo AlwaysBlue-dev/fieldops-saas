@@ -1,6 +1,6 @@
 # FieldOps Cloud — Trust pages and manual billing
 
-No payment gateway is connected. Customers pay from a FieldOps invoice. A platform administrator marks the invoice paid and then separately activates or renews the subscription.
+No payment gateway automation is connected in v1. Customers pay from a FieldOps invoice using a secure payment link managed by platform administrators. Payment is verified before activation or renewal. External payment providers are an internal implementation detail and must not appear in customer-facing UI, emails, docs, FAQ, or policy.
 
 These legal pages are product templates for counsel review, not legal advice. They do not claim SOC 2, ISO, HIPAA, insurance, or office/entity details unless those values are configured.
 
@@ -12,12 +12,12 @@ These legal pages are product templates for counsel review, not legal advice. Th
 | `/terms` | Terms of Service |
 | `/privacy` | Privacy Policy |
 | `/security` | Current security practices + security contact |
-| `/billing-policy` | Manual invoice process and grace rules |
+| `/billing-policy` | Invoice process, verification, grace, retention |
 | `/acceptable-use` | Acceptable Use |
 | `/documentation` | Public documentation links |
 | `/support` | Support / sales / security contacts |
 
-`GET /api/trust` returns contact emails and document versions. It never includes bank or payment destination details.
+`GET /api/trust` returns contact emails and document versions. It never includes private payment account details.
 
 ## Versions
 
@@ -39,28 +39,35 @@ Optional. Local defaults use `*.fieldops.local` for Mailpit. Do not hardcode per
 
 ## Invoices
 
-`Invoice` numbers are allocated in a transaction as `FC-YYYY-000001`. Types: `ACTIVATION`, `RENEWAL`, `PLAN_CHANGE`, `OTHER`. Statuses: `DRAFT`, `ISSUED`, `PAID`, `VOID`, `OVERDUE`. Issued invoices past due are persisted as `OVERDUE` once and emailed without bank details.
+`Invoice` numbers are allocated in a transaction as `FC-YYYY-000001`. Types: `ACTIVATION`, `RENEWAL`, `PLAN_CHANGE`, `OTHER`. Statuses: `DRAFT`, `PREPARING`, `ISSUED`, `PAYMENT_REPORTED`, `PAID`, `VOID`, `OVERDUE`.
+
+Secure payment URL (`paymentUrl`, https only) and optional `externalReference` are platform-admin fields. Customers see Pay Invoice, never provider brand names.
 
 Platform (`SUPER_ADMIN`):
 
-- configure `PlatformBillingSettings` (not public)
-- create draft from Plan amount/currency/period
-- issue (snapshots payment instructions, emails the customer to sign in)
-- mark paid (does **not** activate)
-- activate/renew from the paid invoice
-- void
+- configure `PlatformBillingSettings` (optional notes; not public bank credentials)
+- prepare invoice from Plan amount/currency/period (`PREPARING`)
+- set secure payment URL / external reference
+- issue (requires payment URL; emails customer)
+- mark paid & activate / mark paid & renew (atomic)
+- mark overdue / void
 
 Customer OWNER/ADMIN:
 
 - `/app/{org}/settings/billing`
-- list/view invoices, download PDF
-- see payment instructions only for issued/paid invoices
-- report “I’ve Sent Payment” (`InvoicePaymentNotice`) — never auto-activates
+- current plan, limits, current invoice, paginated history
+- Pay Invoice (opens secure URL; does not change invoice/subscription state)
+- I’ve Sent Payment → `PAYMENT_REPORTED` (never auto-activates)
+- download PDF
 
 ## PDF
 
-Server-generated PDF includes branding, invoice identity, bill-to, plan/period, totals, optional instructions, support contact, and the verification warning. Lookups are `{ id, organizationId }`.
+Server-generated PDF includes branding, invoice identity, bill-to, plan/period, totals, optional instructions, support contact, and the verification warning. Lookups are `{ id, organizationId }`. Customer-facing PDFs remain provider-neutral.
+
+## Reminders
+
+Daily subscription reconciliation sends idempotent trial and renewal reminders via `SubscriptionNotification` (`organizationId` + `kind` + `periodKey`).
 
 ## Anti-fraud copy
 
-FieldOps never asks for passwords, full card numbers, CVV, or credentials by email, chat, or support message. Unexpected payment instructions must be verified with Support before anyone pays.
+Use only the payment link in authenticated Billing or official FieldOps communication. FieldOps never asks for passwords, full card numbers, CVV, or auth codes by email, chat, or support message.
