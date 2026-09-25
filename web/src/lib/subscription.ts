@@ -76,6 +76,21 @@ export type OrganizationSubscription = {
     canPay: boolean;
     statusLabel: string | null;
   };
+  renewalProgress: {
+    state:
+      | "none"
+      | "can_request"
+      | "request_sent"
+      | "invoice_preparing"
+      | "view_invoice"
+      | "pay_invoice"
+      | "awaiting_verification"
+      | "active";
+    label: string;
+    invoiceId: string | null;
+    canPay: boolean;
+    statusLabel: string | null;
+  };
   supportEmail: string | null;
 };
 
@@ -90,7 +105,10 @@ export type CommercialRequest = {
 };
 
 export const ACTIVATION_UNAVAILABLE_MESSAGE =
-  "Available after account activation.";
+  "Available after subscription activation.";
+
+export const RENEWAL_UNAVAILABLE_MESSAGE =
+  "Available after subscription renewal.";
 
 export function getOrganizationSubscription(organizationId: string) {
   return apiRequest<OrganizationSubscription>(

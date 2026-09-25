@@ -27,7 +27,14 @@ Expired workspaces keep all data, users, and files. People can still sign in, re
 
 They cannot create or edit jobs, clock in/out, create clients/sites, invite members, add materials, upload photos, create timesheets, or approve workflow records.
 
-Owner/admin copy after expiry: **Your trial has ended** and **Contact us to activate your workspace.** There is no checkout button.
+Owner/admin messaging after expiry is state-aware (no vague “Contact us”):
+
+- No request yet: **Your workspace is read-only until the subscription is activated.** CTA: **Request Activation**
+- Request sent / invoice preparing: status **Request Sent** or **Invoice Being Prepared**
+- Invoice ready: **Pay Invoice** / **View Invoice** from Billing
+- Payment reported: **Payment Awaiting Verification**
+
+There is no self-serve card checkout. Billing, documentation, and account screens stay available so the customer can finish activation.
 
 ## Stored vs effective status
 

@@ -184,8 +184,8 @@ export function QuickCreateSheet({
       >
         {readOnly ? (
           <p className="mb-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-            Your workspace is read-only. Activate or renew your subscription to
-            create records.
+            Your workspace is read-only until the subscription is activated or
+            renewed. Open Billing or Plan & Subscription to continue.
           </p>
         ) : null}
         <div className="flex flex-col gap-2">

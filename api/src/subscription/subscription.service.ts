@@ -21,7 +21,7 @@ import { canShowPayInvoice, invoiceStatusLabel } from '../billing/invoice-status
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import type { RequestActivationDto } from './dto/request-activation.dto.js';
-import { toSubscriptionDto, type ActivationProgress } from './entitlement.js';
+import { toSubscriptionDto, type BillingActionProgress } from './entitlement.js';
 import { EntitlementService } from './entitlement.service.js';
 import { SubscriptionNotificationService } from './subscription-notification.service.js';
 import { UsageService } from './usage.service.js';
@@ -52,31 +52,42 @@ export class SubscriptionService {
 
   async getForOrganization(organizationId: string) {
     const entitlement = await this.entitlements.evaluate(organizationId);
-    const [usage, openRequests, relevantInvoice] = await Promise.all([
-      this.usage.usageForSubscription(organizationId),
-      this.prisma.activationRequest.findMany({
-        where: {
-          organizationId,
-          status: { in: OPEN_REQUEST_STATUSES },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.invoice.findFirst({
-        where: {
-          organizationId,
-          status: { in: ACTIVE_INVOICE_STATUSES },
-          type: InvoiceType.ACTIVATION,
-        },
-        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      }),
-    ]);
+    const [usage, openRequests, activationInvoice, renewalInvoice] =
+      await Promise.all([
+        this.usage.usageForSubscription(organizationId),
+        this.prisma.activationRequest.findMany({
+          where: {
+            organizationId,
+            status: { in: OPEN_REQUEST_STATUSES },
+          },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this.prisma.invoice.findFirst({
+          where: {
+            organizationId,
+            status: { in: ACTIVE_INVOICE_STATUSES },
+            type: InvoiceType.ACTIVATION,
+          },
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        }),
+        this.prisma.invoice.findFirst({
+          where: {
+            organizationId,
+            status: { in: ACTIVE_INVOICE_STATUSES },
+            type: InvoiceType.RENEWAL,
+          },
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        }),
+      ]);
 
-    const hasOpenActivation = openRequests.some(
+    const activationRequest = openRequests.find(
       (row) => row.requestType === CommercialRequestType.ACTIVATION,
     );
-    const hasOpenRenewal = openRequests.some(
+    const renewalRequest = openRequests.find(
       (row) => row.requestType === CommercialRequestType.RENEWAL,
     );
+    const hasOpenActivation = Boolean(activationRequest);
+    const hasOpenRenewal = Boolean(renewalRequest);
     const hasOpenPlanChange = openRequests.some(
       (row) => row.requestType === CommercialRequestType.PLAN_CHANGE,
     );
@@ -93,8 +104,19 @@ export class SubscriptionService {
     const activationProgress = this.resolveActivationProgress({
       effectiveStatus: entitlement.effectiveStatus,
       hasOpenActivation,
+      requestContacted:
+        activationRequest?.status === ActivationRequestStatus.CONTACTED,
       canRequestActivation: canRequestActivationStatus && !hasOpenActivation,
-      invoice: relevantInvoice,
+      invoice: activationInvoice,
+    });
+
+    const renewalProgress = this.resolveRenewalProgress({
+      effectiveStatus: entitlement.effectiveStatus,
+      hasOpenRenewal,
+      requestContacted:
+        renewalRequest?.status === ActivationRequestStatus.CONTACTED,
+      canRequestRenewal: canRequestRenewalStatus && !hasOpenRenewal,
+      invoice: renewalInvoice,
     });
 
     return toSubscriptionDto(entitlement, {
@@ -107,12 +129,17 @@ export class SubscriptionService {
       })),
       supportEmail: this.salesEmail(),
       activationProgress,
+      renewalProgress,
       availableActions: {
         requestActivation:
           canRequestActivationStatus &&
           !hasOpenActivation &&
           activationProgress.state === 'can_request',
-        requestRenewal: canRequestRenewalStatus && !hasOpenRenewal,
+        requestRenewal:
+          canRequestRenewalStatus &&
+          !hasOpenRenewal &&
+          (renewalProgress.state === 'can_request' ||
+            renewalProgress.state === 'none'),
         requestPlanChange:
           entitlement.effectiveStatus !== 'SUSPENDED' &&
           entitlement.effectiveStatus !== 'CANCELLED' &&
@@ -168,6 +195,7 @@ export class SubscriptionService {
   private resolveActivationProgress(input: {
     effectiveStatus: string;
     hasOpenActivation: boolean;
+    requestContacted: boolean;
     canRequestActivation: boolean;
     invoice: {
       id: string;
@@ -176,11 +204,8 @@ export class SubscriptionService {
       type: InvoiceType;
       dueAt: Date | null;
     } | null;
-  }): ActivationProgress {
-    if (
-      input.effectiveStatus === 'ACTIVE' ||
-      input.effectiveStatus === 'PAID_GRACE'
-    ) {
+  }): BillingActionProgress {
+    if (input.effectiveStatus === 'ACTIVE') {
       return {
         state: 'active',
         label: 'Active',
@@ -190,46 +215,17 @@ export class SubscriptionService {
       };
     }
 
-    const invoice = input.invoice;
-    if (invoice) {
-      const status =
-        invoice.status === InvoiceStatus.ISSUED &&
-        invoice.dueAt &&
-        invoice.dueAt.getTime() < Date.now()
-          ? InvoiceStatus.OVERDUE
-          : invoice.status;
+    const fromInvoice = this.progressFromInvoice(input.invoice);
+    if (fromInvoice) return fromInvoice;
 
-      if (status === InvoiceStatus.PAYMENT_REPORTED) {
-        return {
-          state: 'awaiting_verification',
-          label: 'Payment Awaiting Verification',
-          invoiceId: invoice.id,
-          canPay: false,
-          statusLabel: invoiceStatusLabel(status),
-        };
-      }
-      if (status === InvoiceStatus.ISSUED || status === InvoiceStatus.OVERDUE) {
-        const canPay = canShowPayInvoice(status, invoice.paymentUrl);
-        return {
-          state: canPay ? 'pay_invoice' : 'view_invoice',
-          label: canPay ? 'Pay Invoice' : 'View Invoice',
-          invoiceId: invoice.id,
-          canPay,
-          statusLabel: invoiceStatusLabel(status),
-        };
-      }
-      if (
-        status === InvoiceStatus.PREPARING ||
-        status === InvoiceStatus.DRAFT
-      ) {
-        return {
-          state: 'invoice_preparing',
-          label: 'Invoice Being Prepared',
-          invoiceId: invoice.id,
-          canPay: false,
-          statusLabel: invoiceStatusLabel(status),
-        };
-      }
+    if (input.hasOpenActivation && input.requestContacted) {
+      return {
+        state: 'invoice_preparing',
+        label: 'Invoice Being Prepared',
+        invoiceId: null,
+        canPay: false,
+        statusLabel: null,
+      };
     }
 
     if (input.hasOpenActivation) {
@@ -259,6 +255,121 @@ export class SubscriptionService {
       canPay: false,
       statusLabel: null,
     };
+  }
+
+  private resolveRenewalProgress(input: {
+    effectiveStatus: string;
+    hasOpenRenewal: boolean;
+    requestContacted: boolean;
+    canRequestRenewal: boolean;
+    invoice: {
+      id: string;
+      status: InvoiceStatus;
+      paymentUrl: string | null;
+      type: InvoiceType;
+      dueAt: Date | null;
+    } | null;
+  }): BillingActionProgress {
+    const fromInvoice = this.progressFromInvoice(input.invoice);
+    if (fromInvoice) return fromInvoice;
+
+    if (input.hasOpenRenewal && input.requestContacted) {
+      return {
+        state: 'invoice_preparing',
+        label: 'Invoice Being Prepared',
+        invoiceId: null,
+        canPay: false,
+        statusLabel: null,
+      };
+    }
+
+    if (input.hasOpenRenewal) {
+      return {
+        state: 'request_sent',
+        label: 'Request Sent',
+        invoiceId: null,
+        canPay: false,
+        statusLabel: null,
+      };
+    }
+
+    if (input.canRequestRenewal) {
+      return {
+        state: 'can_request',
+        label: 'Request Renewal',
+        invoiceId: null,
+        canPay: false,
+        statusLabel: null,
+      };
+    }
+
+    if (input.effectiveStatus === 'ACTIVE') {
+      return {
+        state: 'active',
+        label: 'Active',
+        invoiceId: null,
+        canPay: false,
+        statusLabel: null,
+      };
+    }
+
+    return {
+      state: 'none',
+      label: '',
+      invoiceId: null,
+      canPay: false,
+      statusLabel: null,
+    };
+  }
+
+  private progressFromInvoice(
+    invoice: {
+      id: string;
+      status: InvoiceStatus;
+      paymentUrl: string | null;
+      dueAt: Date | null;
+    } | null,
+  ): BillingActionProgress | null {
+    if (!invoice) return null;
+    const status =
+      invoice.status === InvoiceStatus.ISSUED &&
+      invoice.dueAt &&
+      invoice.dueAt.getTime() < Date.now()
+        ? InvoiceStatus.OVERDUE
+        : invoice.status;
+
+    if (status === InvoiceStatus.PAYMENT_REPORTED) {
+      return {
+        state: 'awaiting_verification',
+        label: 'Payment Awaiting Verification',
+        invoiceId: invoice.id,
+        canPay: false,
+        statusLabel: invoiceStatusLabel(status),
+      };
+    }
+    if (status === InvoiceStatus.ISSUED || status === InvoiceStatus.OVERDUE) {
+      const canPay = canShowPayInvoice(status, invoice.paymentUrl);
+      return {
+        state: canPay ? 'pay_invoice' : 'view_invoice',
+        label: canPay ? 'Pay Invoice' : 'View Invoice',
+        invoiceId: invoice.id,
+        canPay,
+        statusLabel: invoiceStatusLabel(status),
+      };
+    }
+    if (
+      status === InvoiceStatus.PREPARING ||
+      status === InvoiceStatus.DRAFT
+    ) {
+      return {
+        state: 'invoice_preparing',
+        label: 'Invoice Being Prepared',
+        invoiceId: invoice.id,
+        canPay: false,
+        statusLabel: invoiceStatusLabel(status),
+      };
+    }
+    return null;
   }
 
   private async createRequest(

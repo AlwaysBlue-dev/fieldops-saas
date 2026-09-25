@@ -249,12 +249,13 @@ export function readOnlyMessage(status: EffectiveSubscriptionStatus): string {
     return 'This workspace subscription is cancelled and read-only.';
   }
   if (status === 'EXPIRED') {
-    return 'Your subscription has expired. This workspace is read-only until it is renewed.';
+    return 'Your workspace is read-only until the subscription is renewed.';
   }
-  return 'This workspace is read-only until a subscription is activated.';
+  return 'Your workspace is read-only until the subscription is activated.';
 }
 
-export type ActivationProgress = {
+/** Shared customer-facing billing CTA progression (activation or renewal). */
+export type BillingActionProgress = {
   state:
     | 'none'
     | 'can_request'
@@ -269,6 +270,9 @@ export type ActivationProgress = {
   canPay: boolean;
   statusLabel: string | null;
 };
+
+/** @deprecated Prefer BillingActionProgress — kept as alias for existing imports. */
+export type ActivationProgress = BillingActionProgress;
 
 export function toSubscriptionDto(
   entitlement: Entitlement,
@@ -289,7 +293,8 @@ export function toSubscriptionDto(
       status: string;
       createdAt: string;
     }>;
-    activationProgress?: ActivationProgress;
+    activationProgress?: BillingActionProgress;
+    renewalProgress?: BillingActionProgress;
     supportEmail?: string;
   } = {},
 ) {
@@ -329,6 +334,13 @@ export function toSubscriptionDto(
     },
     openRequests: extras.openRequests ?? [],
     activationProgress: extras.activationProgress ?? {
+      state: 'none' as const,
+      label: '',
+      invoiceId: null,
+      canPay: false,
+      statusLabel: null,
+    },
+    renewalProgress: extras.renewalProgress ?? {
       state: 'none' as const,
       label: '',
       invoiceId: null,

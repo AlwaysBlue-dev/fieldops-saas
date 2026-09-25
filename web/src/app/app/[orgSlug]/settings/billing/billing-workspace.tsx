@@ -17,6 +17,35 @@ import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
+function billingReadOnlyNotice(subscription: OrganizationSubscription) {
+  const isRenewal =
+    subscription.effectiveStatus === "EXPIRED" ||
+    subscription.effectiveStatus === "PAID_GRACE";
+  const progress = isRenewal
+    ? subscription.renewalProgress
+    : subscription.activationProgress;
+  const state = progress?.state ?? "none";
+
+  if (state === "awaiting_verification") {
+    return isRenewal
+      ? "Your renewal payment is awaiting verification. Your data remains retained."
+      : "Your payment is awaiting verification. Your subscription will be activated after payment is confirmed. Your data remains retained.";
+  }
+  if (state === "pay_invoice" || state === "view_invoice") {
+    return isRenewal
+      ? "Your workspace is read-only until the subscription is renewed. Complete payment below to restore full access."
+      : "Your workspace is read-only until the subscription is activated. Complete payment below to restore full access.";
+  }
+  if (state === "invoice_preparing" || state === "request_sent") {
+    return isRenewal
+      ? "Your workspace is read-only until the subscription is renewed. Your renewal is in progress — the invoice will appear here when ready."
+      : "Your workspace is read-only until the subscription is activated. Your activation is in progress — the invoice will appear here when ready.";
+  }
+  return isRenewal
+    ? "Your workspace is read-only until the subscription is renewed. Request renewal from Plan & Subscription, then complete payment here when the invoice is ready."
+    : "Your workspace is read-only until the subscription is activated. Request activation from Plan & Subscription, then complete payment here when the invoice is ready.";
+}
+
 export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
@@ -116,8 +145,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
           </dl>
           {readOnly ? (
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-              Trial ended or payment is required to continue editing. Your data
-              remains retained. Use Billing below to view or pay your invoice.
+              {billingReadOnlyNotice(subscription)}
             </p>
           ) : null}
         </section>

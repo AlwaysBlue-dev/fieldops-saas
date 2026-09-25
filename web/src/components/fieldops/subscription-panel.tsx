@@ -6,9 +6,9 @@ import {
   isNearExpiry,
 } from "@/lib/subscription";
 import {
+  RenewalActionButton,
   RequestActivationButton,
   RequestPlanChangeButton,
-  RequestRenewalButton,
 } from "./subscription-banners";
 import { useSubscription } from "./subscription-provider";
 import { useParams } from "next/navigation";
@@ -62,6 +62,9 @@ export function SubscriptionPanel({
   const showRenewal =
     canManage &&
     (subscription.availableActions.requestRenewal ||
+      ["request_sent", "invoice_preparing", "view_invoice", "pay_invoice", "awaiting_verification"].includes(
+        subscription.renewalProgress?.state ?? "none",
+      ) ||
       subscription.openRequests.some(
         (row) =>
           row.requestType === "RENEWAL" &&
@@ -146,9 +149,12 @@ export function SubscriptionPanel({
             />
           ) : null}
           {showRenewal ? (
-            <RequestRenewalButton
+            <RenewalActionButton
               organizationId={organizationId}
-              label={nearExpiry ? "Renew Subscription" : "Request Renewal"}
+              orgSlug={orgSlug}
+              preferRequestLabel={
+                nearExpiry ? "Renew Subscription" : "Request Renewal"
+              }
             />
           ) : null}
           {showPlanChange ? (

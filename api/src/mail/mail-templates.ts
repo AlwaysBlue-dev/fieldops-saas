@@ -216,7 +216,7 @@ export function trialEndingMail(input: {
     heading: 'Your trial is ending soon',
     paragraphs: [
       `The FieldOps Cloud trial for ${input.organizationName} ends in ${input.daysRemaining} day${input.daysRemaining === 1 ? '' : 's'}.`,
-      'Request activation from Plan & Subscription. No credit card is required in the product.',
+      'Request activation from Plan & Subscription or Billing. When your invoice is ready, complete payment there — no credit card is required in the product.',
     ],
     ctaLabel: 'Open plan & subscription',
     ctaUrl: input.billingUrl,
@@ -234,7 +234,7 @@ export function trialGraceMail(input: {
     heading: 'Your trial grace period is active',
     paragraphs: [
       `The trial for ${input.organizationName} has ended. You are in a ${input.graceDaysRemaining}-day grace window.`,
-      'Request activation soon to keep full write access.',
+      'Request activation or complete payment from Billing to keep full write access.',
     ],
     ctaLabel: 'Request activation',
     ctaUrl: input.billingUrl,
@@ -251,9 +251,9 @@ export function trialExpiredMail(input: {
     heading: 'Your trial has ended',
     paragraphs: [
       `The FieldOps Cloud trial for ${input.organizationName} has ended. The workspace is read-only.`,
-      'Existing records are kept. Request activation to restore writes.',
+      'Existing records are kept. Open Billing to request activation or complete payment and restore writes.',
     ],
-    ctaLabel: 'Request activation',
+    ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
   });
   return { ...content, subject: 'Your FieldOps Cloud trial has ended' };
@@ -270,7 +270,7 @@ export function activationAckMail(input: {
     paragraphs: [
       `Hi ${input.recipientName},`,
       `FieldOps received an activation request for ${input.organizationName}.`,
-      'Our team will follow up. You can track status under Plan & Subscription.',
+      'Your invoice is being prepared. Track status under Plan & Subscription and Billing.',
     ],
     ctaLabel: 'Open plan & subscription',
     ctaUrl: input.billingUrl,

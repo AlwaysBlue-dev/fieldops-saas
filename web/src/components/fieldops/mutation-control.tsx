@@ -6,7 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ACTIVATION_UNAVAILABLE_MESSAGE } from "@/lib/subscription";
+import { ACTIVATION_UNAVAILABLE_MESSAGE, RENEWAL_UNAVAILABLE_MESSAGE } from "@/lib/subscription";
 import { cn } from "cn";
 import type { ComponentProps, ReactNode } from "react";
 import { useSubscription } from "./subscription-provider";
@@ -32,7 +32,7 @@ export function MutationButton({
   const blockedReason =
     subscription?.effectiveStatus === "EXPIRED" ||
     subscription?.effectiveStatus === "PAID_GRACE"
-      ? "Available after subscription renewal."
+      ? RENEWAL_UNAVAILABLE_MESSAGE
       : ACTIVATION_UNAVAILABLE_MESSAGE;
   const button = (
     <Button
@@ -62,11 +62,12 @@ export function MutationButton({
 }
 
 export function MutationHint({ children }: { children?: ReactNode }) {
-  const { readOnly } = useCanMutate();
+  const { readOnly, subscription } = useCanMutate();
   if (!readOnly) return children ?? null;
-  return (
-    <p className="text-xs text-muted-foreground">
-      {ACTIVATION_UNAVAILABLE_MESSAGE}
-    </p>
-  );
+  const message =
+    subscription?.effectiveStatus === "EXPIRED" ||
+    subscription?.effectiveStatus === "PAID_GRACE"
+      ? RENEWAL_UNAVAILABLE_MESSAGE
+      : ACTIVATION_UNAVAILABLE_MESSAGE;
+  return <p className="text-xs text-muted-foreground">{message}</p>;
 }
