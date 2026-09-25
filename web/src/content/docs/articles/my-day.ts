@@ -39,7 +39,7 @@ export const myDay: DocArticle = {
       id: "scope",
       heading: "Assignment scope",
       paragraphs: [
-        "Technicians only see jobs assigned to them (and in-scope team assignments per product rules). Switching organization changes which My Day loads. Empty states are empty — FieldOps Cloud does not invent fake production jobs in the UI.",
+        "Technicians only see jobs assigned to them (and in-scope team assignments per product rules). Switching organization changes which My Day loads. Empty states are empty — FieldKeel does not invent fake production jobs in the UI.",
       ],
     },
   ],

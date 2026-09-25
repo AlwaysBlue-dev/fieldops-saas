@@ -31,7 +31,7 @@ export class MailService {
   constructor(private readonly config: ConfigService<EnvironmentVariables, true>) {
     this.fromAddress =
       this.config.get('EMAIL_FROM', { infer: true }) ??
-      'FieldOps Cloud <no-reply@fieldops.local>';
+      'FieldKeel <no-reply@fieldkeel.local>';
     this.replyTo = this.config.get('EMAIL_REPLY_TO', { infer: true });
     this.transport = this.createTransport();
     this.logger.log(`Mail transport: ${this.transport.name}`);

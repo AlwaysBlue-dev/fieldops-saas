@@ -1,5 +1,5 @@
 import {
-  FIELD_OPS_ICONS,
+  FIELDKEEL_ICONS,
   workspaceAppName,
   workspaceManifestId,
   workspaceShortName,
@@ -35,7 +35,7 @@ function labelFromSlug(orgSlug: string): string {
  * Workspace-aware install manifest.
  *
  * Optional `?name=` carries the display organization name from the authenticated
- * shell (not used for authorization). Icons stay FieldOps Cloud defaults —
+ * shell (not used for authorization). Icons stay FieldKeel defaults —
  * private org logos / presigned URLs are not safe install icons.
  *
  * Manifest `id` is org-scoped for best-effort separate installs; same-origin
@@ -67,7 +67,7 @@ export async function GET(
     id: workspaceManifestId(orgSlug),
     name: workspaceAppName(nameSource),
     short_name: workspaceShortName(nameSource),
-    description: `${nameSource} workspace on FieldOps Cloud.`,
+    description: `${nameSource} workspace on FieldKeel.`,
     start_url: startUrl,
     scope: "/app/",
     display: "standalone",
@@ -75,7 +75,7 @@ export async function GET(
     background_color: "#f4f6f9",
     theme_color: "#1c2233",
     categories: ["business", "productivity"],
-    icons: FIELD_OPS_ICONS,
+    icons: FIELDKEEL_ICONS,
   };
 
   return new NextResponse(JSON.stringify(body), {

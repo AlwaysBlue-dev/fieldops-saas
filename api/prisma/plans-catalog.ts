@@ -7,7 +7,7 @@ import {
 const GB = 1024n * 1024n * 1024n;
 
 /**
- * Canonical FieldOps Cloud plan catalog.
+ * Canonical FieldKeel plan catalog.
  * Looked up by stable `code` (never by UUID).
  * Trial signup uses TRIAL_PLAN_CODE = `professional` from api/src/common/constants.ts.
  *
@@ -127,7 +127,7 @@ export const PLAN_DEFINITIONS = [
         'Larger team limits',
         'Increased storage',
         'Advanced branding/custom requirements',
-        'Commercial requirements tailored with FieldOps',
+        'Commercial requirements tailored with FieldKeel',
       ],
     },
   },

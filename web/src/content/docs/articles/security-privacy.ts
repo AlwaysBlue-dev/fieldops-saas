@@ -26,7 +26,7 @@ export const securityPrivacy: DocArticle = {
       id: "session",
       heading: "Sessions and cookies",
       paragraphs: [
-        "Sign-in establishes HTTP-only cookies for access and refresh (`fieldops_access`, `fieldops_refresh`). Tokens are not placed in localStorage, sessionStorage, or ordinary SPA JSON storage. Logout revokes refresh tokens. CORS allows the web origin with credentials — not a wildcard open origin.",
+        "Sign-in establishes HTTP-only cookies for access and refresh (`fieldops_access`, `fieldops_refresh` — legacy technical cookie names). Tokens are not placed in localStorage, sessionStorage, or ordinary SPA JSON storage. Logout revokes refresh tokens. CORS allows the web origin with credentials — not a wildcard open origin.",
         "Organization role and organization id in the UI are selection aids. Authority comes from loading an ACTIVE OrganizationMembership on the server for every tenant request.",
       ],
     },

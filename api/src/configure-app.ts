@@ -40,7 +40,7 @@ export function configureApp(app: INestApplication) {
     const document = SwaggerModule.createDocument(
       app,
       new DocumentBuilder()
-        .setTitle('FieldOps Cloud API')
+        .setTitle('FieldKeel API')
         .setDescription('Multi-tenant field-service API')
         .setVersion('0.1.0')
         .build(),

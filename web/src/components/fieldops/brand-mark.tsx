@@ -18,7 +18,7 @@ export function BrandMark({
       )}
       aria-hidden
     >
-      FO
+      FK
     </span>
   );
 }

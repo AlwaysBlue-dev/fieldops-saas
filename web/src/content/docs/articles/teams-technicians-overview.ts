@@ -42,7 +42,7 @@ export const teamsTechniciansOverview: DocArticle = {
       id: "deactivate-team",
       heading: "Deactivating a team",
       paragraphs: [
-        "From Team details, choose Deactivate team and confirm. Inactive teams remain in FieldOps history but cannot be used for new assignments. Memberships, skills, certifications, and past jobs are retained. Deactivation is not deletion.",
+        "From Team details, choose Deactivate team and confirm. Inactive teams remain in FieldKeel history but cannot be used for new assignments. Memberships, skills, certifications, and past jobs are retained. Deactivation is not deletion.",
       ],
     },
     {
@@ -84,7 +84,7 @@ export const teamsTechniciansOverview: DocArticle = {
       id: "certification-expiry",
       heading: "Certification expiry",
       paragraphs: [
-        "Status is derived from the expiry date: Valid, Expiring soon (within the configured window), Expired, or No expiry when no end date is set. FieldOps does not invent a separate stored status field for this.",
+        "Status is derived from the expiry date: Valid, Expiring soon (within the configured window), Expired, or No expiry when no end date is set. FieldKeel does not invent a separate stored status field for this.",
       ],
     },
     {

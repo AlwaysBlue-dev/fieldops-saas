@@ -29,7 +29,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         }
       >
         <p className="text-sm text-muted-foreground">
-          Open the latest email from FieldOps Cloud, or request a new link from
+          Open the latest email from FieldKeel, or request a new link from
           the forgot password page.
         </p>
       </AuthShell>
@@ -80,7 +80,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <AuthShell
       title="Choose a new password"
-      description="Enter a new password for your FieldOps Cloud account."
+      description="Enter a new password for your FieldKeel account."
       footer={
         <Link href="/forgot-password" className="font-medium text-primary">
           Request a new reset link

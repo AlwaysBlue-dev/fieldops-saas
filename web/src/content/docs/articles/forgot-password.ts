@@ -4,7 +4,7 @@ export const forgotPassword: DocArticle = {
   slug: "forgot-password",
   title: "Forgot your password",
   description:
-    "Reset your FieldOps Cloud password from the login screen using a secure email link, then sign in again.",
+    "Reset your FieldKeel password from the login screen using a secure email link, then sign in again.",
   categoryId: "getting-started",
   keywords: [
     "forgot password",
@@ -24,8 +24,8 @@ export const forgotPassword: DocArticle = {
       id: "steps",
       heading: "Reset your password",
       paragraphs: [
-        "On the sign-in page, select Forgot password. Enter the work email for your FieldOps Cloud account and choose Send reset link. For privacy, the confirmation message is the same whether or not an account exists for that email.",
-        "Open the reset email from FieldOps Cloud and choose Reset password. On the reset page, enter a new password (at least 10 characters) and confirm it. After the password is updated, return to sign in and use the new password. Existing sessions for that account are ended so you must sign in again.",
+        "On the sign-in page, select Forgot password. Enter the work email for your FieldKeel account and choose Send reset link. For privacy, the confirmation message is the same whether or not an account exists for that email.",
+        "Open the reset email from FieldKeel and choose Reset password. On the reset page, enter a new password (at least 10 characters) and confirm it. After the password is updated, return to sign in and use the new password. Existing sessions for that account are ended so you must sign in again.",
       ],
     },
     {

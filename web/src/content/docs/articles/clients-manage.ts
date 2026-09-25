@@ -27,7 +27,7 @@ export const clientsManage: DocArticle = {
       id: "lifecycle",
       heading: "Status and deactivation",
       paragraphs: [
-        "Prefer soft-deactivate when a customer relationship ends but historical jobs must remain. Hard-deleting referenced clients is not the operational model — FieldOps Cloud keeps history and soft-deactivates referenced entities.",
+        "Prefer soft-deactivate when a customer relationship ends but historical jobs must remain. Hard-deleting referenced clients is not the operational model — FieldKeel keeps history and soft-deactivates referenced entities.",
         "If create client is blocked, confirm the workspace is not read-only after trial expiry and that your role allows client mutations.",
       ],
     },

@@ -42,7 +42,7 @@ export const billingPlans: DocArticle = {
       id: "free-trial-eligibility",
       heading: "Free Trial Eligibility",
       paragraphs: [
-        "Each verified FieldOps Cloud account receives one 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.",
+        "Each verified FieldKeel account receives one 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.",
         "Additional organizations you create require their own subscription and do not receive another free trial. Deleting a previous organization does not restore trial eligibility. Organization subscriptions are always independent — seats, storage, billing period, and trial/grace state are never pooled across workspaces owned by the same account.",
         "Joining another organization through an invitation does not consume or change your free-trial eligibility.",
       ],
@@ -51,7 +51,7 @@ export const billingPlans: DocArticle = {
       id: "how-pay",
       heading: "How payment works",
       paragraphs: [
-        "When your subscription invoice is ready, a secure payment link appears in Settings → Billing. Select Pay Invoice and complete payment on the secure payment page. FieldOps confirms payment before activating or renewing the subscription. There is no automatic card charge in the product today.",
+        "When your subscription invoice is ready, a secure payment link appears in Settings → Billing. Select Pay Invoice and complete payment on the secure payment page. FieldKeel confirms payment before activating or renewing the subscription. There is no automatic card charge in the product today.",
         "Owners and admins request activation from the trial banner or Plan & Subscription. After you select Request Activation, the control becomes Request Sent until an invoice is ready — duplicate open activation requests are not created. See Activating your subscription for the full sequence.",
         "Renewal and plan-change requests from Plan & Subscription also block duplicates while a request is already open or being handled.",
       ],

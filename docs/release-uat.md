@@ -1,4 +1,4 @@
-# FieldOps Cloud — Release UAT Checklist
+# FieldKeel — Release UAT Checklist
 
 Use two seeded (or staging) organizations: **Org A** and **Org B**, with users in every org role. Prefer direct HTTP (curl/Postman/Insomnia) with cookie jars; do not trust UI-only navigation.
 

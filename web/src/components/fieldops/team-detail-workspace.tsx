@@ -147,7 +147,7 @@ export function TeamDetailWorkspace() {
   async function onDeactivate() {
     if (
       !window.confirm(
-        "Deactivate this team?\n\nInactive teams remain in FieldOps history but cannot be used for new assignments.",
+        "Deactivate this team?\n\nInactive teams remain in FieldKeel history but cannot be used for new assignments.",
       )
     ) {
       return;

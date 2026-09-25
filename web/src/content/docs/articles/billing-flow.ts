@@ -4,7 +4,7 @@ export const understandingSubscription: DocArticle = {
   slug: "understanding-subscription",
   title: "Understanding your subscription",
   description:
-    "How FieldOps Cloud plans, trials, and paid periods work for your organization.",
+    "How FieldKeel plans, trials, and paid periods work for your organization.",
   categoryId: "billing",
   keywords: ["subscription", "plan", "trial", "renewal", "status"],
   relatedSlugs: [
@@ -18,7 +18,7 @@ export const understandingSubscription: DocArticle = {
       id: "overview",
       heading: "Your organization subscription",
       paragraphs: [
-        "Each FieldOps Cloud workspace has its own subscription: plan, seat and storage limits, trial or paid period, and billing history. Subscriptions are never pooled across organizations owned by the same account.",
+        "Each FieldKeel workspace has its own subscription: plan, seat and storage limits, trial or paid period, and billing history. Subscriptions are never pooled across organizations owned by the same account.",
         "Owners (and admins, where permitted) manage billing from Settings → Billing. Technicians and supervisors do not see invoice or payment details.",
       ],
     },
@@ -37,7 +37,7 @@ export const understandingInvoice: DocArticle = {
   slug: "understanding-invoice",
   title: "Understanding your invoice",
   description:
-    "FieldOps invoice numbers, amounts, billing periods, and customer-facing statuses.",
+    "FieldKeel invoice numbers, amounts, billing periods, and customer-facing statuses.",
   categoryId: "billing",
   keywords: ["invoice", "FC-", "amount", "due date", "status"],
   relatedSlugs: [
@@ -49,9 +49,9 @@ export const understandingInvoice: DocArticle = {
   sections: [
     {
       id: "identity",
-      heading: "FieldOps invoice identity",
+      heading: "FieldKeel invoice identity",
       paragraphs: [
-        "FieldOps generates its own invoice numbers (for example FC-2026-000021). The invoice records your organization, plan, amount, currency, issued and due dates, billing period, and status.",
+        "FieldKeel generates its own invoice numbers (for example FC-2026-000021). The invoice records your organization, plan, amount, currency, issued and due dates, billing period, and status.",
         "While an invoice is being prepared you will see “Invoice being prepared.” When it is ready to pay, the status becomes “Payment due.” After you report payment it shows “Payment awaiting verification,” then “Paid” once confirmed.",
       ],
     },
@@ -84,7 +84,7 @@ export const payingAnInvoice: DocArticle = {
       heading: "How to pay",
       paragraphs: [
         "When your invoice is ready, a secure payment link will appear in your Billing area. Select Pay Invoice and complete payment using the options available on the secure payment page.",
-        "FieldOps Cloud subscriptions are business services. Please use an eligible business/commercial payment method.",
+        "FieldKeel subscriptions are business services. Please use an eligible business/commercial payment method.",
         "Opening Pay Invoice does not mark the invoice paid and does not activate or renew your subscription by itself.",
       ],
     },
@@ -92,8 +92,8 @@ export const payingAnInvoice: DocArticle = {
       id: "trust",
       heading: "Stay safe",
       paragraphs: [
-        "Use only the payment link shown in your authenticated FieldOps Cloud Billing area or provided through an official FieldOps communication.",
-        "FieldOps will never ask for your password, authentication code, full card number, or CVV through support messages.",
+        "Use only the payment link shown in your authenticated FieldKeel Billing area or provided through an official FieldKeel communication.",
+        "FieldKeel will never ask for your password, authentication code, full card number, or CVV through support messages.",
       ],
     },
   ],
@@ -117,8 +117,8 @@ export const paymentVerification: DocArticle = {
       heading: "Payments are verified before activation",
       paragraphs: [
         "After you complete payment on the secure payment page, your invoice may remain in “Payment awaiting verification” until payment has been confirmed.",
-        "You may optionally select I’ve Sent Payment to notify FieldOps. That action does not immediately activate or renew the subscription and does not mark the invoice Paid.",
-        "Once payment is confirmed, FieldOps updates the subscription and the Owner receives confirmation.",
+        "You may optionally select I’ve Sent Payment to notify FieldKeel. That action does not immediately activate or renew the subscription and does not mark the invoice Paid.",
+        "Once payment is confirmed, FieldKeel updates the subscription and the Owner receives confirmation.",
       ],
     },
     {
@@ -126,7 +126,7 @@ export const paymentVerification: DocArticle = {
       heading: "If payment cannot be confirmed",
       paragraphs: [
         "If payment cannot be confirmed, the invoice may return to Payment Due. Billing again shows Pay Invoice and I’ve Sent Payment so you can review the payment details and try again.",
-        "You may see a short notice that payment could not be confirmed. FieldOps does not activate or renew the subscription until payment is verified.",
+        "You may see a short notice that payment could not be confirmed. FieldKeel does not activate or renew the subscription until payment is verified.",
       ],
     },
   ],
@@ -136,7 +136,7 @@ export const activatingSubscription: DocArticle = {
   slug: "activating-subscription",
   title: "Activating your subscription",
   description:
-    "How a trial workspace becomes an active paid FieldOps Cloud subscription.",
+    "How a trial workspace becomes an active paid FieldKeel subscription.",
   categoryId: "billing",
   keywords: ["activation", "trial", "paid", "active", "request activation"],
   relatedSlugs: [
@@ -151,11 +151,11 @@ export const activatingSubscription: DocArticle = {
       heading: "Requesting activation",
       paragraphs: [
         "1. Select Request Activation from the trial banner or Settings → Plan & Subscription (Owners and Admins).",
-        "2. FieldOps records the request. The control changes to Request Sent and stays that way until the next billing step — you cannot submit a duplicate request for the same activation cycle.",
-        "3. FieldOps prepares your invoice. The control may show Invoice Being Prepared.",
+        "2. FieldKeel records the request. The control changes to Request Sent and stays that way until the next billing step — you cannot submit a duplicate request for the same activation cycle.",
+        "3. FieldKeel prepares your invoice. The control may show Invoice Being Prepared.",
         "4. When the invoice is issued, open Billing and use Pay Invoice (or View Invoice).",
         "5. Complete payment on the secure payment page. Optionally select I’ve Sent Payment.",
-        "6. While FieldOps verifies payment, Billing shows Payment awaiting verification.",
+        "6. While FieldKeel verifies payment, Billing shows Payment awaiting verification.",
         "7. After payment is confirmed, your subscription becomes Active for the billing period on the invoice.",
       ],
     },
@@ -163,7 +163,7 @@ export const activatingSubscription: DocArticle = {
       id: "activate",
       heading: "From trial to paid",
       paragraphs: [
-        "Near the end of your Professional trial, FieldOps prepares an activation invoice in Billing. Pay using the secure payment link, then wait for payment confirmation.",
+        "Near the end of your Professional trial, FieldKeel prepares an activation invoice in Billing. Pay using the secure payment link, then wait for payment confirmation.",
         "When payment is confirmed, your subscription becomes active for the billing period shown on the invoice. You will receive a confirmation email.",
       ],
     },
@@ -188,8 +188,8 @@ export const renewingSubscription: DocArticle = {
       id: "reminders",
       heading: "Before renewal",
       paragraphs: [
-        "FieldOps sends reminders before your paid period ends. Your renewal invoice becomes available in Billing. Open Pay Invoice on the secure payment page when it is ready.",
-        "FieldOps Cloud does not automatically charge a stored card.",
+        "FieldKeel sends reminders before your paid period ends. Your renewal invoice becomes available in Billing. Open Pay Invoice on the secure payment page when it is ready.",
+        "FieldKeel does not automatically charge a stored card.",
       ],
     },
     {
@@ -219,7 +219,7 @@ export const trialExpiryGrace: DocArticle = {
       id: "policy",
       heading: "Trial and grace",
       paragraphs: [
-        "Each verified FieldOps account receives one 14-day Professional trial with no credit card required. A 3-day grace follows. After grace, the workspace becomes read-only. Organization data is not deleted because the trial ended.",
+        "Each verified FieldKeel account receives one 14-day Professional trial with no credit card required. A 3-day grace follows. After grace, the workspace becomes read-only. Organization data is not deleted because the trial ended.",
         "Paid renewals use a separate 7-day renewal grace. In all cases you can still open Billing, invoices, documentation, and account areas needed to restore service.",
       ],
     },
@@ -229,7 +229,7 @@ export const trialExpiryGrace: DocArticle = {
 export const billingHistoryDoc: DocArticle = {
   slug: "billing-history",
   title: "Billing history",
-  description: "How to review previous FieldOps invoices for your organization.",
+  description: "How to review previous FieldKeel invoices for your organization.",
   categoryId: "billing",
   keywords: ["history", "invoices", "past", "PDF"],
   relatedSlugs: ["understanding-invoice", "paying-an-invoice", "billing-plans"],

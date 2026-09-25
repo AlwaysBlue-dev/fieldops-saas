@@ -1,17 +1,17 @@
-# FieldOps Cloud — Product Requirements
+# FieldKeel — Product Requirements
 
-**Product:** FieldOps Cloud
+**Product:** FieldKeel
 **Type:** Independent commercial multi-tenant SaaS
 **Status:** Foundation / pre-implementation
 **Audience:** Electrical, HVAC, plumbing, fire/security, maintenance, and facilities contractors
 
-This document defines what FieldOps Cloud is, who it is for, and which capabilities the platform must support. It is not a clone of any existing client application. Implementation of business modules is out of scope for the current documentation phase.
+This document defines what FieldKeel is, who it is for, and which capabilities the platform must support. It is not a clone of any existing client application. Implementation of business modules is out of scope for the current documentation phase.
 
 ---
 
 ## 1. Product vision
 
-FieldOps Cloud is an operations-command-center for field-service companies. Dispatchers, supervisors, and owners run the day from a dense desktop workspace. Technicians run the day from a phone-first shell that feels like a native field app.
+FieldKeel is an operations-command-center for field-service companies. Dispatchers, supervisors, and owners run the day from a dense desktop workspace. Technicians run the day from a phone-first shell that feels like a native field app.
 
 The product must feel premium, confident, and operational — not like a generic admin template and not like a consumer dashboard.
 
@@ -55,18 +55,18 @@ Works from a phone, often outdoors, often with dirty gloves and bad signal. Need
 
 ### 3.6 Platform super admin (internal)
 
-FieldOps Cloud operator. Manages platform health, organization suspension, and support break-glass access. Does **not** casually browse tenant job photos or customer data.
+FieldKeel operator. Manages platform health, organization suspension, and support break-glass access. Does **not** casually browse tenant job photos or customer data.
 
 ---
 
 ## 4. Tenancy and identity (non-negotiable)
 
-FieldOps Cloud is multi-tenant from day one.
+FieldKeel is multi-tenant from day one.
 
 | Concept | Rule |
 | --- | --- |
 | User | Platform identity. Email + credentials. May belong to many organizations. |
-| Organization | Tenant. The commercial customer of FieldOps Cloud. |
+| Organization | Tenant. The commercial customer of FieldKeel. |
 | Membership | Join table of User ↔ Organization with an organization-specific role. |
 | Invitation | Time-limited offer to join one organization with a proposed role. |
 | Subscription/plan | Organization-scoped commercial entitlement. Schema now, charging later. |
@@ -177,7 +177,7 @@ Mobile Home is a technician-oriented My Day, not a miniature of the desktop dash
 
 ### 6.5 Clients — P1
 
-- Organization-owned customers (the contractor’s clients, not FieldOps Cloud tenants).
+- Organization-owned customers (the contractor’s clients, not FieldKeel tenants).
 - Name, account code, contacts, phone, email, notes, status.
 - Soft-deactivate when referenced by sites or jobs.
 - Search and filter inside the organization only.

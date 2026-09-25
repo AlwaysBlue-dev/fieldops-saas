@@ -1,5 +1,5 @@
 /**
- * App-facing helpers for FieldOps Cloud product documentation content.
+ * App-facing helpers for FieldKeel product documentation content.
  * Content modules live under `@/content/docs`.
  */
 

@@ -19,7 +19,7 @@ export const organizationSettings: DocArticle = {
     "storage-overview",
     "billing-plans",
     "security-privacy",
-    "install-fieldops-on-phone",
+    "install-fieldkeel-on-phone",
   ],
   sections: [
     {
@@ -27,7 +27,7 @@ export const organizationSettings: DocArticle = {
       heading: "Operating basics",
       paragraphs: [
         "Organization settings control IANA timezone (source of business-day calculations), week start and working-hours related structure, overtime thresholds, evidence rules, and job number prefix/sequence. Locale and date-time display preferences help office and field share the same clock language.",
-        "Settings → Organization lets Owners and Admins update company name, business type, phone, and timezone. FieldOps suggests your device timezone during setup; you can search and change the timezone anytime. Choose a listed business type, or select Other and enter a custom type.",
+        "Settings → Organization lets Owners and Admins update company name, business type, phone, and timezone. FieldKeel suggests your device timezone during setup; you can search and change the timezone anytime. Choose a listed business type, or select Other and enter a custom type.",
         "requireGps is an organization setting that requires coordinates on clock evidence when validation runs for completion and approval. Turn it on only if crews can grant location permission in the field.",
       ],
     },
@@ -51,7 +51,7 @@ export const organizationSettings: DocArticle = {
       id: "app-device",
       heading: "App & device",
       paragraphs: [
-        "Settings → App & device shows Install FieldOps Cloud for the current workspace, installation status, and a link to the phone install guide. Use More → Install Workspace on mobile for the same flow. This installs a Progressive Web App — not a native store app — and requires a network connection for current workspace data.",
+        "Settings → App & device shows Install FieldKeel for the current workspace, installation status, and a link to the phone install guide. Use More → Install Workspace on mobile for the same flow. This installs a Progressive Web App — not a native store app — and requires a network connection for current workspace data.",
       ],
     },
   ],

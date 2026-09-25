@@ -17,10 +17,10 @@ export type PublicTrust = {
 };
 
 const FALLBACK: PublicTrust = {
-  productName: "FieldOps Cloud",
-  supportEmail: "support@fieldops.local",
-  salesEmail: "sales@fieldops.local",
-  securityEmail: "security@fieldops.local",
+  productName: "FieldKeel",
+  supportEmail: "support@fieldkeel.local",
+  salesEmail: "sales@fieldkeel.local",
+  securityEmail: "security@fieldkeel.local",
   legalEntityName: null,
   governingLaw: null,
   hostingRegionConfigured: false,

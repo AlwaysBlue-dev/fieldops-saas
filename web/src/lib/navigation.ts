@@ -111,5 +111,5 @@ export function pageTitleFromPath(pathname: string) {
     settings: "Settings",
     notifications: "Notifications",
   };
-  return titles[segment] ?? "FieldOps";
+  return titles[segment] ?? "FieldKeel";
 }

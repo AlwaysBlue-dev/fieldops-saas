@@ -25,7 +25,7 @@ export const approvals: DocArticle = {
       id: "types",
       heading: "What appears in the inbox",
       paragraphs: [
-        "The Approvals page is FieldOps Cloud’s action center for three inbox types: JOB_COMPLETION, TIMESHEET, and OVERTIME. The UI does not copy jobs or timesheets into a separate store — each approval row points at the live domain record via subject type and id.",
+        "The Approvals page is FieldKeel’s action center for three inbox types: JOB_COMPLETION, TIMESHEET, and OVERTIME. The UI does not copy jobs or timesheets into a separate store — each approval row points at the live domain record via subject type and id.",
         "Other historical enum values may exist in the schema for future use, but the product inbox you work day-to-day is these three types.",
       ],
     },

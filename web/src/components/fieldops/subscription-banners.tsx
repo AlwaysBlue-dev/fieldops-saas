@@ -210,8 +210,8 @@ function renewalCopy(
   if (phase === "paid_grace") {
     const title =
       graceDays === 1
-        ? "Your FieldOps Cloud subscription has expired. Renew within 1 day to avoid your workspace becoming read-only."
-        : `Your FieldOps Cloud subscription has expired. Renew within ${graceDays} days to avoid your workspace becoming read-only.`;
+        ? "Your FieldKeel subscription has expired. Renew within 1 day to avoid your workspace becoming read-only."
+        : `Your FieldKeel subscription has expired. Renew within ${graceDays} days to avoid your workspace becoming read-only.`;
     switch (state) {
       case "request_sent":
         return {
@@ -628,7 +628,7 @@ export function RequestActivationButton({
         try {
           const result = await requestActivation(
             organizationId,
-            "Please activate this FieldOps Cloud workspace.",
+            "Please activate this FieldKeel workspace.",
           );
           if (!result.alreadyOpen) {
             toast.success("Activation request sent.");
@@ -743,7 +743,7 @@ export function RequestRenewalButton({
       idleLabel={label}
       successLabel="Request Sent"
       toastSuccess="Renewal request sent."
-      defaultMessage="Please renew this FieldOps Cloud workspace."
+      defaultMessage="Please renew this FieldKeel workspace."
       openRequestType="RENEWAL"
     />
   );
@@ -765,7 +765,7 @@ export function RequestPlanChangeButton({
       idleLabel={label}
       successLabel="Request Sent"
       toastSuccess="Plan change request sent."
-      defaultMessage="Please change the plan for this FieldOps Cloud workspace."
+      defaultMessage="Please change the plan for this FieldKeel workspace."
       variant={variant}
       openRequestType="PLAN_CHANGE"
     />

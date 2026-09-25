@@ -34,7 +34,7 @@ export const roles: DocArticle = {
       heading: "OWNER and ADMIN",
       paragraphs: [
         "OWNER runs the company commercially and operationally: billing/activation requests, membership, settings, and full operational scope. ADMIN configures the organization — users, roles, clients, sites, and settings — and typically has broad operational access without being the commercial owner of record.",
-        "Both roles can request activation or renewal when the workspace needs FieldOps to activate a paid plan. Both should be careful with last-owner protection when changing memberships.",
+        "Both roles can request activation or renewal when the workspace needs FieldKeel to activate a paid plan. Both should be careful with last-owner protection when changing memberships.",
       ],
     },
     {

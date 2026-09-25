@@ -1,6 +1,6 @@
-# FieldOps Cloud — Initial commercial model
+# FieldKeel — Initial commercial model
 
-No payment gateway is connected. Customers trial the product, request activation, arrange payment with FieldOps, and a platform `SUPER_ADMIN` activates or renews the workspace by hand.
+No payment gateway is connected. Customers trial the product, request activation, arrange payment with FieldKeel, and a platform `SUPER_ADMIN` activates or renews the workspace by hand.
 
 ## Offer
 
@@ -14,7 +14,7 @@ Public catalog is loaded from `Plan` rows (`GET /api/plans`). Do not hardcode pr
 
 Optional Plan metadata: `displayPrice`, `currency`, `billingInterval`, `publiclyVisible`, `contactSales`, `sortOrder`. Changing public price is a Plan update, not a migration.
 
-Trial policy (server constants, also returned on the catalog): 14 days, no card, 3-day trial grace. **One free trial per verified FieldOps account** — consumed when the first trial workspace is provisioned (`User.trialUsedAt`). Additional owned organizations are created without a trial and require activation. New trial workspaces still trial onto **Professional** (`TRIAL_PLAN_CODE`), not Starter.
+Trial policy (server constants, also returned on the catalog): 14 days, no card, 3-day trial grace. **One free trial per verified FieldKeel account** — consumed when the first trial workspace is provisioned (`User.trialUsedAt`). Additional owned organizations are created without a trial and require activation. New trial workspaces still trial onto **Professional** (`TRIAL_PLAN_CODE`), not Starter.
 
 Feature flags on `Plan.features`: `CUSTOM_BRANDING` = organization logo (Professional+); `ADVANCED_BRANDING` = advanced/custom branding (Business).
 
@@ -68,7 +68,7 @@ Tenant users receive 403 on platform routes.
 
 `SubscriptionNotification` is the idempotent ledger (`organizationId` + `kind` + `periodKey`). Kinds include trial ending/expired, activation/renewal requested, activated/renewed, 30/14/7/1 renewal reminders, paid expiry, and workspace read-only.
 
-Sales mail goes to `PLATFORM_SALES_EMAIL` (default `sales@fieldops.local`). Owner mail goes to active organization owners.
+Sales mail goes to `PLATFORM_SALES_EMAIL` (default `sales@fieldkeel.local`). Owner mail goes to active organization owners.
 
 Daily cron `15 6 * * *` UTC runs reconciliation: persist effective statuses when safe, send due notifications, write `SUBSCRIPTION_EXPIRED` when a workspace becomes expired. Guards still recompute entitlement on every mutation.
 

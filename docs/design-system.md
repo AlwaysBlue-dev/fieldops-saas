@@ -1,6 +1,6 @@
-# FieldOps Cloud — Design System
+# FieldKeel — Design System
 
-FieldOps Cloud is a premium B2B field-service operations product. The visual system is custom. shadcn/Radix primitives provide accessible behavior only.
+FieldKeel is a premium B2B field-service operations product. The visual system is custom. shadcn/Radix primitives provide accessible behavior only.
 
 This is **not** the default shadcn dashboard, a Bootstrap admin template, or a prior client application.
 
@@ -174,7 +174,7 @@ Do not render hardcoded fake production records. Empty copy describes the absenc
 | Concern | Location |
 | --- | --- |
 | Tokens / global styles | `web/src/app/globals.css` |
-| FieldOps components | `web/src/components/fieldops/` |
+| FieldKeel components | `web/src/components/fieldops/` |
 | Auth API client | `web/src/lib/api.ts`, `web/src/lib/auth.ts` |
 | Marketing shell | `MarketingShell` |
 | Authenticated shell | `AppShell` |

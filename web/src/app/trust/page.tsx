@@ -45,7 +45,7 @@ export default async function TrustPage() {
     <MarketingShell>
       <p className="type-label">Trust</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-        How FieldOps Cloud handles trust.
+        How FieldKeel handles trust.
       </h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
         Clear policies for security, privacy, billing, and acceptable use. This

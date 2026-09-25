@@ -18,7 +18,7 @@ async function main() {
   const prisma = createPrismaClient();
   try {
     const plans = await upsertPlans(prisma);
-    console.log('FieldOps Cloud bootstrap complete (plans only).');
+    console.log('FieldKeel bootstrap complete (plans only).');
     for (const code of Object.keys(plans).sort()) {
       const plan = plans[code];
       console.log(`  plan ${plan.code} → ${plan.id} (${plan.name})`);

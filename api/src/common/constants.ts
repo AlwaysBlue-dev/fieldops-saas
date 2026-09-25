@@ -17,13 +17,14 @@ export const RENEWAL_REMINDER_DAYS = [30, 14, 7, 1, 0] as const;
 export const NOTIFICATION_TRIAL_REMINDER_PREFIX = 'TRIAL_REMINDER_';
 export const NOTIFICATION_TRIAL_GRACE_ENDING = 'TRIAL_GRACE_ENDING';
 export const NOTIFICATION_INVOICE_READY = 'INVOICE_READY';
-export const DEFAULT_SALES_EMAIL = 'sales@fieldops.local';
-export const DEFAULT_SUPPORT_EMAIL = 'support@fieldops.local';
-export const DEFAULT_SECURITY_EMAIL = 'security@fieldops.local';
+export const DEFAULT_SALES_EMAIL = 'sales@fieldkeel.local';
+export const DEFAULT_SUPPORT_EMAIL = 'support@fieldkeel.local';
+export const DEFAULT_SECURITY_EMAIL = 'security@fieldkeel.local';
 export const TERMS_VERSION = '2026-09-23';
 export const PRIVACY_VERSION = '2026-09-23';
 export const BILLING_POLICY_VERSION = '2026-09-23';
 export const LEGAL_EFFECTIVE_DATE = '2026-09-23';
+/** Invoice numbers: FC-YYYY-NNNNNN. Prefix retained for compatibility with existing invoice records; do not change without a migration plan. */
 export const INVOICE_NUMBER_PREFIX = 'FC';
 export const INVOICE_NUMBER_PAD = 6;
 export const INVOICE_DUE_DAYS = 14;

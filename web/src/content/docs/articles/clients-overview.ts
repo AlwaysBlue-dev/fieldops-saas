@@ -4,7 +4,7 @@ export const clientsOverview: DocArticle = {
   slug: "clients-overview",
   title: "Clients",
   description:
-    "Clients are your customers inside an organization — not FieldOps tenants. Manage account details, contacts, and status for dispatch.",
+    "Clients are your customers inside an organization — not FieldKeel tenants. Manage account details, contacts, and status for dispatch.",
   categoryId: "clients",
   keywords: [
     "clients",
@@ -23,7 +23,7 @@ export const clientsOverview: DocArticle = {
       id: "what",
       heading: "What a client is",
       paragraphs: [
-        "In FieldOps Cloud, Client means the contractor’s customer — a building owner, facility, or account you perform work for. It is not a FieldOps Cloud tenant. Tenants are Organizations. Confusing the two names is a common mental model mistake when onboarding office staff.",
+        "In FieldKeel, Client means the contractor’s customer — a building owner, facility, or account you perform work for. It is not a FieldKeel tenant. Tenants are Organizations. Confusing the two names is a common mental model mistake when onboarding office staff.",
         "Clients are organization-owned. Search and filters only return clients inside the active organization. Records from another company never appear.",
       ],
     },

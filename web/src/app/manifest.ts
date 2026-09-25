@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 /**
- * Default FieldOps Cloud web app manifest (marketing / non-workspace).
+ * Default FieldKeel web app manifest (marketing / non-workspace).
  * Authenticated workspaces override the linked manifest via
  * `/app/[orgSlug]/manifest.webmanifest` for install naming and start_url.
  *
@@ -11,10 +11,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "FieldOps Cloud",
-    short_name: "FieldOps",
-    description:
-      "Field-service operations for dispatch, jobs, crews, time, and approvals.",
+    name: "FieldKeel",
+    short_name: "FieldKeel",
+    description: "The backbone of your field operations.",
     start_url: "/",
     scope: "/",
     display: "standalone",

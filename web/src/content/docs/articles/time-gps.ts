@@ -33,7 +33,7 @@ export const timeGps: DocArticle = {
       id: "gps",
       heading: "GPS on clock events only",
       paragraphs: [
-        "FieldOps Cloud does not continuously track technician location. GPS coordinates are captured on clock in/out events when available. The organization setting requireGps controls whether missing coordinates fail validation for completion or approval workflows.",
+        "FieldKeel does not continuously track technician location. GPS coordinates are captured on clock in/out events when available. The organization setting requireGps controls whether missing coordinates fail validation for completion or approval workflows.",
         "If the browser or OS denies location permission, clock events may lack coordinates. When requireGps is on, that can block submit or approve until location is allowed or an authorized process addresses the gap. See troubleshooting for location denied.",
       ],
     },

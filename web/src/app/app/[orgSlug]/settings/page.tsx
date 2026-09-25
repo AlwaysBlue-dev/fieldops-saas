@@ -50,7 +50,7 @@ export default async function SettingsPage({
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">App & device</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Install FieldOps Cloud on your phone for an app-like workspace
+          Install FieldKeel on your phone for an app-like workspace
           experience.
         </p>
         <div className="mt-4">
@@ -101,7 +101,7 @@ export default async function SettingsPage({
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Plan & Subscription</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Trial, activation, and renewal. Payment is arranged with FieldOps
+          Trial, activation, and renewal. Payment is arranged with FieldKeel
           outside the product.
         </p>
         <div className="mt-4">

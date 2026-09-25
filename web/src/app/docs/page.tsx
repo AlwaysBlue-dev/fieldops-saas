@@ -7,11 +7,11 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Documentation",
-  description: "FieldOps Cloud product documentation and help articles.",
+  description: "FieldKeel product documentation and help articles.",
 };
 
 const POPULAR = [
-  "what-is-fieldops",
+  "what-is-fieldkeel",
   "trial-onboarding",
   "jobs-overview",
   "teams-technicians-overview",
@@ -28,7 +28,7 @@ export default function DocsHomePage() {
         <div className="mx-auto max-w-3xl">
           <p className="type-label text-muted-foreground">Documentation</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-            FieldOps Cloud help center
+            FieldKeel help center
           </h1>
           <p className="mt-3 text-muted-foreground">
             Guides for the features that ship today — workspaces, jobs, crews,

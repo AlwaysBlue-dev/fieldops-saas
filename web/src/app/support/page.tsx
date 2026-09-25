@@ -12,7 +12,7 @@ export default async function SupportPage() {
     <MarketingShell>
       <p className="type-label">Support</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
-        Talk to FieldOps
+        Talk to FieldKeel
       </h1>
       <div className="mt-8 grid gap-3 md:grid-cols-3">
         {[
@@ -30,7 +30,7 @@ export default async function SupportPage() {
         ))}
       </div>
       <p className="mt-8 max-w-2xl text-sm text-muted-foreground">
-        FieldOps Cloud will never ask you to provide your password, full card
+        FieldKeel will never ask you to provide your password, full card
         number, CVV, or authentication credentials by email, support message, or
         chat. Verify unexpected payment instructions through{" "}
         <Link href="/billing-policy">Billing Policy</Link> and Support.

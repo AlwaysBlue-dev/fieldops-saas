@@ -1,4 +1,4 @@
-/* FieldOps Cloud — install shell only.
+/* FieldKeel — install shell only.
  * Does NOT cache authenticated API responses, app HTML, or tenant business data.
  * Navigation failures fall back to /offline.html (static message only).
  */

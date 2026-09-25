@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { ResponsiveDrawer } from "@/components/fieldops/responsive-drawer";
 import {
@@ -42,7 +43,7 @@ export function DocsShell({
       <div className="docs-layout-mobile-bar mb-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="type-label text-muted-foreground">Documentation</p>
-          <p className="truncate text-sm font-semibold">FieldOps Cloud help</p>
+          <p className="truncate text-sm font-semibold">{APP_NAME} help</p>
         </div>
         <Button
           type="button"

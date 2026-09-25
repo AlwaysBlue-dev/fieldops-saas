@@ -17,4 +17,4 @@ export function SkeletonBlock({
   );
 }
 
-export { SkeletonBlock as FieldOpsSkeleton };
+export { SkeletonBlock as FieldKeelSkeleton };

@@ -1007,7 +1007,7 @@ async function main() {
   await seedClockSessions(prisma);
   await seedPlatformAdmin(prisma, passwordHash);
 
-  console.log('FieldOps Cloud DEMO seed complete.');
+  console.log('FieldKeel DEMO seed complete.');
   console.log(`Shared local password: ${SEED_PASSWORD}`);
   console.log('Organizations: northstar-electrical, bluepeak-hvac');
   console.log('Platform admin: platform.admin@fieldops.local');

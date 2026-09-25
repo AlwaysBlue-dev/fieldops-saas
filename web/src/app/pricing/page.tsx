@@ -251,12 +251,12 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
 
 const FAQ_ITEMS = [
   {
-    q: "How do I pay for FieldOps Cloud?",
+    q: "How do I pay for FieldKeel?",
     a: "When your subscription invoice is ready, a secure payment link will appear in Billing. Payments are confirmed before your subscription is activated or renewed.",
   },
   {
     q: "Do you automatically charge my card?",
-    a: "No. FieldOps Cloud does not currently automatically charge a stored card.",
+    a: "No. FieldKeel does not currently automatically charge a stored card.",
   },
   {
     q: "What happens after I pay?",
@@ -272,11 +272,11 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I create more than one workspace?",
-    a: "Yes. A FieldOps account can manage multiple organizations. Each organization has its own subscription, users, storage, and billing.",
+    a: "Yes. A FieldKeel account can manage multiple organizations. Each organization has its own subscription, users, storage, and billing.",
   },
   {
     q: "Do I get a free trial for every workspace?",
-    a: "No. Each verified FieldOps account receives one 14-day Professional trial. Additional workspaces require their own subscription.",
+    a: "No. Each verified FieldKeel account receives one 14-day Professional trial. Additional workspaces require their own subscription.",
   },
   {
     q: "Does joining another organization use my free trial?",
@@ -288,7 +288,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change plan later?",
-    a: "Yes. Owners and admins can submit a plan-change request from billing. FieldOps handles the commercial change with an invoice when needed — there is no self-serve checkout that charges a card automatically.",
+    a: "Yes. Owners and admins can submit a plan-change request from billing. FieldKeel handles the commercial change with an invoice when needed — there is no self-serve checkout that charges a card automatically.",
   },
   {
     q: "What happens if I exceed users or storage?",
@@ -305,7 +305,7 @@ export default async function PricingPage() {
   const plans = catalog?.plans ?? [];
   const professional = catalogPlan(catalog, "professional");
   const trialDays = catalog?.trialDays ?? 14;
-  const supportEmail = catalog?.supportEmail ?? "sales@fieldops.local";
+  const supportEmail = catalog?.supportEmail ?? "sales@fieldkeel.local";
   const trialPlanName = professional?.name ?? "Professional";
 
   return (
@@ -341,7 +341,7 @@ export default async function PricingPage() {
       )}
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Paid subscriptions are activated through an official FieldOps invoice.
+        Paid subscriptions are activated through an official FieldKeel invoice.
         We do not currently collect card details in the app. See the{" "}
         <Link
           href="/billing-policy"

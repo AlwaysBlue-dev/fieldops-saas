@@ -22,16 +22,16 @@ export const locationDenied: DocArticle = {
   sections: [
     {
       id: "model",
-      heading: "What FieldOps captures",
+      heading: "What FieldKeel captures",
       paragraphs: [
-        "FieldOps Cloud does not continuously track technicians. Coordinates attach to clock in and clock out events when the device provides them. If permission is denied, those events may be stored without coordinates.",
+        "FieldKeel does not continuously track technicians. Coordinates attach to clock in and clock out events when the device provides them. If permission is denied, those events may be stored without coordinates.",
       ],
     },
     {
       id: "require-gps",
       heading: "When requireGps is on",
       paragraphs: [
-        "Organizations that enable requireGps expect coordinates on clock evidence before submit/approve succeeds. Approvals refuse job completion when GPS is required and coordinates are missing. Ask the technician to enable location for the FieldOps site/app, clock again if needed, then resubmit.",
+        "Organizations that enable requireGps expect coordinates on clock evidence before submit/approve succeeds. Approvals refuse job completion when GPS is required and coordinates are missing. Ask the technician to enable location for the FieldKeel site/app, clock again if needed, then resubmit.",
         "If crews cannot reliably grant location (policy devices, indoor sites), owners should reconsider requireGps in organization settings rather than training people to bypass approvals.",
       ],
     },

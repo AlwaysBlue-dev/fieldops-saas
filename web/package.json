@@ -2,6 +2,7 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "description": "FieldKeel web app — field service and operations management",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { OrganizationMembership } from "@/lib/auth";
+import { APP_NAME } from "@/lib/brand";
 import {
   desktopPrimaryNav,
   desktopSecondaryNav,
@@ -68,7 +69,7 @@ export function NavigationRail({
               <p className="truncate text-[13px] font-semibold tracking-tight text-white">
                 {orgName}
               </p>
-              <p className="type-label text-nav-muted">FieldOps Cloud</p>
+              <p className="type-label text-nav-muted">{APP_NAME}</p>
             </div>
           ) : null}
         </div>

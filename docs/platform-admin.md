@@ -1,6 +1,6 @@
 # Platform Super Admin
 
-FieldOps Cloud platform administration for the **SaaS owner**. It is completely separate from customer organization administration.
+FieldKeel platform administration for the **SaaS owner**. It is completely separate from customer organization administration.
 
 ## Access
 

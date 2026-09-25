@@ -1,6 +1,6 @@
-# FieldOps Cloud — Architecture
+# FieldKeel — Architecture
 
-This document describes the intended architecture for FieldOps Cloud based on the current repository, not a hypothetical greenfield stack. Business modules are not implemented yet.
+This document describes the intended architecture for FieldKeel based on the current repository, not a hypothetical greenfield stack. Business modules are not implemented yet.
 
 ---
 
@@ -25,7 +25,7 @@ fieldops-saas/
 | Forms / validation | react-hook-form, Zod 4, `@hookform/resolvers` |
 | Charts / dates | recharts, date-fns, react-day-picker |
 | Entry | Default create-next-app page; metadata still “Create Next App” |
-| Tokens | Default shadcn neutral theme (must be replaced with FieldOps identity) |
+| Tokens | Default shadcn neutral theme (must be replaced with FieldKeel identity) |
 | Fonts | Geist and Geist Mono loaded; `--font-sans` is not correctly wired to Geist |
 | Env | `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_URL` (expects `http://localhost:4000/api`) |
 | Cookies / auth | Not implemented |
@@ -87,7 +87,7 @@ Do not introduce Redis, RabbitMQ, Kubernetes, or extra Node services until expli
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Browser                                                     │
-│  Next.js App Router  —  FieldOps shells (desktop + mobile)  │
+│  Next.js App Router  —  FieldKeel shells (desktop + mobile)  │
 │  credentials: include  —  no token storage                   │
 └─────────────┬───────────────────────────────────────────────┘
               │ HTTPS, cookie session, CORS or same-origin proxy

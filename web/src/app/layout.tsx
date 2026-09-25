@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegister } from "@/components/fieldops/pwa-register";
 import { PwaThemeMeta } from "@/components/fieldops/pwa-theme-meta";
 import { ThemeProvider } from "@/components/fieldops/theme-provider";
+import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -18,23 +19,26 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "FieldOps Cloud",
-    template: "%s · FieldOps Cloud",
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
   },
-  description:
-    "Field-service operations for dispatch, jobs, crews, time, and approvals.",
-  applicationName: "FieldOps Cloud",
+  description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+  applicationName: APP_NAME,
   appleWebApp: {
     capable: true,
-    title: "FieldOps",
+    title: APP_NAME,
     statusBarStyle: "default",
   },
   icons: {
     icon: [
+      { url: "/icon", type: "image/png" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [
+      { url: "/apple-icon", type: "image/png" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180" },
+    ],
   },
   formatDetection: {
     telephone: false,

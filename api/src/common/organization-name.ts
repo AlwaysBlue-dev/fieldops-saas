@@ -6,7 +6,7 @@
 
 const RESERVED_NORMALIZED = new Set([
   'fieldops',
-  'fieldops cloud',
+  'fieldkeel',
 ]);
 
 /** Collapse whitespace and trim for storage/display. Preserves punctuation. */

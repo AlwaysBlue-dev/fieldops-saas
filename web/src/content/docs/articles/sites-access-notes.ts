@@ -20,7 +20,7 @@ export const sitesAccess: DocArticle = {
       heading: "Access notes that help the field",
       paragraphs: [
         "Access notes should answer: how to enter, where to park, who to call on arrival, and any site-specific safety context the crew needs before opening tools. Prefer short operational language over long narrative.",
-        "Coordinates support navigation from My Day and job cards when present. They are not a substitute for continuous tracking — FieldOps Cloud captures GPS on clock in/out events according to organization settings, not continuous location streaming.",
+        "Coordinates support navigation from My Day and job cards when present. They are not a substitute for continuous tracking — FieldKeel captures GPS on clock in/out events according to organization settings, not continuous location streaming.",
       ],
     },
     {

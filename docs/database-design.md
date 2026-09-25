@@ -1,4 +1,4 @@
-# FieldOps Cloud — Database Design
+# FieldKeel — Database Design
 
 PostgreSQL is the system of record. Prisma ORM 7 is the only data-access layer. This document proposes the data model. It is **not** an applied migration; the current `api/prisma/schema.prisma` contains no models.
 
@@ -237,7 +237,7 @@ All tables below include `organizationId` unless noted.
 
 ### 6.1 Client
 
-The contractor’s customer (not a FieldOps tenant).
+The contractor’s customer (not a FieldKeel tenant).
 
 - `name`, optional `accountCode` unique per org, phones/emails, notes, `status`
 - `@@unique([organizationId, accountCode])` where code present (application-enforced if optional)

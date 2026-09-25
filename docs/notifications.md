@@ -1,6 +1,6 @@
 # Notifications
 
-In-app notifications and selective transactional email for FieldOps Cloud.
+In-app notifications and selective transactional email for FieldKeel.
 
 ## Model
 

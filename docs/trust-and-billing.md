@@ -1,6 +1,6 @@
-# FieldOps Cloud — Trust pages and manual billing
+# FieldKeel — Trust pages and manual billing
 
-No payment gateway automation is connected in v1. Customers pay from a FieldOps invoice using a secure payment link managed by platform administrators. Payment is verified before activation or renewal. External payment providers are an internal implementation detail and must not appear in customer-facing UI, emails, docs, FAQ, or policy.
+No payment gateway automation is connected in v1. Customers pay from a FieldKeel invoice using a secure payment link managed by platform administrators. Payment is verified before activation or renewal. External payment providers are an internal implementation detail and must not appear in customer-facing UI, emails, docs, FAQ, or policy.
 
 These legal pages are product templates for counsel review, not legal advice. They do not claim SOC 2, ISO, HIPAA, insurance, or office/entity details unless those values are configured.
 
@@ -35,7 +35,7 @@ LEGAL_ENTITY_NAME
 LEGAL_GOVERNING_LAW
 ```
 
-Optional. Local defaults use `*.fieldops.local` for Mailpit. Do not hardcode personal addresses in components.
+Optional. Local defaults use `*.fieldkeel.local` for Mailpit. Do not hardcode personal addresses in components.
 
 ## Invoices
 
@@ -70,4 +70,4 @@ Daily subscription reconciliation sends idempotent trial and renewal reminders v
 
 ## Anti-fraud copy
 
-Use only the payment link in authenticated Billing or official FieldOps communication. FieldOps never asks for passwords, full card numbers, CVV, or auth codes by email, chat, or support message.
+Use only the payment link in authenticated Billing or official FieldKeel communication. FieldKeel never asks for passwords, full card numbers, CVV, or auth codes by email, chat, or support message.

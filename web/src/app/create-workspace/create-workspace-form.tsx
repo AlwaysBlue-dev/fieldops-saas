@@ -223,7 +223,7 @@ export function CreateWorkspaceForm() {
       }
       description={
         trialEligible
-          ? "Name your company to start the FieldOps Cloud 14-day Professional trial."
+          ? "Name your company to start the FieldKeel 14-day Professional trial."
           : "Your account has already used its free trial. Additional workspaces require their own subscription."
       }
       footer={
@@ -246,9 +246,9 @@ export function CreateWorkspaceForm() {
         <>
           {!trialEligible ? (
             <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Each verified FieldOps account receives one 14-day Professional
+              Each verified FieldKeel account receives one 14-day Professional
               trial. Choose a plan for this workspace, then request activation
-              after it is created — payment is arranged with FieldOps outside
+              after it is created — payment is arranged with FieldKeel outside
               the product.
             </p>
           ) : null}
@@ -334,7 +334,7 @@ export function CreateWorkspaceForm() {
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   {planCode === "business"
                     ? "Business is sales-assisted. After creating the workspace, contact sales or request activation from billing."
-                    : "After create, open billing to request activation. FieldOps sends an official invoice — there is no card checkout in the app."}
+                    : "After create, open billing to request activation. FieldKeel sends an official invoice — there is no card checkout in the app."}
                 </p>
               </FormField>
             ) : null}

@@ -18,14 +18,14 @@ export const navigationTheme: DocArticle = {
     "quick-create-overview",
     "my-day",
     "workspace-concept",
-    "install-fieldops-on-phone",
+    "install-fieldkeel-on-phone",
   ],
   sections: [
     {
       id: "desktop",
       heading: "Desktop command center",
       paragraphs: [
-        "On viewports about 1024px and wider, FieldOps Cloud uses a collapsible navigation rail plus a top bar. The rail is for primary modules (jobs, schedule, clients, teams, approvals, reports, settings, and related areas depending on role). The top bar surfaces organization context, search/command entry, notifications, quick create, and account/theme controls.",
+        "On viewports about 1024px and wider, FieldKeel uses a collapsible navigation rail plus a top bar. The rail is for primary modules (jobs, schedule, clients, teams, approvals, reports, settings, and related areas depending on role). The top bar surfaces organization context, search/command entry, notifications, quick create, and account/theme controls.",
         "Use Ctrl+K (or the command affordance) to jump to jobs, people, and other entities without hunting through menus. Keyboard focus rings and Radix dialogs keep dense desktop workflows accessible.",
       ],
     },
@@ -42,7 +42,7 @@ export const navigationTheme: DocArticle = {
       heading: "Organization switcher and theme",
       paragraphs: [
         "If you belong to more than one organization, the organization switcher changes the active workspace. Selection is not authorization — every tenant request still verifies an ACTIVE membership server-side before loading data.",
-        "Theme preference (light, dark, or system) is a UI chrome setting stored under a FieldOps theme key. Prefer light for operations work by default; dark is available via tokens. Do not store business records (jobs, clients, timesheets) in browser storage — only chrome flags such as rail collapsed and theme.",
+        "Theme preference (light, dark, or system) is a UI chrome setting stored under a FieldKeel theme key. Prefer light for operations work by default; dark is available via tokens. Do not store business records (jobs, clients, timesheets) in browser storage — only chrome flags such as rail collapsed and theme.",
       ],
     },
   ],

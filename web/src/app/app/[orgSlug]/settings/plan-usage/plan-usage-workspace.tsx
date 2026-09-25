@@ -68,7 +68,7 @@ export function PlanUsageWorkspace() {
     );
   }
 
-  const supportMailto = "mailto:sales@fieldops.local";
+  const supportMailto = "mailto:sales@fieldkeel.local";
   const accessUntil = usage.subscription.accessUntil
     ? new Date(usage.subscription.accessUntil).toLocaleDateString()
     : "—";
@@ -160,7 +160,7 @@ export function PlanUsageWorkspace() {
       ) : null}
       <p className="text-xs text-muted-foreground">
         There is no in-product checkout. Plan changes are handled manually by
-        FieldOps.
+        FieldKeel.
       </p>
     </div>
   );

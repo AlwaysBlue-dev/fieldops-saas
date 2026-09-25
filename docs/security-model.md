@@ -1,6 +1,6 @@
-# FieldOps Cloud — Security Model
+# FieldKeel — Security Model
 
-FieldOps Cloud stores contractor customer data, job photos, GPS points, signatures, and timesheets. Tenant isolation and session hygiene are product features, not later hardening.
+FieldKeel stores contractor customer data, job photos, GPS points, signatures, and timesheets. Tenant isolation and session hygiene are product features, not later hardening.
 
 This document reflects the implemented API foundation (`/api`). Field-service UI is not in scope yet.
 

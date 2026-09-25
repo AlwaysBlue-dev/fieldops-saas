@@ -85,7 +85,7 @@ export class SubscriptionNotificationService {
       recipientUserIds: [input.requesterUserId],
       type: NOTIFICATION_ACTIVATION_ACK,
       title: 'Activation request received',
-      message: `FieldOps received your activation request for ${input.organizationName}.`,
+      message: `FieldKeel received your activation request for ${input.organizationName}.`,
       relatedEntityType: 'Organization',
       relatedEntityId: input.organizationId,
       payload: { organizationSlug: input.organizationSlug },
@@ -170,7 +170,7 @@ export class SubscriptionNotificationService {
       recipientUserIds: [input.requesterUserId],
       type: NOTIFICATION_PLAN_CHANGE_ACK,
       title: 'Plan change request received',
-      message: `FieldOps received your plan change request for ${input.organizationName}.`,
+      message: `FieldKeel received your plan change request for ${input.organizationName}.`,
       relatedEntityType: 'Organization',
       relatedEntityId: input.organizationId,
       payload: { organizationSlug: input.organizationSlug },
@@ -187,7 +187,7 @@ export class SubscriptionNotificationService {
     await this.mailOwners(input.organizationId, {
       kind: NOTIFICATION_SUBSCRIPTION_ACTIVATED,
       periodKey: input.currentPeriodEnd.toISOString(),
-      subject: 'Your FieldOps Cloud subscription is active',
+      subject: 'Your FieldKeel subscription is active',
       text: [
         `The ${input.planName} subscription for ${input.organizationName} is now active.`,
         '',
@@ -210,7 +210,7 @@ export class SubscriptionNotificationService {
     await this.mailOwners(input.organizationId, {
       kind: NOTIFICATION_SUBSCRIPTION_RENEWED,
       periodKey: input.currentPeriodEnd.toISOString(),
-      subject: 'Your FieldOps Cloud subscription was renewed',
+      subject: 'Your FieldKeel subscription was renewed',
       text: [
         `The ${input.planName} subscription for ${input.organizationName} was renewed.`,
         '',
@@ -251,12 +251,12 @@ export class SubscriptionNotificationService {
         await this.mailOwners(organizationId, {
           kind: `${NOTIFICATION_TRIAL_REMINDER_PREFIX}${days}`,
           periodKey: entitlement.trialEndsAt.toISOString(),
-          subject: 'Your FieldOps Cloud trial ends soon',
+          subject: 'Your FieldKeel trial ends soon',
           text: [
             `Your Professional trial for ${organizationName} ends ${dayLabel}.`,
             '',
             'An activation invoice will be available in Billing before your trial/grace period ends.',
-            'FieldOps Cloud does not automatically charge a card.',
+            'FieldKeel does not automatically charge a card.',
             '',
             billingUrl,
           ].join('\n'),
@@ -283,7 +283,7 @@ export class SubscriptionNotificationService {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_TRIAL_GRACE,
         periodKey: entitlement.graceEndsAt.toISOString(),
-        subject: 'Your FieldOps Cloud trial grace period has started',
+        subject: 'Your FieldKeel trial grace period has started',
         text: [
           `The trial for ${organizationName} has ended. Your grace period has started.`,
           '',
@@ -308,7 +308,7 @@ export class SubscriptionNotificationService {
         await this.mailOwners(organizationId, {
           kind: NOTIFICATION_TRIAL_GRACE_ENDING,
           periodKey: entitlement.graceEndsAt.toISOString(),
-          subject: 'Your FieldOps Cloud trial grace period ends soon',
+          subject: 'Your FieldKeel trial grace period ends soon',
           text: [
             `The trial grace period for ${organizationName} ends soon.`,
             '',
@@ -328,9 +328,9 @@ export class SubscriptionNotificationService {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_TRIAL_EXPIRED,
         periodKey: entitlement.graceEndsAt.toISOString(),
-        subject: 'Your FieldOps Cloud trial has ended',
+        subject: 'Your FieldKeel trial has ended',
         text: [
-          `The FieldOps Cloud trial for ${organizationName} has ended. The workspace is read-only.`,
+          `The FieldKeel trial for ${organizationName} has ended. The workspace is read-only.`,
           '',
           'Existing records are kept. Complete payment from Billing to restore writes.',
           billingUrl,
@@ -350,7 +350,7 @@ export class SubscriptionNotificationService {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_WORKSPACE_READ_ONLY,
         periodKey: `trial:${entitlement.graceEndsAt.toISOString()}`,
-        subject: 'Your FieldOps Cloud workspace is read-only',
+        subject: 'Your FieldKeel workspace is read-only',
         text: [
           `${organizationName} is now read-only. You can still sign in, view history, and open Billing.`,
           '',
@@ -381,13 +381,13 @@ export class SubscriptionNotificationService {
           periodKey: entitlement.currentPeriodEnd.toISOString(),
           subject:
             days === 0
-              ? 'Your FieldOps Cloud subscription renews today'
-              : `Your FieldOps Cloud subscription renews in ${days} day${days === 1 ? '' : 's'}`,
+              ? 'Your FieldKeel subscription renews today'
+              : `Your FieldKeel subscription renews in ${days} day${days === 1 ? '' : 's'}`,
           text: [
-            `Your FieldOps Cloud subscription renews on ${renewDate}.`,
+            `Your FieldKeel subscription renews on ${renewDate}.`,
             '',
             'Your renewal invoice will be available in Billing.',
-            'FieldOps Cloud does not automatically charge a stored card.',
+            'FieldKeel does not automatically charge a stored card.',
             '',
             billingUrl,
           ].join('\n'),
@@ -404,7 +404,7 @@ export class SubscriptionNotificationService {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_SUBSCRIPTION_EXPIRED,
         periodKey: entitlement.currentPeriodEnd.toISOString(),
-        subject: 'Your FieldOps Cloud subscription has expired',
+        subject: 'Your FieldKeel subscription has expired',
         text: [
           `The paid period for ${organizationName} has ended.`,
           `Renew within ${entitlement.graceDaysRemaining} day${entitlement.graceDaysRemaining === 1 ? '' : 's'} to avoid the workspace becoming read-only.`,
@@ -419,7 +419,7 @@ export class SubscriptionNotificationService {
       await this.mailOwners(organizationId, {
         kind: NOTIFICATION_WORKSPACE_READ_ONLY,
         periodKey: `paid:${entitlement.paidGraceEndsAt.toISOString()}`,
-        subject: 'Your FieldOps Cloud workspace is read-only',
+        subject: 'Your FieldKeel workspace is read-only',
         text: [
           `${organizationName} is now read-only because the renewal grace period ended.`,
           '',

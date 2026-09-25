@@ -4,7 +4,7 @@ export const workspaceConcept: DocArticle = {
   slug: "workspace-concept",
   title: "Organizations and workspaces",
   description:
-    "An organization is the tenant boundary in FieldOps Cloud. One account can own or join many workspaces; each has its own subscription.",
+    "An organization is the tenant boundary in FieldKeel. One account can own or join many workspaces; each has its own subscription.",
   categoryId: "organizations-members",
   keywords: [
     "organization",
@@ -28,7 +28,7 @@ export const workspaceConcept: DocArticle = {
       id: "tenant",
       heading: "Organization as tenant",
       paragraphs: [
-        "FieldOps Cloud is multi-tenant from day one. An Organization is the commercial customer of FieldOps Cloud and the isolation boundary for operational data. Clients, sites, teams, jobs, files, timesheets, approvals, reports, and subscription usage all live under one organization.",
+        "FieldKeel is multi-tenant from day one. An Organization is the commercial customer of FieldKeel and the isolation boundary for operational data. Clients, sites, teams, jobs, files, timesheets, approvals, reports, and subscription usage all live under one organization.",
         "Lookups are always scoped to the active organization. Wrong-tenant identifiers return not found rather than leaking existence across companies. Platform SUPER_ADMIN routes are separate and do not casually browse tenant jobs or files.",
       ],
     },
@@ -36,7 +36,7 @@ export const workspaceConcept: DocArticle = {
       id: "membership",
       heading: "Accounts and membership",
       paragraphs: [
-        "A FieldOps account is a platform identity. Organization role is never stored on the account itself. Membership links an account to an organization with exactly one org role for that membership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Soft-deactivate memberships when people leave so history stays intact.",
+        "A FieldKeel account is a platform identity. Organization role is never stored on the account itself. Membership links an account to an organization with exactly one org role for that membership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Soft-deactivate memberships when people leave so history stays intact.",
         "Multi-organization membership is first-class. After login you select which organization to work in. Frontend org id or slug is selection only — authorization always reloads an active membership on the server.",
       ],
     },
@@ -52,7 +52,7 @@ export const workspaceConcept: DocArticle = {
       id: "multiple-workspaces",
       heading: "Creating multiple workspaces",
       paragraphs: [
-        "One FieldOps account can belong to many organizations and can also own multiple organizations. You can manage ABC Electrical and ABC Plumbing from the same FieldOps account, but each workspace has its own plan, users, storage, and billing.",
+        "One FieldKeel account can belong to many organizations and can also own multiple organizations. You can manage ABC Electrical and ABC Plumbing from the same FieldKeel account, but each workspace has its own plan, users, storage, and billing.",
         "Invited organizations do not consume your personal free-trial eligibility. Only the first self-created trial workspace receives the free 14-day Professional trial. Additional workspaces you create require their own subscription.",
       ],
     },

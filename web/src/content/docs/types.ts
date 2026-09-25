@@ -1,5 +1,5 @@
 /**
- * FieldOps Cloud in-app product documentation content model.
+ * FieldKeel in-app product documentation content model.
  * Articles are TypeScript modules — no CMS or extra npm packages.
  */
 

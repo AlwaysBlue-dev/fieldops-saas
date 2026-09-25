@@ -1,8 +1,8 @@
 /** Client-safe PWA helpers. No auth tokens or business data. */
 
-export const PWA_DOCS_HREF = "/docs/install-fieldops-on-phone";
+export const PWA_DOCS_HREF = "/docs/install-fieldkeel-on-phone";
 
-export const FIELD_OPS_ICONS = [
+export const FIELDKEEL_ICONS = [
   {
     src: "/icons/icon-192.png",
     sizes: "192x192",
@@ -23,6 +23,9 @@ export const FIELD_OPS_ICONS = [
   },
 ];
 
+/** @deprecated Prefer FIELDKEEL_ICONS */
+export const FIELD_OPS_ICONS = FIELDKEEL_ICONS;
+
 /** Truncate for Android short_name (keep readable; avoid mid-word when possible). */
 export function truncateShortName(name: string, max = 12): string {
   const trimmed = name.trim();
@@ -35,11 +38,11 @@ export function truncateShortName(name: string, max = 12): string {
 
 export function workspaceAppName(orgName: string): string {
   const name = orgName.trim() || "Workspace";
-  return `${name} — FieldOps Cloud`;
+  return `${name} — FieldKeel`;
 }
 
 export function workspaceShortName(orgName: string): string {
-  return truncateShortName(orgName.trim() || "FieldOps");
+  return truncateShortName(orgName.trim() || "FieldKeel");
 }
 
 export function workspaceStartUrl(orgSlug: string): string {

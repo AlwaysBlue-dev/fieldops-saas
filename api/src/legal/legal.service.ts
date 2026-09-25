@@ -17,7 +17,7 @@ export class LegalService {
 
   publicTrust() {
     return {
-      productName: 'FieldOps Cloud',
+      productName: 'FieldKeel',
       supportEmail: this.supportEmail(),
       salesEmail: this.salesEmail(),
       securityEmail: this.securityEmail(),

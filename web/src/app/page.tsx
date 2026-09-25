@@ -1,11 +1,13 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { Button } from "@/components/ui/button";
+import { APP_DESCRIPTION, APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Field operations, without the clutter",
+  title: { absolute: APP_HOME_TITLE },
+  description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
 };
 
 export default async function HomePage() {
@@ -16,13 +18,16 @@ export default async function HomePage() {
   return (
     <MarketingShell>
       <section className="max-w-2xl">
-        <p className="type-label">Field service operations</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-5xl">
-          Run the day from one command center.
+        <p className="text-3xl font-semibold tracking-tight md:text-5xl">
+          {APP_HOME_TITLE}
+        </p>
+        <h1 className="mt-3 text-xl font-medium tracking-tight text-foreground md:text-2xl">
+          {APP_TAGLINE}
         </h1>
         <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
-          FieldOps Cloud keeps dispatch, crews, time, and approvals in a single
-          workspace — dense on desktop, app-like in the field.
+          FieldKeel is a field service and operations management platform that
+          keeps dispatch, crews, time, and approvals in a single workspace —
+          dense on desktop, app-like in the field.
         </p>
         <div className="mt-8 flex flex-col gap-2 sm:flex-row">
           <Button asChild className="h-11 px-4">

@@ -403,7 +403,7 @@ export function AppShell({
           open={helpOpen}
           onOpenChange={setHelpOpen}
           title="Help"
-          description="FieldOps Cloud workspace"
+          description="FieldKeel workspace"
         >
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>

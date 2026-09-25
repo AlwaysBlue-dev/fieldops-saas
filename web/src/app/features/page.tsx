@@ -48,7 +48,7 @@ export default function FeaturesPage() {
         Built around the work, not the admin menu.
       </h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
-        FieldOps Cloud is an operations system: schedule, jobs, people, time,
+        FieldKeel is an operations system: schedule, jobs, people, time,
         and review. Each module is designed for both the office and the van.
       </p>
       <div className="mt-10 grid gap-3 sm:grid-cols-2">

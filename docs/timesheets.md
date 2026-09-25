@@ -1,4 +1,4 @@
-# FieldOps Cloud — Timesheets
+# FieldKeel — Timesheets
 
 Operational time is captured on the existing `TimeEntry` model. Clock In/Out still owns live `ClockSession` rows. Clock Out finalizes a `TimeEntry` in the same transaction. Manual time is a second, policy-gated source on the same model.
 

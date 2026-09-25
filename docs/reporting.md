@@ -1,6 +1,6 @@
 # Reporting and exports
 
-Operational reporting for FieldOps Cloud. All aggregates and exports are computed server-side against the active organization membership scope. The browser never aggregates raw job/time collections.
+Operational reporting for FieldKeel. All aggregates and exports are computed server-side against the active organization membership scope. The browser never aggregates raw job/time collections.
 
 ## Route
 

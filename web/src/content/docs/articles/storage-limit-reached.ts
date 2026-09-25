@@ -33,7 +33,7 @@ export const storageLimitReached: DocArticle = {
       heading: "Free space or raise the limit",
       paragraphs: [
         "Remove deletable pre-submit files where policy allows. Do not expect to delete locked post-approval evidence casually — that history is intentional. Reducing unused drafts and oversized documents before submit helps keep the quota healthy.",
-        "If the company legitimately needs more room, request a plan change (for example Starter → Professional, or Professional → Business) through Plan & Subscription. FieldOps activates plan changes manually; there is no in-app card checkout.",
+        "If the company legitimately needs more room, request a plan change (for example Starter → Professional, or Professional → Business) through Plan & Subscription. FieldKeel activates plan changes manually; there is no in-app card checkout.",
       ],
     },
     {

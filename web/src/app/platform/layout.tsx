@@ -60,7 +60,7 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:h-14 sm:flex-row sm:items-center sm:justify-between sm:py-0">
           <Link href="/platform" className="flex min-h-11 items-center gap-2">
             <BrandMark />
-            <span className="text-sm font-semibold">Platform admin</span>
+            <span className="text-sm font-semibold">FieldKeel Platform Admin</span>
           </Link>
           <nav className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
             {NAV.map((item) => {

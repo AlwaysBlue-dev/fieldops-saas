@@ -1,4 +1,4 @@
-# FieldOps Cloud v1 — Frontend UX / Responsive / PWA release status
+# FieldKeel v1 — Frontend UX / Responsive / PWA release status
 
 **Date:** 2026-09-23  
 **Scope:** UX polish only — no new business features.  
@@ -46,7 +46,7 @@ Replace placeholder icons with branded assets before store marketing, but instal
 
 ## Known follow-ups (non-blocking)
 
-- Replace FO placeholder icons with final brand artwork (maskable safe-zone art).
+- Replace FK placeholder icons with final brand artwork (maskable safe-zone art).
 - Billing / platform tables remain horizontal-scroll on ≤390px (acceptable for admin).
 - Quick-create still a lightweight placeholder sheet.
 - Dark theme tokens exist but product remains light-default; contrast not QA’d as a shipping dark mode.

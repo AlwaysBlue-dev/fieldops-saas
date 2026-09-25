@@ -26,7 +26,8 @@ function layout(input: {
     ...input.paragraphs,
     ...(input.ctaUrl ? ['', input.ctaLabel ? `${input.ctaLabel}:` : 'Open:', input.ctaUrl] : []),
     '',
-    input.footerNote ?? 'FieldOps Cloud — field operations for service teams.',
+    input.footerNote ??
+      'FieldKeel\nThe backbone of your field operations.',
   ];
   const paras = input.paragraphs
     .map((p) => `<p style="margin:0 0 14px;color:#1f2937;font-size:15px;line-height:1.55;">${escapeHtml(p)}</p>`)
@@ -46,7 +47,8 @@ function layout(input: {
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
         <tr><td style="background:#0f172a;padding:18px 24px;">
-          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">FieldOps Cloud</p>
+          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">FieldKeel</p>
+          <p style="margin:6px 0 0;color:#94a3b8;font-size:12px;line-height:1.4;">The backbone of your field operations.</p>
         </td></tr>
         <tr><td style="padding:28px 24px 8px;">
           <h1 style="margin:0 0 16px;color:#0f172a;font-size:22px;line-height:1.3;">${escapeHtml(input.heading)}</h1>
@@ -54,7 +56,7 @@ function layout(input: {
           ${cta}
         </td></tr>
         <tr><td style="padding:8px 24px 24px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">${escapeHtml(input.footerNote ?? 'FieldOps Cloud — field operations for service teams.')}</p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">${escapeHtml(input.footerNote ?? 'FieldKeel — The backbone of your field operations.')}</p>
         </td></tr>
       </table>
     </td></tr>
@@ -75,16 +77,16 @@ export function invitationMail(input: {
 }): MailContent {
   const roleLabel = input.role.replaceAll('_', ' ').toLowerCase();
   const content = layout({
-    preheader: `Join ${input.organizationName} on FieldOps Cloud`,
+    preheader: `Join ${input.organizationName} on FieldKeel`,
     heading: `Join ${input.organizationName}`,
     paragraphs: [
-      `You have been invited to join ${input.organizationName} on FieldOps Cloud as ${roleLabel}.`,
+      `You have been invited to join ${input.organizationName} on FieldKeel as ${roleLabel}.`,
       'This invitation expires in 7 days and can be used once.',
     ],
     ctaLabel: 'Accept invitation',
     ctaUrl: input.inviteUrl,
   });
-  return { ...content, subject: `Join ${input.organizationName} on FieldOps Cloud` };
+  return { ...content, subject: `Join ${input.organizationName} on FieldKeel` };
 }
 
 export function jobAssignedMail(input: {
@@ -102,7 +104,7 @@ export function jobAssignedMail(input: {
   if (input.windowLabel) {
     paragraphs.push(`Scheduled window: ${input.windowLabel}.`);
   }
-  paragraphs.push('Open the job in FieldOps Cloud for site details and instructions.');
+  paragraphs.push('Open the job in FieldKeel for site details and instructions.');
   const content = layout({
     preheader: `${input.jobNumber} assigned to you`,
     heading: 'Job assigned',
@@ -215,13 +217,13 @@ export function trialEndingMail(input: {
     preheader: 'Trial ending soon',
     heading: 'Your trial is ending soon',
     paragraphs: [
-      `The FieldOps Cloud trial for ${input.organizationName} ends in ${input.daysRemaining} day${input.daysRemaining === 1 ? '' : 's'}.`,
+      `The FieldKeel trial for ${input.organizationName} ends in ${input.daysRemaining} day${input.daysRemaining === 1 ? '' : 's'}.`,
       'Request activation from Plan & Subscription or Billing. When your invoice is ready, complete payment there — no credit card is required in the product.',
     ],
     ctaLabel: 'Open plan & subscription',
     ctaUrl: input.billingUrl,
   });
-  return { ...content, subject: 'Your FieldOps Cloud trial is ending soon' };
+  return { ...content, subject: 'Your FieldKeel trial is ending soon' };
 }
 
 export function trialGraceMail(input: {
@@ -239,7 +241,7 @@ export function trialGraceMail(input: {
     ctaLabel: 'Request activation',
     ctaUrl: input.billingUrl,
   });
-  return { ...content, subject: 'Your FieldOps Cloud trial grace period is active' };
+  return { ...content, subject: 'Your FieldKeel trial grace period is active' };
 }
 
 export function trialExpiredMail(input: {
@@ -250,13 +252,13 @@ export function trialExpiredMail(input: {
     preheader: 'Trial expired',
     heading: 'Your trial has ended',
     paragraphs: [
-      `The FieldOps Cloud trial for ${input.organizationName} has ended. The workspace is read-only.`,
+      `The FieldKeel trial for ${input.organizationName} has ended. The workspace is read-only.`,
       'Existing records are kept. Open Billing to request activation or complete payment and restore writes.',
     ],
     ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
   });
-  return { ...content, subject: 'Your FieldOps Cloud trial has ended' };
+  return { ...content, subject: 'Your FieldKeel trial has ended' };
 }
 
 export function activationAckMail(input: {
@@ -269,7 +271,7 @@ export function activationAckMail(input: {
     heading: 'We received your activation request',
     paragraphs: [
       `Hi ${input.recipientName},`,
-      `FieldOps received an activation request for ${input.organizationName}.`,
+      `FieldKeel received an activation request for ${input.organizationName}.`,
       'Your invoice is being prepared. Track status under Plan & Subscription and Billing.',
     ],
     ctaLabel: 'Open plan & subscription',
@@ -283,17 +285,17 @@ export function emailVerificationMail(input: {
   email: string;
 }): MailContent {
   const content = layout({
-    preheader: 'Verify your FieldOps Cloud email',
-    heading: 'Verify your FieldOps Cloud email',
+    preheader: 'Verify your FieldKeel email',
+    heading: 'Verify your FieldKeel email',
     paragraphs: [
-      `Confirm that ${input.email} belongs to you to finish setting up your FieldOps Cloud account.`,
+      `Confirm that ${input.email} belongs to you to finish setting up your FieldKeel account.`,
       'This link expires in 24 hours and can only be used once.',
-      'If you did not create a FieldOps Cloud account, you can ignore this email.',
+      'If you did not create a FieldKeel account, you can ignore this email.',
     ],
     ctaLabel: 'Verify email',
     ctaUrl: input.verifyUrl,
   });
-  return { ...content, subject: 'Verify your FieldOps Cloud email' };
+  return { ...content, subject: 'Verify your FieldKeel email' };
 }
 
 export function passwordResetMail(input: {
@@ -301,18 +303,18 @@ export function passwordResetMail(input: {
   expiresInMinutes: number;
 }): MailContent {
   const content = layout({
-    preheader: 'Reset your FieldOps Cloud password',
-    heading: 'Reset your FieldOps Cloud password',
+    preheader: 'Reset your FieldKeel password',
+    heading: 'Reset your FieldKeel password',
     paragraphs: [
-      'We received a request to reset the password for your FieldOps Cloud account.',
+      'We received a request to reset the password for your FieldKeel account.',
       `This link expires in ${input.expiresInMinutes} minutes and can only be used once.`,
       'If you did not request a password reset, you can ignore this email. Your password will stay the same.',
     ],
     ctaLabel: 'Reset password',
     ctaUrl: input.resetUrl,
     footerNote:
-      'FieldOps Cloud — field operations for service teams. Never share this link with anyone.',
+      'FieldKeel — The backbone of your field operations. Never share this link with anyone.',
   });
-  return { ...content, subject: 'Reset your FieldOps Cloud password' };
+  return { ...content, subject: 'Reset your FieldKeel password' };
 }
 

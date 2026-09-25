@@ -297,7 +297,7 @@ export class JobReportPdfService {
         .fillColor(muted)
         .fontSize(8)
         .text(
-          `Generated ${fmt(input.generatedAt, input.timezone)} · ${input.orgName} · FieldOps Cloud`,
+          `Generated ${fmt(input.generatedAt, input.timezone)} · ${input.orgName} · FieldKeel`,
           { width: 510 },
         );
 

@@ -1,6 +1,6 @@
 # Approvals Center
 
-`/app/[orgSlug]/approvals` is the FieldOps Cloud action center for:
+`/app/[orgSlug]/approvals` is the FieldKeel action center for:
 
 - Job completion (`JOB_COMPLETION`)
 - Timesheet entries (`TIMESHEET`)

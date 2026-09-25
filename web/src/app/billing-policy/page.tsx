@@ -17,14 +17,14 @@ export default async function BillingPolicyPage() {
     >
       <LegalSection title="Invoices and due dates">
         <p>
-          FieldOps Cloud issues organization invoices with a FieldOps invoice
+          FieldKeel issues organization invoices with a FieldKeel invoice
           number, plan, amount, currency, billing period, issued date, and due
           date. When an invoice is ready, Owners (and Admins where permitted)
           see it in Settings → Billing with a Pay Invoice action that opens a
           secure payment page.
         </p>
         <p>
-          FieldOps Cloud does not currently automatically charge a stored card.
+          FieldKeel does not currently automatically charge a stored card.
           Opening a payment link does not by itself activate or renew a
           subscription.
         </p>
@@ -34,11 +34,11 @@ export default async function BillingPolicyPage() {
           Payments are verified before a subscription is activated or renewed.
           Customers may optionally report “I’ve Sent Payment”; that notice does
           not mark the invoice paid and does not change subscription access.
-          After payment is confirmed, FieldOps updates the subscription and
+          After payment is confirmed, FieldKeel updates the subscription and
           notifies the Owner.
         </p>
         <p>
-          FieldOps Cloud subscriptions are business services. Please complete
+          FieldKeel subscriptions are business services. Please complete
           payment using an eligible business/commercial payment method available
           on the secure payment page.
         </p>
@@ -54,15 +54,15 @@ export default async function BillingPolicyPage() {
       </LegalSection>
       <LegalSection title="Anti-fraud">
         <p>
-          Use only the payment link shown in your authenticated FieldOps Cloud
-          Billing area or provided through an official FieldOps communication.
-          FieldOps will never ask for your password, authentication code, full
+          Use only the payment link shown in your authenticated FieldKeel
+          Billing area or provided through an official FieldKeel communication.
+          FieldKeel will never ask for your password, authentication code, full
           card number, or CVV through support messages.
         </p>
       </LegalSection>
       <LegalSection title="Published plans">
         <p>
-          FieldOps Cloud publishes Starter, Professional, and Business plans.
+          FieldKeel publishes Starter, Professional, and Business plans.
           Annual list prices and seat/storage limits come from the live Plan
           catalog
           {professional
@@ -75,7 +75,7 @@ export default async function BillingPolicyPage() {
       </LegalSection>
       <LegalSection title="Free Trial">
         <p>
-          Each verified FieldOps Cloud account is eligible for one{" "}
+          Each verified FieldKeel account is eligible for one{" "}
           {catalog?.trialDays ?? 14}-day Professional trial with no credit card.
           The trial begins when the first trial workspace is successfully
           created after email verification. A {catalog?.trialGraceDays ?? 3}-day
@@ -91,7 +91,7 @@ export default async function BillingPolicyPage() {
           Data is not automatically deleted solely because a trial or paid
           period expires. Authorized historical records remain viewable. Billing,
           invoices, documentation, and account areas needed to restore service
-          remain available. Writes resume after FieldOps confirms payment and
+          remain available. Writes resume after FieldKeel confirms payment and
           completes activation or renewal.
         </p>
       </LegalSection>

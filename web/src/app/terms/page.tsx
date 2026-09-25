@@ -6,14 +6,14 @@ export const metadata: Metadata = { title: "Terms of Service" };
 
 export default async function TermsPage() {
   const trust = await getPublicTrust();
-  const entity = trust.legalEntityName ?? "the FieldOps Cloud operator";
-  const law = trust.governingLaw ?? "the laws designated by the FieldOps Cloud operator in the applicable order or invoice";
+  const entity = trust.legalEntityName ?? "the FieldKeel operator";
+  const law = trust.governingLaw ?? "the laws designated by the FieldKeel operator in the applicable order or invoice";
 
   return (
     <LegalDocument title="Terms of Service" version={trust.terms} trust={trust}>
       <LegalSection title="1. Acceptance">
         <p>
-          By creating a FieldOps Cloud workspace or using the service, you agree
+          By creating a FieldKeel workspace or using the service, you agree
           to these Terms and the Privacy Policy. If you do not agree, do not use
           the service.
         </p>
@@ -34,7 +34,7 @@ export default async function TermsPage() {
       </LegalSection>
       <LegalSection title="4. Permitted use">
         <p>
-          Use FieldOps Cloud only to operate legitimate field-service work for
+          Use FieldKeel only to operate legitimate field-service work for
           your organization. Follow the Acceptable Use Policy. Do not attempt
           unauthorized access, disrupt the service, or misuse storage, GPS, or
           records.
@@ -45,13 +45,13 @@ export default async function TermsPage() {
           Eligible new organizations receive a time-limited trial of the
           published Professional plan. No credit card is collected in the
           application. After the trial and any published grace period, the
-          workspace becomes read-only until FieldOps manually activates an
-          annual subscription following confirmed payment of a FieldOps invoice.
+          workspace becomes read-only until FieldKeel manually activates an
+          annual subscription following confirmed payment of a FieldKeel invoice.
         </p>
         <p>
           Renewals use the same invoice-and-manual-activation process. Payment
           details appear only on an issued invoice in your authenticated billing
-          page or an official FieldOps invoice email.
+          page or an official FieldKeel invoice email.
         </p>
       </LegalSection>
       <LegalSection title="6. Non-payment and expiration">
@@ -65,7 +65,7 @@ export default async function TermsPage() {
       <LegalSection title="7. Customer data">
         <p>
           Your organization owns the customer, job, time, file, and related
-          records you submit. FieldOps processes that data to provide the
+          records you submit. FieldKeel processes that data to provide the
           service. After expiry you may continue to view authorized historical
           records and request export or deletion help through support.
         </p>
@@ -88,7 +88,7 @@ export default async function TermsPage() {
       </LegalSection>
       <LegalSection title="10. Intellectual property">
         <p>
-          FieldOps Cloud software, branding, and documentation remain the
+          FieldKeel software, branding, and documentation remain the
           property of {entity}. These Terms do not transfer that ownership.
         </p>
       </LegalSection>

@@ -1,9 +1,9 @@
 ---
-description: FieldOps Cloud project rules — architecture, tenancy, security, API, database, UI
+description: FieldKeel project rules — architecture, tenancy, security, API, database, UI
 alwaysApply: true
 ---
 
-# FieldOps Cloud — Project Rules
+# FieldKeel — Project Rules
 
 Independent commercial multi-tenant SaaS. **Not** the MKMABALE/client app. Do not copy, import, or imitate prior client code, IA, or visuals.
 
@@ -77,12 +77,12 @@ localStorage.setItem("accessToken", token);
 
 ## Naming
 
-- Product: **FieldOps Cloud**. Packages stay `web` and `api`.
+- Product: **FieldKeel**. Packages stay `web` and `api`.
 - DB/Prisma models: PascalCase singular (`OrganizationMembership`, `ClockEvent`).
 - Tables: Prisma default. Columns: camelCase in Prisma.
 - Files: kebab-case. Nest: `jobs.module.ts`, `create-job.dto.ts`.
-- React components: PascalCase. Org customers are `Client` (not FieldOps tenants).
-- Cookies: `fieldops_*`. Env: `DATABASE_URL`, `JWT_*`, `S3_*`, `SMTP_*`. Public web: only `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_URL`.
+- React components: PascalCase. Org customers are `Client` (not FieldKeel tenants).
+- Cookies: `fieldops_*` (legacy technical cookie names — do not rename). Env: `DATABASE_URL`, `JWT_*`, `S3_*`, `SMTP_*`. Public web: only `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_API_URL`.
 
 ---
 

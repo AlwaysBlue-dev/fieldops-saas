@@ -31,7 +31,7 @@ export class InvoicePdfService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      doc.fillColor('#1a2744').fontSize(20).text('FieldOps Cloud');
+      doc.fillColor('#1a2744').fontSize(20).text('FieldKeel');
       doc.moveDown(0.25);
       doc.fillColor('#5b6475').fontSize(10).text('Invoice');
       doc.moveDown(1);
@@ -51,7 +51,7 @@ export class InvoicePdfService {
 
       doc.fillColor('#1a2744').fontSize(11).text('Description');
       doc.fillColor('#5b6475').fontSize(10);
-      doc.text(`FieldOps Cloud ${input.planName} Annual Subscription`);
+      doc.text(`FieldKeel ${input.planName} Annual Subscription`);
       doc.text(`Type: ${input.type.replaceAll('_', ' ')}`);
       doc.text(
         `Billing period: ${formatDate(input.billingPeriodStart)} – ${formatDate(input.billingPeriodEnd)}`,
@@ -76,12 +76,12 @@ export class InvoicePdfService {
       doc.fillColor('#5b6475').text(input.supportEmail);
       doc.moveDown(1);
       doc.fontSize(9).text(
-        'Please verify that payment instructions were received through your authenticated FieldOps account or an official FieldOps email address.',
+        'Please verify that payment instructions were received through your authenticated FieldKeel account or an official FieldKeel email address.',
         { width: 500 },
       );
       doc.moveDown(0.5);
       doc.text(
-        'FieldOps Cloud will never ask you to provide your password, full card number, CVV, or authentication credentials by email, support message, or chat.',
+        'FieldKeel will never ask you to provide your password, full card number, CVV, or authentication credentials by email, support message, or chat.',
         { width: 500 },
       );
 

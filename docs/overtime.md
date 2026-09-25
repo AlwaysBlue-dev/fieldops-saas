@@ -1,4 +1,4 @@
-# FieldOps Cloud — Overtime authorization
+# FieldKeel — Overtime authorization
 
 Overtime time is not auto-approved. An `OvertimeAuthorization` must be requested and explicitly approved before it can cover a `TimeEntry` of type `OVERTIME`.
 

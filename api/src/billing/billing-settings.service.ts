@@ -29,7 +29,7 @@ export class BillingSettingsService {
     ].filter((item): item is string => Boolean(item && item.trim()));
     return parts.length > 0
       ? parts.join('\n\n')
-      : 'Sign in to FieldOps Cloud billing to view verified payment instructions after this invoice is issued.';
+      : 'Sign in to FieldKeel billing to view verified payment instructions after this invoice is issued.';
   }
 
   async update(actorUserId: string, dto: UpdateBillingSettingsDto) {

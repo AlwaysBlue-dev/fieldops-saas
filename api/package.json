@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "0.0.1",
-  "description": "",
+  "description": "FieldKeel API — multi-tenant field service and operations backend",
   "author": "",
   "private": true,
   "license": "UNLICENSED",

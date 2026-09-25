@@ -310,7 +310,7 @@ export class InvoiceService {
     const amount = `${formatCentsUsd(updated.totalCents)} ${updated.currency}`;
     await this.mail.sendText({
       to: updated.customerBillingEmail,
-      subject: 'Your FieldOps Cloud invoice is ready',
+      subject: 'Your FieldKeel invoice is ready',
       text: [
         `Invoice ${updated.invoiceNumber} is ready.`,
         '',
@@ -321,10 +321,10 @@ export class InvoiceService {
         'Sign in to Billing and select Pay Invoice to open the secure payment page.',
         appUrl,
         '',
-        'FieldOps Cloud subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.',
+        'FieldKeel subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.',
         '',
-        'Use only the payment link shown in your authenticated FieldOps Cloud Billing area or provided through an official FieldOps communication.',
-        'FieldOps will never ask for your password, authentication code, full card number, or CVV through support messages.',
+        'Use only the payment link shown in your authenticated FieldKeel Billing area or provided through an official FieldKeel communication.',
+        'FieldKeel will never ask for your password, authentication code, full card number, or CVV through support messages.',
       ].join('\n'),
     });
 
@@ -843,8 +843,8 @@ export class InvoiceService {
     await this.mail.sendText({
       to: refreshed.customerBillingEmail,
       subject: isRenewal
-        ? 'Your FieldOps Cloud subscription was renewed'
-        : 'Your FieldOps Cloud subscription is active',
+        ? 'Your FieldKeel subscription was renewed'
+        : 'Your FieldKeel subscription is active',
       text: [
         `Payment for invoice ${refreshed.invoiceNumber} has been confirmed.`,
         '',
@@ -1121,9 +1121,9 @@ export class InvoiceService {
   private async customerPaymentInstructions() {
     const configured = await this.settings.instructionsText();
     const b2b =
-      'FieldOps Cloud subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.';
+      'FieldKeel subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.';
     const trust =
-      'Use only the payment link shown in your authenticated FieldOps Cloud Billing area or provided through an official FieldOps communication. FieldOps will never ask for your password, authentication code, full card number, or CVV through support messages.';
+      'Use only the payment link shown in your authenticated FieldKeel Billing area or provided through an official FieldKeel communication. FieldKeel will never ask for your password, authentication code, full card number, or CVV through support messages.';
     if (!configured?.trim()) {
       return [b2b, '', trust].join('\n');
     }

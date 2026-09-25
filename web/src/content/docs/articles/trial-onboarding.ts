@@ -4,7 +4,7 @@ export const trialOnboarding: DocArticle = {
   slug: "trial-onboarding",
   title: "Free Trial",
   description:
-    "Each verified FieldOps Cloud account is eligible for one 14-day Professional trial. No credit card required. Additional workspaces need their own subscription.",
+    "Each verified FieldKeel account is eligible for one 14-day Professional trial. No credit card required. Additional workspaces need their own subscription.",
   categoryId: "getting-started",
   keywords: [
     "trial",
@@ -27,7 +27,7 @@ export const trialOnboarding: DocArticle = {
       id: "eligibility",
       heading: "One free trial per verified account",
       paragraphs: [
-        "Each verified FieldOps Cloud account is eligible for one 14-day Professional trial. The trial begins when your first trial workspace is successfully created after email verification. No credit card is required.",
+        "Each verified FieldKeel account is eligible for one 14-day Professional trial. The trial begins when your first trial workspace is successfully created after email verification. No credit card is required.",
         "Accepting invitations to other organizations does not use your free trial. Creating additional workspaces after your first trial is allowed, but those workspaces require their own subscription. Deleting a trial workspace does not restore free-trial eligibility.",
       ],
     },
@@ -51,7 +51,7 @@ export const trialOnboarding: DocArticle = {
       id: "activation",
       heading: "Request activation and manual invoice",
       paragraphs: [
-        "There is no self-serve card checkout. Owners and admins request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldOps confirms payment and the subscription becomes Active.",
+        "There is no self-serve card checkout. Owners and admins request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldKeel confirms payment and the subscription becomes Active.",
         "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
       ],
     },

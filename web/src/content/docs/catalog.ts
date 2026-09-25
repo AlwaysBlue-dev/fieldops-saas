@@ -1,11 +1,11 @@
 import type { DocArticle, DocCategory } from "./types";
 
-import { whatIsFieldops } from "./articles/what-is-fieldops";
+import { whatIsFieldkeel } from "./articles/what-is-fieldkeel";
 import { createAccountWorkspace } from "./articles/create-account-workspace";
 import { verifyWorkEmail } from "./articles/verify-work-email";
 import { trialOnboarding } from "./articles/trial-onboarding";
 import { navigationTheme } from "./articles/navigation-theme";
-import { installFieldopsOnPhone } from "./articles/install-fieldops-on-phone";
+import { installFieldkeelOnPhone } from "./articles/install-fieldkeel-on-phone";
 import { quickCreateOverview } from "./articles/quick-create-overview";
 
 import { workspaceConcept } from "./articles/workspace-concept";
@@ -68,7 +68,7 @@ export const allCategories: DocCategory[] = [
     description:
       "Product overview, account setup, trial, phone install, and how to move around the app.",
     order: 10,
-    primarySlug: "what-is-fieldops",
+    primarySlug: "what-is-fieldkeel",
   },
   {
     id: "organizations-members",
@@ -198,13 +198,13 @@ export const allCategories: DocCategory[] = [
  * Adjacent navigation follows this array.
  */
 export const allArticles: DocArticle[] = [
-  whatIsFieldops,
+  whatIsFieldkeel,
   createAccountWorkspace,
   verifyWorkEmail,
   forgotPassword,
   trialOnboarding,
   navigationTheme,
-  installFieldopsOnPhone,
+  installFieldkeelOnPhone,
   quickCreateOverview,
   workspaceConcept,
   membersInvitations,

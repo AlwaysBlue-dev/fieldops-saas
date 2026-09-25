@@ -1,4 +1,4 @@
-# FieldOps Cloud — Free trial and manual activation
+# FieldKeel — Free trial and manual activation
 
 The initial commercial model, paid renewal grace, catalog-driven pricing, and platform admin flow live in `docs/commercial-model.md`. This file keeps the trial math that still applies.
 
@@ -6,7 +6,7 @@ No payment provider is connected. Access is decided on the API from subscription
 
 ## Policy
 
-Each **verified FieldOps Cloud account** is eligible for **one** 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.
+Each **verified FieldKeel account** is eligible for **one** 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.
 
 Additional workspaces the same account creates are allowed, but they do **not** receive another free trial — they use the selected plan and require manual activation. Accepting invitations never consumes trial eligibility. Deleting a workspace never restores it.
 
@@ -120,7 +120,7 @@ Mutation controls (Create Job, Clock In, Add Client, Invite Member, Approve, New
 ## Environment
 
 ```
-PLATFORM_SALES_EMAIL=sales@fieldops.local
+PLATFORM_SALES_EMAIL=sales@fieldkeel.local
 ```
 
-Optional. Defaults to `sales@fieldops.local` for Mailpit.
+Optional. Defaults to `sales@fieldkeel.local` for Mailpit.

@@ -55,7 +55,7 @@ export function LoginForm() {
       description="Enter your work email to open the operations workspace."
       footer={
         <p className="text-muted-foreground">
-          New to FieldOps?{" "}
+          New to FieldKeel?{" "}
           <Link href="/signup" className="font-medium text-primary">
             Create an account
           </Link>

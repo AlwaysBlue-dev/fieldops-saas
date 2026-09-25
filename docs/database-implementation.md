@@ -1,4 +1,4 @@
-# FieldOps Cloud — Database Implementation
+# FieldKeel — Database Implementation
 
 This records what was implemented for Prisma schema, NestJS database integration, tenancy foundation, and development seed. It is not a billing or frontend delivery.
 
@@ -143,7 +143,7 @@ Global prefix `api`. Default listen port **4000**.
 
 ## Seed credentials
 
-Shared development password from `SEED_PASSWORD` (default and current local value: `FieldOps.Dev!2026`). Documented in `api/.env.example`. **Local only. Not for production.**
+Shared development password from `SEED_PASSWORD` (default and current local value: `FieldOps.Dev!2026` — legacy seed default, not the product name). Documented in `api/.env.example`. **Local only. Not for production.**
 
 All seed users have verified email and `platformRole = USER`.
 

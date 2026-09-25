@@ -10,9 +10,15 @@ import {
   getCategory,
 } from "@/lib/docs";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 type Params = { slug: string };
+
+/** Old FieldOps Cloud doc URLs → FieldKeel. */
+const LEGACY_DOC_SLUGS: Record<string, string> = {
+  "what-is-fieldops": "what-is-fieldkeel",
+  "install-fieldops-on-phone": "install-fieldkeel-on-phone",
+};
 
 export async function generateStaticParams() {
   return allArticles.map((article) => ({ slug: article.slug }));
@@ -24,7 +30,8 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const canonical = LEGACY_DOC_SLUGS[slug] ?? slug;
+  const article = getArticle(canonical);
   if (!article) return { title: "Documentation" };
   return { title: article.title, description: article.description };
 }
@@ -35,6 +42,11 @@ export default async function DocArticlePage({
   params: Promise<Params>;
 }) {
   const { slug } = await params;
+  const legacyTarget = LEGACY_DOC_SLUGS[slug];
+  if (legacyTarget) {
+    redirect(`/docs/${legacyTarget}`);
+  }
+
   const article = getArticle(slug);
   if (!article) notFound();
 

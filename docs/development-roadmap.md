@@ -1,4 +1,4 @@
-# FieldOps Cloud — Development Roadmap
+# FieldKeel — Development Roadmap
 
 Do not implement business modules in this documentation phase. This roadmap is the agreed order of work after the documents land.
 
@@ -35,7 +35,7 @@ Fix the scaffold so Prisma 7, Nest, and Next can actually carry the product.
 ### 0.3 Web bootstrap
 
 - Replace create-next-app page/metadata.
-- Apply FieldOps tokens + Geist wiring (see design system).
+- Apply FieldKeel tokens + Geist wiring (see design system).
 - Fix `web/.gitignore` so `.env.example` is not ignored.
 - API client stub with `credentials: "include"`.
 
@@ -170,7 +170,7 @@ Do not start this phase until asked.
 
 1. Prisma 7 config + migrate pipeline
 2. Nest bootstrap (prefix, pipes, cookies, CORS, health)
-3. FieldOps tokens + shells
+3. FieldKeel tokens + shells
 4. Auth cookies + User model
 5. Organization + membership + session org switch
 6. Isolation test suite

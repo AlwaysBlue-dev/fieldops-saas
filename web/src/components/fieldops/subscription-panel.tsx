@@ -51,7 +51,7 @@ export function SubscriptionPanel({
     );
   }
 
-  const supportEmail = subscription.supportEmail ?? "sales@fieldops.local";
+  const supportEmail = subscription.supportEmail ?? "sales@fieldkeel.local";
   const users = subscription.usage?.users;
   const storage = subscription.usage?.storage;
   const nearExpiry = isNearExpiry(subscription);

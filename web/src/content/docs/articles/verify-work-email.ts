@@ -4,7 +4,7 @@ export const verifyWorkEmail: DocArticle = {
   slug: "verify-work-email",
   title: "Verify your work email",
   description:
-    "Confirm your work email after creating a FieldOps Cloud account, then create your workspace and start the trial.",
+    "Confirm your work email after creating a FieldKeel account, then create your workspace and start the trial.",
   categoryId: "getting-started",
   keywords: [
     "verify email",
@@ -25,7 +25,7 @@ export const verifyWorkEmail: DocArticle = {
       id: "steps",
       heading: "How verification works",
       paragraphs: [
-        "Create your FieldOps Cloud account with your full name, work email, and password. FieldOps sends a verification link to that address. Open the message and select Verify email. After your email is confirmed, create your company workspace to start the Professional trial and finish onboarding.",
+        "Create your FieldKeel account with your full name, work email, and password. FieldKeel sends a verification link to that address. Open the message and select Verify email. After your email is confirmed, create your company workspace to start the Professional trial and finish onboarding.",
         "Until verification succeeds, you cannot open a normal workspace. Sign-in with a correct password still works, but you are guided back to the verification screen so you can resend the link if needed.",
       ],
     },

@@ -1,5 +1,6 @@
 import { BrandMark } from "@/components/fieldops/brand-mark";
 import { Button } from "@/components/ui/button";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -54,7 +55,7 @@ export function MarketingShell({
           <Link href="/" className="flex items-center gap-2">
             <BrandMark />
             <span className="text-sm font-semibold tracking-tight">
-              FieldOps Cloud
+              {APP_NAME}
             </span>
           </Link>
           <nav className="hidden items-center gap-5 text-sm md:flex" aria-label="Marketing">
@@ -111,9 +112,10 @@ export function MarketingShell({
             </div>
           ))}
           <div>
-            <p className="font-medium text-foreground">FieldOps Cloud</p>
+            <p className="font-medium text-foreground">{APP_NAME}</p>
+            <p className="mt-2 text-muted-foreground">{APP_TAGLINE}</p>
             <p className="mt-3 text-muted-foreground">
-              © {new Date().getFullYear()} FieldOps Cloud
+              © {new Date().getFullYear()} {APP_NAME}
             </p>
           </div>
         </div>

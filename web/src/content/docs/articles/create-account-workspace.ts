@@ -28,10 +28,10 @@ export const createAccountWorkspace: DocArticle = {
   sections: [
     {
       id: "register",
-      heading: "Create a FieldOps Cloud account",
+      heading: "Create a FieldKeel account",
       paragraphs: [
         "Start by registering with your work email and a password. Your account is a platform identity — email and credentials — and is separate from any organization you later join. Sessions use secure HTTP-only cookies. Tokens are never stored in localStorage or sessionStorage.",
-        "After signup you must verify your work email before creating a trial workspace. See Verify your work email. If you already have an account and were invited to an organization, accept the invitation instead of creating a second account. Invitation acceptance can set a password when you are new to FieldOps Cloud and treats the invitation link as proof of email possession.",
+        "After signup you must verify your work email before creating a trial workspace. See Verify your work email. If you already have an account and were invited to an organization, accept the invitation instead of creating a second account. Invitation acceptance can set a password when you are new to FieldKeel and treats the invitation link as proof of email possession.",
       ],
     },
     {
@@ -39,7 +39,7 @@ export const createAccountWorkspace: DocArticle = {
       heading: "Create your first workspace",
       paragraphs: [
         "After email verification, create your organization. That makes you its OWNER and starts your account’s one 14-day Professional free trial for that workspace. The organization is the tenant: clients, sites, jobs, files, timesheets, and subscription all belong to it. Choose a clear company name (you cannot create two workspaces you own with the same name, but other accounts may use the same display name).",
-        "Timezone: FieldOps automatically suggests your current timezone, but you can change it during workspace setup or later in Organization Settings. The organization timezone drives “today,” schedule windows, timesheets, and overtime boundaries.",
+        "Timezone: FieldKeel automatically suggests your current timezone, but you can change it during workspace setup or later in Organization Settings. The organization timezone drives “today,” schedule windows, timesheets, and overtime boundaries.",
         "Business type: During onboarding, choose the business type that best matches your organization. If it is not listed, select Other and enter your business type.",
         "You can belong to multiple organizations through membership. After login you pick an organization (or resume the last one). Switching organization reloads the workspace so data from company A never appears inside company B.",
       ],
@@ -48,7 +48,7 @@ export const createAccountWorkspace: DocArticle = {
       id: "additional-workspaces",
       heading: "Creating additional workspaces later",
       paragraphs: [
-        "The same FieldOps account can own or join many organizations. Only the first self-created trial workspace receives the free trial. Additional workspaces you create require their own subscription (Starter, Professional, or Business) and use the normal request-activation / invoice flow. Joining someone else’s organization by invitation never uses your free trial.",
+        "The same FieldKeel account can own or join many organizations. Only the first self-created trial workspace receives the free trial. Additional workspaces you create require their own subscription (Starter, Professional, or Business) and use the normal request-activation / invoice flow. Joining someone else’s organization by invitation never uses your free trial.",
       ],
     },
     {

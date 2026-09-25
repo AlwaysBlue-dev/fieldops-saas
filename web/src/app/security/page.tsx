@@ -12,7 +12,7 @@ export default async function SecurityPage() {
     <LegalDocument title="Security" version={trust.terms} trust={trust}>
       <LegalSection title="Current practices">
         <p>
-          FieldOps Cloud is built as a multi-tenant operations product. The
+          FieldKeel is built as a multi-tenant operations product. The
           following controls are implemented in the current application. We do
           not claim that any system is completely secure.
         </p>

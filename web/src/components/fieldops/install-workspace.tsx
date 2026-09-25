@@ -42,7 +42,7 @@ export function InstallWorkspaceDialog({
     const outcome = await promptInstall();
     setBusy(false);
     if (outcome === "accepted" || outcome === "standalone") {
-      setMessage("FieldOps Cloud is installed on this device.");
+      setMessage("FieldKeel is installed on this device.");
       return;
     }
     if (outcome === "dismissed") {
@@ -60,7 +60,7 @@ export function InstallWorkspaceDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Add {orgName} to your home screen for an app-like FieldOps Cloud
+            Add {orgName} to your home screen for an app-like FieldKeel
             experience. Your account and cookies stay the same — no separate
             login tokens.
           </DialogDescription>
@@ -71,14 +71,14 @@ export function InstallWorkspaceDialog({
             <span className="font-medium text-foreground">{appLabel}</span>
             <span className="mt-0.5 block text-muted-foreground">
               Opens this workspace when you launch the installed app. You can
-              still switch organizations inside FieldOps Cloud.
+              still switch organizations inside FieldKeel.
             </span>
           </p>
 
           {isInstalled ? (
             <p className="flex items-start gap-2 text-muted-foreground">
               <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-              FieldOps Cloud is already running as an installed app on this
+              FieldKeel is already running as an installed app on this
               device.
             </p>
           ) : needsIosInstructions ? (
@@ -100,13 +100,13 @@ export function InstallWorkspaceDialog({
             </ol>
           ) : canPromptInstall ? (
             <p className="text-muted-foreground">
-              Tap Install below to use your browser’s install prompt. FieldOps
+              Tap Install below to use your browser’s install prompt. FieldKeel
               Cloud never auto-prompts.
             </p>
           ) : (
             <p className="text-muted-foreground">
               If your browser supports PWAs, use its menu (Install app / Add to
-              Home screen). On iPhone, open FieldOps Cloud in Safari and follow
+              Home screen). On iPhone, open FieldKeel in Safari and follow
               Share → Add to Home Screen.
             </p>
           )}
@@ -170,7 +170,7 @@ export function InstallWorkspaceSettingsCard({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <p className="text-sm font-medium">Install FieldOps Cloud</p>
+        <p className="text-sm font-medium">Install FieldKeel</p>
         <p className="mt-0.5 text-sm text-muted-foreground">
           Workspace: {orgName}
         </p>

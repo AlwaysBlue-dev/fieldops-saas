@@ -11,7 +11,7 @@ export default async function PrivacyPage() {
     <LegalDocument title="Privacy Policy" version={trust.privacy} trust={trust}>
       <LegalSection title="Who this covers">
         <p>
-          This policy describes how FieldOps Cloud processes personal and
+          This policy describes how FieldKeel processes personal and
           operational data when you use the application. It is a product
           template for legal review.
         </p>
@@ -32,7 +32,7 @@ export default async function PrivacyPage() {
       <LegalSection title="Location">
         <p>
           GPS coordinates may be stored as evidence when a user explicitly
-          clocks in or out. FieldOps Cloud does not currently perform continuous
+          clocks in or out. FieldKeel does not currently perform continuous
           background employee tracking.
         </p>
       </LegalSection>

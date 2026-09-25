@@ -3,7 +3,7 @@
  * Display names are not globally unique; same-owner duplicates use this key.
  */
 
-const RESERVED_NORMALIZED = new Set(["fieldops", "fieldops cloud"]);
+const RESERVED_NORMALIZED = new Set(["fieldops", "fieldkeel"]);
 
 export function cleanOrganizationDisplayName(raw: string): string {
   return raw.replace(/\s+/g, " ").trim();
