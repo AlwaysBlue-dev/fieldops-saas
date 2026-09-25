@@ -25,6 +25,7 @@ import { trialWindow } from '../subscription/clock.js';
 import { generateUrlToken, hashToken, tokenMatches } from '../common/crypto-token.js';
 import { durationToMs } from '../common/duration.js';
 import { slugifyName } from '../common/slug.js';
+import { assertValidIanaTimeZone } from '../common/timezone.js';
 import type { EnvironmentVariables } from '../config/env.js';
 import {
   OrganizationRole,
@@ -158,7 +159,16 @@ export class AuthService {
     }
 
     const email = user.email;
-    const timezone = dto.timezone ?? 'America/Chicago';
+    let timezone: string;
+    try {
+      timezone = assertValidIanaTimeZone(dto.timezone ?? 'America/Chicago');
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error
+          ? error.message
+          : 'Please select a valid timezone.',
+      );
+    }
     const requestMeta = this.requestMeta(request);
     const now = new Date();
 

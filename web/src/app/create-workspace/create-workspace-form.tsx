@@ -2,6 +2,7 @@
 
 import { AuthShell } from "@/components/fieldops/auth-shell";
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
+import { TimezoneCombobox } from "@/components/fieldops/timezone-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,10 @@ import {
   logout,
   type OrganizationMembership,
 } from "@/lib/auth";
+import {
+  detectBrowserTimeZone,
+  isValidIanaTimeZone,
+} from "@/lib/iana-timezones";
 import {
   organizationNamesMatch,
   validateOrganizationDisplayName,
@@ -81,6 +86,8 @@ export function CreateWorkspaceForm() {
   const router = useRouter();
   const [organizationName, setOrganizationName] = useState(readDraft);
   const [planCode, setPlanCode] = useState<PlanChoice>("professional");
+  const [timezone, setTimezone] = useState("");
+  const [timezoneError, setTimezoneError] = useState<string | null>(null);
   const [trialEligible, setTrialEligible] = useState(true);
   const [ownedMemberships, setOwnedMemberships] = useState<
     OrganizationMembership[]
@@ -90,6 +97,11 @@ export function CreateWorkspaceForm() {
   const [duplicateSlug, setDuplicateSlug] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const detected = detectBrowserTimeZone();
+    if (detected) setTimezone(detected);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,10 +142,16 @@ export function CreateWorkspaceForm() {
     event.preventDefault();
     setError(null);
     setDuplicateSlug(null);
+    setTimezoneError(null);
 
     const validated = validateOrganizationDisplayName(organizationName);
     if (!validated.ok) {
       setError(validated.message);
+      return;
+    }
+
+    if (!timezone || !isValidIanaTimeZone(timezone)) {
+      setTimezoneError("Please select a valid timezone.");
       return;
     }
 
@@ -152,8 +170,7 @@ export function CreateWorkspaceForm() {
     try {
       const result = await createWorkspace({
         organizationName: validated.displayName,
-        timezone:
-          Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Chicago",
+        timezone,
         ...(trialEligible ? {} : { planCode }),
       });
       clearDraft();
@@ -261,6 +278,27 @@ export function CreateWorkspaceForm() {
                   You already have a workspace with this name.
                 </p>
               ) : null}
+            </FormField>
+            <FormField>
+              <Label htmlFor="timezone">Timezone</Label>
+              <TimezoneCombobox
+                id="timezone"
+                value={timezone}
+                onChange={(next) => {
+                  setTimezone(next);
+                  setTimezoneError(null);
+                }}
+              />
+              {timezoneError ? (
+                <p role="alert" className="mt-1.5 text-sm text-destructive">
+                  {timezoneError}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  We suggest your current timezone when we can detect it. You can
+                  change this during onboarding or later in Organization settings.
+                </p>
+              )}
             </FormField>
             {!trialEligible ? (
               <FormField>

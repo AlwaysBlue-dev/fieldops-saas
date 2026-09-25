@@ -4,11 +4,25 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   MinLength,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
 } from 'class-validator';
 import { cleanOrganizationDisplayName } from '../../common/organization-name.js';
+import { isValidIanaTimeZone } from '../../common/timezone.js';
+
+@ValidatorConstraint({ name: 'isIanaTimeZone', async: false })
+export class IsIanaTimeZoneConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown) {
+    return typeof value === 'string' && isValidIanaTimeZone(value);
+  }
+
+  defaultMessage() {
+    return 'Please select a valid timezone.';
+  }
+}
 
 const WORKSPACE_PLAN_CODES = ['starter', 'professional', 'business'] as const;
 
@@ -24,9 +38,8 @@ export class CreateWorkspaceDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z_]+\/[A-Za-z_]+$/, {
-    message: 'Choose a valid timezone.',
-  })
+  @MaxLength(64)
+  @Validate(IsIanaTimeZoneConstraint)
   timezone?: string;
 
   /**

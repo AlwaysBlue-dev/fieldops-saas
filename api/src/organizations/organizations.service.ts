@@ -9,10 +9,12 @@ import {
   OrganizationRole,
 } from '../generated/prisma/client.js';
 import { DEFAULT_WORKING_WEEK, WORK_WEEK_DAYS } from '../common/constants.js';
+import { normalizeIndustryForStorage } from '../common/industry.js';
 import {
   organizationNamesMatch,
   validateOrganizationDisplayName,
 } from '../common/organization-name.js';
+import { assertValidIanaTimeZone } from '../common/timezone.js';
 import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
@@ -65,6 +67,32 @@ export class OrganizationsService {
       nextName = nameValidation.displayName;
     }
 
+    let nextIndustry: string | null | undefined;
+    if (dto.industry !== undefined) {
+      try {
+        nextIndustry = normalizeIndustryForStorage(dto.industry) ?? null;
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error
+            ? error.message
+            : 'Please specify your business type.',
+        );
+      }
+    }
+
+    let nextTimezone: string | undefined;
+    if (dto.timezone !== undefined) {
+      try {
+        nextTimezone = assertValidIanaTimeZone(dto.timezone);
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error
+            ? error.message
+            : 'Please select a valid timezone.',
+        );
+      }
+    }
+
     const organization = await this.prisma.$transaction(async (tx) => {
       if (nextName && !organizationNamesMatch(existing.name, nextName)) {
         await tx.$queryRaw`
@@ -105,17 +133,17 @@ export class OrganizationsService {
         where: { id: ctx.organizationId },
         data: {
           name: nextName,
-          industry: dto.industry?.trim() || undefined,
+          industry: nextIndustry === undefined ? undefined : nextIndustry,
           phone: dto.phone?.trim() || undefined,
-          timezone: dto.timezone,
+          timezone: nextTimezone,
         },
         include: { settings: true },
       });
 
-      if (dto.timezone && updated.settings) {
+      if (nextTimezone && updated.settings) {
         await tx.organizationSettings.update({
           where: { organizationId: ctx.organizationId },
-          data: { timezone: dto.timezone },
+          data: { timezone: nextTimezone },
         });
       }
 

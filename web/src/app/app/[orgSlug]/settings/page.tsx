@@ -6,6 +6,7 @@ import { SubscriptionSettings } from "./subscription-settings";
 import { SettingsAppearance } from "./settings-appearance";
 import { SettingsAppDevice } from "./settings-app-device";
 import { SettingsBrandingSection } from "./settings-branding-section";
+import { SettingsOrganizationSection } from "./settings-organization-section";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -19,6 +20,15 @@ export default async function SettingsPage({
         title="Settings"
         description="Organization configuration, members, and workspace preferences."
       />
+      <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
+        <h2 className="text-sm font-semibold">Organization</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Company profile, business type, and workspace timezone.
+        </p>
+        <div className="mt-4">
+          <SettingsOrganizationSection orgSlug={orgSlug} />
+        </div>
+      </section>
       <section className="mt-4 rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Organization branding</h2>
         <p className="mt-1 text-sm text-muted-foreground">

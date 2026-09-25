@@ -9,8 +9,23 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
 } from 'class-validator';
 import { cleanOrganizationDisplayName } from '../../common/organization-name.js';
+import { isValidIanaTimeZone } from '../../common/timezone.js';
+
+@ValidatorConstraint({ name: 'isIanaTimeZone', async: false })
+class IsIanaTimeZoneConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown) {
+    return typeof value === 'string' && isValidIanaTimeZone(value);
+  }
+
+  defaultMessage() {
+    return 'Please select a valid timezone.';
+  }
+}
 
 export class UpdateOrganizationDto {
   @IsOptional()
@@ -22,10 +37,9 @@ export class UpdateOrganizationDto {
   @MaxLength(120)
   name?: string;
 
-
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(100)
   industry?: string;
 
   @IsOptional()
@@ -35,9 +49,8 @@ export class UpdateOrganizationDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[A-Za-z_]+\/[A-Za-z_]+$/, {
-    message: 'timezone must be an IANA identifier such as America/Chicago',
-  })
+  @MaxLength(64)
+  @Validate(IsIanaTimeZoneConstraint)
   timezone?: string;
 }
 

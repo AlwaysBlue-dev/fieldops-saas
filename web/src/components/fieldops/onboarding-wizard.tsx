@@ -1,14 +1,28 @@
 "use client";
 
 import { BrandMark } from "@/components/fieldops/brand-mark";
+import {
+  IndustrySelect,
+  type IndustrySelection,
+} from "@/components/fieldops/industry-select";
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { StickyMobileActionBar } from "@/components/fieldops/sticky-mobile-action-bar";
+import { TimezoneCombobox } from "@/components/fieldops/timezone-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations, type OrganizationMembership } from "@/lib/auth";
+import {
+  detectBrowserTimeZone,
+  isValidIanaTimeZone,
+} from "@/lib/iana-timezones";
+import {
+  industryDisplayLabel,
+  parseIndustrySelection,
+  resolveIndustryForSubmit,
+} from "@/lib/industry";
 import {
   advanceOnboarding,
   createClient,
@@ -20,26 +34,6 @@ import {
 import { cn } from "cn";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-
-const INDUSTRIES = [
-  "Electrical",
-  "HVAC",
-  "Plumbing",
-  "Fire & Security",
-  "Maintenance",
-  "Facilities",
-  "Other",
-];
-
-const TIMEZONES = [
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "America/Phoenix",
-  "UTC",
-];
-
 const WEEK: { id: WorkWeekDay; label: string }[] = [
   { id: "MON", label: "Mon" },
   { id: "TUE", label: "Tue" },
@@ -185,18 +179,13 @@ export function OnboardingWizard() {
             org={org}
             pending={pending}
             error={error}
-            onSubmit={async (form) => {
+            onSubmit={async (profile) => {
               setPending(true);
               setError(null);
               try {
                 const updated = await advanceOnboarding(org.id, {
                   step: 2,
-                  profile: {
-                    name: String(form.get("name") ?? org.name),
-                    industry: String(form.get("industry") ?? "") || undefined,
-                    phone: String(form.get("phone") ?? "") || undefined,
-                    timezone: String(form.get("timezone") ?? org.timezone),
-                  },
+                  profile,
                 });
                 setOrg(updated);
                 setStep(2);
@@ -313,54 +302,136 @@ function ProfileStep({
   org: OrganizationDetail;
   pending: boolean;
   error: string | null;
-  onSubmit: (form: FormData) => void;
+  onSubmit: (profile: {
+    name: string;
+    industry?: string;
+    phone?: string;
+    timezone: string;
+  }) => void;
 }) {
+  const [name, setName] = useState(org.name);
+  const initialIndustry = parseIndustrySelection(org.industry);
+  const [industrySelection, setIndustrySelection] = useState<IndustrySelection>(
+    initialIndustry.selection,
+  );
+  const [industryCustom, setIndustryCustom] = useState(initialIndustry.custom);
+  const [phone, setPhone] = useState(org.phone ?? "");
+  const [timezone, setTimezone] = useState(() => {
+    if (org.timezone && isValidIanaTimeZone(org.timezone)) return org.timezone;
+    return detectBrowserTimeZone() ?? "America/Chicago";
+  });
+  const [industryError, setIndustryError] = useState<string | null>(null);
+  const [timezoneError, setTimezoneError] = useState<string | null>(null);
+
+  const industrySummary =
+    industrySelection === "Other"
+      ? industryCustom.trim() || "Other"
+      : industrySelection || "—";
+
   return (
-    <ResponsiveForm action={onSubmit} className="flex-1">
+    <ResponsiveForm
+      className="flex-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setIndustryError(null);
+        setTimezoneError(null);
+
+        const industryResult = resolveIndustryForSubmit(
+          industrySelection,
+          industryCustom,
+        );
+        if (!industryResult.ok) {
+          setIndustryError(industryResult.message);
+          return;
+        }
+        if (!timezone || !isValidIanaTimeZone(timezone)) {
+          setTimezoneError("Please select a valid timezone.");
+          return;
+        }
+
+        onSubmit({
+          name: name.trim() || org.name,
+          industry: industryResult.industry,
+          phone: phone.trim() || undefined,
+          timezone,
+        });
+      }}
+    >
       <h1 className="text-xl font-semibold tracking-tight">Company profile</h1>
       <p className="text-sm text-muted-foreground">
-        Confirm how this organization appears to your crew. Everything except
-        the name can stay blank.
+        Confirm how this organization appears to your crew. Choose a business
+        type and timezone so schedules and timesheets match how you operate.
       </p>
       <FormField>
         <Label htmlFor="name">Company name</Label>
-        <Input id="name" name="name" defaultValue={org.name} required className="h-11" />
+        <Input
+          id="name"
+          name="name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+          className="h-11"
+        />
       </FormField>
-      <FormField>
-        <Label htmlFor="industry">Industry</Label>
-        <select
-          id="industry"
-          name="industry"
-          defaultValue={org.industry ?? ""}
-          className="h-11 w-full rounded-lg border border-input bg-card px-2.5 text-sm text-foreground dark:bg-input/30"
-        >
-          <option value="">Select if you want</option>
-          {INDUSTRIES.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-      </FormField>
+      <IndustrySelect
+        selection={industrySelection}
+        custom={industryCustom}
+        onSelectionChange={(next) => {
+          setIndustrySelection(next);
+          setIndustryError(null);
+        }}
+        onCustomChange={(next) => {
+          setIndustryCustom(next);
+          setIndustryError(null);
+        }}
+        required
+        error={industryError}
+      />
       <FormField>
         <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" name="phone" type="tel" defaultValue={org.phone ?? ""} className="h-11" />
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          className="h-11"
+        />
       </FormField>
       <FormField>
-        <Label htmlFor="timezone">Timezone</Label>
-        <select
+        <Label htmlFor="timezone">Timezone *</Label>
+        <TimezoneCombobox
           id="timezone"
-          name="timezone"
-          defaultValue={org.timezone}
-          className="h-11 w-full rounded-lg border border-input bg-card px-2.5 text-sm text-foreground dark:bg-input/30"
-        >
-          {TIMEZONES.map((zone) => (
-            <option key={zone} value={zone}>
-              {zone.replaceAll("_", " ")}
-            </option>
-          ))}
-        </select>
+          value={timezone}
+          onChange={(next) => {
+            setTimezone(next);
+            setTimezoneError(null);
+          }}
+        />
+        {timezoneError ? (
+          <p role="alert" className="mt-1.5 text-sm text-destructive">
+            {timezoneError}
+          </p>
+        ) : (
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Suggested from this device when available. You can change it anytime
+            in Organization settings.
+          </p>
+        )}
       </FormField>
+      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+        <p className="text-xs font-medium text-muted-foreground">Summary</p>
+        <p className="mt-1">
+          <span className="text-muted-foreground">Business type · </span>
+          {industrySelection === "Other"
+            ? industryDisplayLabel(industryCustom) || industrySummary
+            : industryDisplayLabel(industrySelection)}
+        </p>
+        <p>
+          <span className="text-muted-foreground">Timezone · </span>
+          {timezone || "—"}
+        </p>
+      </div>
       <StepError error={error} />
       <StickyMobileActionBar>
         <Button type="submit" className="h-11 w-full" disabled={pending}>

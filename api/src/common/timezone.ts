@@ -11,6 +11,26 @@ export type ZonedParts = {
 
 const YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 
+/** True for identifiers accepted by Intl (IANA / UTC). */
+export function isValidIanaTimeZone(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 64) return false;
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function assertValidIanaTimeZone(value: string): string {
+  const trimmed = value.trim();
+  if (!isValidIanaTimeZone(trimmed)) {
+    throw new Error('Please select a valid timezone.');
+  }
+  return trimmed;
+}
+
 export function isYmd(value: string) {
   return YMD.test(value);
 }

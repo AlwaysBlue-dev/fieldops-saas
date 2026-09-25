@@ -38,7 +38,9 @@ export const createAccountWorkspace: DocArticle = {
       id: "create-org",
       heading: "Create your first workspace",
       paragraphs: [
-        "After email verification, create your organization. That makes you its OWNER and starts your account’s one 14-day Professional free trial for that workspace. The organization is the tenant: clients, sites, jobs, files, timesheets, and subscription all belong to it. Choose a clear company name (you cannot create two workspaces you own with the same name, but other accounts may use the same display name). Set the organization timezone early — it drives “today,” schedule windows, timesheets, and overtime boundaries.",
+        "After email verification, create your organization. That makes you its OWNER and starts your account’s one 14-day Professional free trial for that workspace. The organization is the tenant: clients, sites, jobs, files, timesheets, and subscription all belong to it. Choose a clear company name (you cannot create two workspaces you own with the same name, but other accounts may use the same display name).",
+        "Timezone: FieldOps automatically suggests your current timezone, but you can change it during workspace setup or later in Organization Settings. The organization timezone drives “today,” schedule windows, timesheets, and overtime boundaries.",
+        "Business type: During onboarding, choose the business type that best matches your organization. If it is not listed, select Other and enter your business type.",
         "You can belong to multiple organizations through membership. After login you pick an organization (or resume the last one). Switching organization reloads the workspace so data from company A never appears inside company B.",
       ],
     },
@@ -53,7 +55,7 @@ export const createAccountWorkspace: DocArticle = {
       id: "first-setup",
       heading: "First setup checklist",
       paragraphs: [
-        "Complete onboarding basics: timezone and operating rules, then invite office staff and technicians with the correct organization roles (OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN). Soft-deactivate people who leave rather than deleting history.",
+        "Complete onboarding basics: business type, timezone, and operating rules, then invite office staff and technicians with the correct organization roles (OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN). Soft-deactivate people who leave rather than deleting history.",
         "Add a few clients and sites before you create job cards so dispatch has somewhere to point. Create teams if you dispatch by crew. Technician-specific fields (employee code, trades, certifications, home team) live on the technician profile attached to membership — not on the global account.",
       ],
     },
