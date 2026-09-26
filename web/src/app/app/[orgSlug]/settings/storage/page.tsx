@@ -15,7 +15,12 @@ export default async function StorageSettingsPage({
         title="Storage"
         description="Organization storage usage, breakdown, and stored files. Quota is shared across the workspace."
       />
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mb-4 text-sm">
+        <Link href={`/app/${orgSlug}/settings`} className="text-primary">
+          Back to settings
+        </Link>
+      </p>
+      <p className="mb-4 text-sm text-muted-foreground">
         <Link
           href="/docs/storage-overview"
           className="text-primary underline-offset-2 hover:underline"
@@ -23,9 +28,7 @@ export default async function StorageSettingsPage({
           Learn about storage limits
         </Link>
       </p>
-      <div className="mt-6">
-        <StorageWorkspace orgSlug={orgSlug} />
-      </div>
+      <StorageWorkspace orgSlug={orgSlug} />
     </div>
   );
 }

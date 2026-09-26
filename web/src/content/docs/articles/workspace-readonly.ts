@@ -32,7 +32,7 @@ export const workspaceReadonly: DocArticle = {
       id: "fix",
       heading: "How to restore mutations",
       paragraphs: [
-        "Owners and admins submit an activation (or renewal) request from the trial banner or Plan & Subscription. The control progresses through Request Sent → Invoice Being Prepared → Pay Invoice → Payment Awaiting Verification → Active. Complete payment from Billing when the invoice is ready.",
+        "Owners submit an activation (or renewal) request from the trial banner or Plan & Subscription. The control progresses through Request Sent → Invoice Being Prepared → Pay Invoice → Payment Awaiting Verification → Active. Complete payment from Billing when the invoice is ready.",
         "Until activation succeeds, treat the workspace as historical read — reports and CSV/PDF may still work for review, but field operations wait on commercial activation. Billing, invoices, documentation, and account areas stay available so you can restore service.",
       ],
     },

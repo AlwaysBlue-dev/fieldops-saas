@@ -314,16 +314,18 @@ export function AppShell({
             >
               Settings
             </Button>
-            <Button
-              variant="ghost"
-              className="h-11 justify-start"
-              onClick={() => {
-                setMoreOpen(false);
-                router.push(`/app/${orgSlug}/settings/plan-usage`);
-              }}
-            >
-              Plan & Usage
-            </Button>
+            {canManageSubscription(currentMembership ?? null) ? (
+              <Button
+                variant="ghost"
+                className="h-11 justify-start"
+                onClick={() => {
+                  setMoreOpen(false);
+                  router.push(`/app/${orgSlug}/settings/plan-usage`);
+                }}
+              >
+                Plan & Usage
+              </Button>
+            ) : null}
             {canManageCustomers(currentMembership ?? null) ? (
               <Button
                 variant="ghost"

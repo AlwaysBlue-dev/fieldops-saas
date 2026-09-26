@@ -44,7 +44,12 @@ export function PlanUsageWorkspace() {
           return;
         }
         setOrganizationId(match.organization.id);
-        setCanManage(canManageSubscription(match));
+        const owner = canManageSubscription(match);
+        setCanManage(owner);
+        if (!owner) {
+          setError("Insufficient permission");
+          return;
+        }
         const next = await getOrganizationUsage(match.organization.id);
         if (!cancelled) setUsage(next);
       })
@@ -56,6 +61,16 @@ export function PlanUsageWorkspace() {
     };
   }, [params.orgSlug]);
 
+  if (error === "Insufficient permission") {
+    return (
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+        <p className="text-sm font-medium">Insufficient permission</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Only the organization owner can view plan and usage settings.
+        </p>
+      </div>
+    );
+  }
   if (error) {
     return <p className="text-sm text-muted-foreground">{error}</p>;
   }

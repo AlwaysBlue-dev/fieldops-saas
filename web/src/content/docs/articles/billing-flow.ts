@@ -19,7 +19,7 @@ export const understandingSubscription: DocArticle = {
       heading: "Your organization subscription",
       paragraphs: [
         "Each FieldKeel workspace has its own subscription: plan, seat and storage limits, trial or paid period, and billing history. Subscriptions are never pooled across organizations owned by the same account.",
-        "Owners (and admins, where permitted) manage billing from Settings → Billing. Technicians and supervisors do not see invoice or payment details.",
+        "Owners (organization OWNER role only) manage billing from Settings → Billing. Admins and other roles do not see invoice or payment details.",
       ],
     },
     {

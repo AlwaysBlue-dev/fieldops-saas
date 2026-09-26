@@ -34,7 +34,7 @@ export const roles: DocArticle = {
       id: "owner-admin",
       heading: "OWNER and ADMIN",
       paragraphs: [
-        "OWNER runs the company commercially and operationally: billing visibility, membership, settings, and full operational scope. Only the OWNER can request subscription activation, renewal, or plan changes. ADMIN configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
+        "OWNER runs the company commercially and operationally: billing, plan & usage, subscription activation/renewal, membership, settings, and full operational scope. Only the OWNER can open Settings → Plan & Subscription, Plan & Usage, and Billing. ADMIN configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
         "Both roles can manage members and organization profile settings. ADMIN cannot activate or renew the paid plan; that remains OWNER-only. Both should be careful with last-owner protection when changing memberships.",
       ],
     },

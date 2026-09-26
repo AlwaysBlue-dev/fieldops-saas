@@ -62,7 +62,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       const match = memberships.find((item) => item.organization.slug === orgSlug);
       if (cancelled || !match) return;
       setOrganizationId(match.organization.id);
-      setCanManage(match.role === "OWNER" || match.role === "ADMIN");
+      setCanManage(match.role === "OWNER");
     });
     return () => {
       cancelled = true;
@@ -102,7 +102,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       <div className="mt-4 rounded-md border border-border bg-muted/30 px-3 py-3">
         <p className="text-sm font-medium">Insufficient permission</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Only owners and admins can view billing and invoices.
+          Only the organization owner can view billing and invoices.
         </p>
       </div>
     );

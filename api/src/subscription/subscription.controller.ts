@@ -21,6 +21,8 @@ export class SubscriptionController {
   }
 
   @Get('usage')
+  @UseGuards(OrganizationRolesGuard)
+  @OrganizationRoles(OrganizationRole.OWNER)
   getUsage(@CurrentOrganization() organization: OrganizationContext) {
     return this.subscriptions.getUsage(organization.organizationId);
   }

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
-import { canInviteMembers } from "@/lib/current-org";
+import { canInviteMembers, canManageSubscription } from "@/lib/current-org";
 import {
   createInvitation,
   listInvitations,
@@ -54,6 +54,7 @@ export function MembersPanel() {
   const [seatLimitHit, setSeatLimitHit] = useState(false);
   const [pending, setPending] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -94,6 +95,7 @@ export function MembersPanel() {
           setStatus("ready");
           return;
         }
+        setIsOwner(canManageSubscription(match));
         setOrganizationId(match.organization.id);
       })
       .catch((err: unknown) => {
@@ -235,7 +237,7 @@ export function MembersPanel() {
         {error ? (
           <div role="alert" className="mt-2 space-y-2">
             <p className="text-sm text-destructive">{error}</p>
-            {seatLimitHit && organizationId ? (
+            {seatLimitHit && organizationId && isOwner ? (
               <div className="flex flex-wrap items-center gap-2">
                 <RequestPlanChangeButton
                   organizationId={organizationId}

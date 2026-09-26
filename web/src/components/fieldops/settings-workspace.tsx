@@ -18,6 +18,7 @@ import {
   canManageBilling,
   canManageCustomers,
   canManageSubscription,
+  canViewPlanUsage,
   resolveCurrentMembership,
 } from "@/lib/current-org";
 import Link from "next/link";
@@ -61,7 +62,11 @@ function buildTabs(membership: OrganizationMembership | null): TabDef[] {
       label: "Storage",
       allowed: canManageCustomers(membership),
     },
-    { id: "plan-usage", label: "Plan & Usage", allowed: Boolean(membership) },
+    {
+      id: "plan-usage",
+      label: "Plan & Usage",
+      allowed: canViewPlanUsage(membership),
+    },
     {
       id: "billing",
       label: "Billing",
@@ -198,13 +203,17 @@ export function SettingsWorkspace({
           onValueChange={selectTab}
           className="mt-4"
         >
-          <div className="-mx-1 overflow-x-auto px-1">
+          <div className="border-b border-border">
             <TabsList
               variant="line"
-              className="h-11 w-max min-w-full justify-start gap-1 md:h-8 md:w-fit md:min-w-0"
+              className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-none bg-transparent p-0 shadow-none"
             >
               {visibleTabs.map((tab) => (
-                <TabsTrigger key={tab.id} value={tab.id} className="shrink-0 px-3">
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className="h-10 flex-none shrink-0 px-3 after:bottom-0 md:h-9"
+                >
                   {tab.label}
                 </TabsTrigger>
               ))}

@@ -23,7 +23,7 @@ import { InvoiceService } from './invoice.service.js';
 
 @Controller('organizations/:organizationId/invoices')
 @UseGuards(JwtAuthGuard, OrganizationMembershipGuard, OrganizationRolesGuard)
-@OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+@OrganizationRoles(OrganizationRole.OWNER)
 export class InvoicesController {
   constructor(private readonly invoices: InvoiceService) {}
 

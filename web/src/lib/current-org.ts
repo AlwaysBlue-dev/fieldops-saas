@@ -37,9 +37,14 @@ export function canManageSubscription(membership: OrganizationMembership | null)
   return membership?.role === "OWNER";
 }
 
-/** Billing / invoices (Owner + Admin). */
+/** Owner-only billing / invoices / plan usage settings. */
 export function canManageBilling(membership: OrganizationMembership | null) {
-  return canInviteMembers(membership);
+  return canManageSubscription(membership);
+}
+
+/** Owner-only Settings → Plan & Usage. */
+export function canViewPlanUsage(membership: OrganizationMembership | null) {
+  return canManageSubscription(membership);
 }
 
 export function canViewSettings(membership: OrganizationMembership | null) {

@@ -402,7 +402,7 @@ export function SubscriptionBanners({
         description={
           canManage
             ? copy.description
-            : "An owner or admin can complete activation. Existing records stay visible."
+            : "Ask the organization owner to complete activation. Existing records stay visible."
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -412,9 +412,11 @@ export function SubscriptionBanners({
                 orgSlug={orgSlug}
               />
             ) : null}
-            <Button asChild variant="outline" className="h-9 md:h-8">
-              <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
-            </Button>
+            {canManage ? (
+              <Button asChild variant="outline" className="h-9 md:h-8">
+                <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -430,7 +432,7 @@ export function SubscriptionBanners({
         description={
           canManage
             ? copy.description
-            : "An owner or admin can complete renewal. Existing records stay visible."
+            : "Ask the organization owner to complete renewal. Existing records stay visible."
         }
         action={
           <div className="flex flex-wrap gap-2">
@@ -440,9 +442,11 @@ export function SubscriptionBanners({
                 orgSlug={orgSlug}
               />
             ) : null}
-            <Button asChild variant="outline" className="h-9 md:h-8">
-              <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
-            </Button>
+            {canManage ? (
+              <Button asChild variant="outline" className="h-9 md:h-8">
+                <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -464,17 +468,21 @@ export function SubscriptionBanners({
         description={
           canManage
             ? "Open Plan & Subscription or Billing for next steps. Existing records stay visible."
-            : "An owner or admin can restore this workspace. Existing records stay visible."
+            : "Ask the organization owner to restore this workspace. Existing records stay visible."
         }
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="h-9 md:h-8">
-              <Link href={`/app/${orgSlug}/settings`}>Plan & Subscription</Link>
-            </Button>
-            <Button asChild variant="outline" className="h-9 md:h-8">
-              <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
-            </Button>
-          </div>
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" className="h-9 md:h-8">
+                <Link href={`/app/${orgSlug}/settings?tab=subscription`}>
+                  Plan & Subscription
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-9 md:h-8">
+                <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
+              </Button>
+            </div>
+          ) : null
         }
       />
     );

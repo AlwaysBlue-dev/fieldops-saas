@@ -51,7 +51,7 @@ export const trialOnboarding: DocArticle = {
       id: "activation",
       heading: "Request activation and manual invoice",
       paragraphs: [
-        "There is no self-serve card checkout. Owners and admins request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldKeel confirms payment and the subscription becomes Active.",
+        "There is no self-serve card checkout. Owners request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldKeel confirms payment and the subscription becomes Active.",
         "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
       ],
     },

@@ -1,9 +1,8 @@
+import { HomeHeroCtas } from "@/components/fieldops/home-hero-ctas";
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
-import { Button } from "@/components/ui/button";
 import { APP_DESCRIPTION, APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: { absolute: APP_HOME_TITLE },
@@ -14,6 +13,12 @@ export default async function HomePage() {
   const catalog = await getPublicCatalog();
   const professional = catalogPlan(catalog, "professional");
   const trialDays = catalog?.trialDays;
+  const trialLabel = trialDays
+    ? `Start ${trialDays}-day trial`
+    : "Start free trial";
+  const pricingLabel = professional
+    ? `Professional — ${professional.priceLabel}`
+    : "View pricing";
 
   return (
     <MarketingShell>
@@ -29,26 +34,13 @@ export default async function HomePage() {
           keeps dispatch, crews, time, and approvals in a single workspace —
           dense on desktop, app-like in the field.
         </p>
-        <div className="mt-8 flex flex-col gap-2 sm:flex-row">
-          <Button asChild className="h-11 px-4">
-            <Link href="/signup">
-              {trialDays ? `Start ${trialDays}-day trial` : "Start free trial"}
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 px-4">
-            <Link href="/pricing">
-              {professional
-                ? `Professional — ${professional.priceLabel}`
-                : "View pricing"}
-            </Link>
-          </Button>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          No credit card required
-          {professional
-            ? `. ${professional.includedUsers} users and ${professional.includedStorage} included.`
-            : "."}
-        </p>
+        <HomeHeroCtas trialLabel={trialLabel} pricingLabel={pricingLabel} />
+        {professional ? (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {professional.includedUsers} users and {professional.includedStorage}{" "}
+            included on Professional.
+          </p>
+        ) : null}
       </section>
 
       <section className="mt-16 grid gap-4 md:grid-cols-3">
