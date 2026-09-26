@@ -204,20 +204,22 @@ export function SettingsWorkspace({
           className="mt-4"
         >
           <div className="border-b border-border">
-            <TabsList
-              variant="line"
-              className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-none bg-transparent p-0 shadow-none"
-            >
-              {visibleTabs.map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="h-10 flex-none shrink-0 px-3 after:bottom-0 md:h-9"
-                >
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <div className="scrollbar-modern -mx-1 overflow-x-auto overflow-y-hidden overscroll-x-contain px-1 pb-1">
+              <TabsList
+                variant="line"
+                className="inline-flex h-10 w-max min-w-full justify-start gap-1 rounded-none bg-transparent p-0 shadow-none md:h-9"
+              >
+                {visibleTabs.map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="h-10 flex-none shrink-0 px-3 after:bottom-0 md:h-9"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </div>
 
           <TabsContent value="organization" className="mt-4">
