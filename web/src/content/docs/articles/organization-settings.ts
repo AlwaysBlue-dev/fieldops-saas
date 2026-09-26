@@ -51,7 +51,7 @@ export const organizationSettings: DocArticle = {
       id: "app-device",
       heading: "App & device",
       paragraphs: [
-        "Settings → App & device shows Install FieldKeel for the current workspace, installation status, and a link to the phone install guide. Use More → Install Workspace on mobile for the same flow. This installs a Progressive Web App — not a native store app — and requires a network connection for current workspace data.",
+        "Settings → App & device shows Install FieldKeel App, installation status, and a link to the install guide. Use More → Install FieldKeel App on mobile for the same flow. This installs FieldKeel as a Progressive Web App — not a native store app — and requires a network connection for current workspace data.",
       ],
     },
   ],

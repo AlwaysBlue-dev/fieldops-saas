@@ -185,15 +185,10 @@ export function TopBar({
                   Manage members
                 </DropdownMenuItem>
               ) : null}
-              {pwa?.isInstalled ? (
-                <DropdownMenuItem disabled>
-                  <Download className="size-4" />
-                  Installed
-                </DropdownMenuItem>
-              ) : onInstallWorkspace ? (
+              {!pwa?.isInstalled && onInstallWorkspace ? (
                 <DropdownMenuItem onClick={onInstallWorkspace}>
                   <Download className="size-4" />
-                  Install Workspace
+                  Install FieldKeel App
                 </DropdownMenuItem>
               ) : null}
               <ThemeMenuItems />

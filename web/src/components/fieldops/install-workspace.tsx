@@ -15,6 +15,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePwaInstall } from "./pwa-install-provider";
 
+export const INSTALL_APP_LABEL = "Install FieldKeel App";
+export const INSTALL_APP_LABEL_SHORT = "Install App";
+
 export function InstallWorkspaceDialog({
   open,
   onOpenChange,
@@ -22,7 +25,7 @@ export function InstallWorkspaceDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orgName: string;
+  orgName?: string;
 }) {
   const {
     isInstalled,
@@ -33,8 +36,8 @@ export function InstallWorkspaceDialog({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const title = isInstalled ? "Installed" : "Install Workspace";
-  const appLabel = workspaceAppName(orgName);
+  const title = isInstalled ? "Installed" : INSTALL_APP_LABEL;
+  const appLabel = orgName ? workspaceAppName(orgName) : "FieldKeel";
 
   const onInstall = async () => {
     setBusy(true);
@@ -60,9 +63,9 @@ export function InstallWorkspaceDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Add {orgName} to your home screen for an app-like FieldKeel
-            experience. Your account and cookies stay the same — no separate
-            login tokens.
+            Install FieldKeel on your phone, tablet, or desktop for quick
+            access to jobs, schedules, and field operations. Your account and
+            secure cookies stay the same — no app store download.
           </DialogDescription>
         </DialogHeader>
 
@@ -70,16 +73,16 @@ export function InstallWorkspaceDialog({
           <p className="rounded-md border border-border bg-muted/40 px-3 py-2">
             <span className="font-medium text-foreground">{appLabel}</span>
             <span className="mt-0.5 block text-muted-foreground">
-              Opens this workspace when you launch the installed app. You can
-              still switch organizations inside FieldKeel.
+              Opening the installed app takes you into FieldKeel. You can still
+              switch organizations inside the product when you belong to more
+              than one.
             </span>
           </p>
 
           {isInstalled ? (
             <p className="flex items-start gap-2 text-muted-foreground">
               <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-              FieldKeel is already running as an installed app on this
-              device.
+              FieldKeel is already running as an installed app on this device.
             </p>
           ) : needsIosInstructions ? (
             <ol className="list-decimal space-y-2 pl-4 text-muted-foreground">
@@ -100,14 +103,14 @@ export function InstallWorkspaceDialog({
             </ol>
           ) : canPromptInstall ? (
             <p className="text-muted-foreground">
-              Tap Install below to use your browser’s install prompt. FieldKeel
-              Cloud never auto-prompts.
+              Tap {INSTALL_APP_LABEL} below to use your browser’s install
+              prompt. FieldKeel never auto-prompts.
             </p>
           ) : (
             <p className="text-muted-foreground">
-              If your browser supports PWAs, use its menu (Install app / Add to
-              Home screen). On iPhone, open FieldKeel in Safari and follow
-              Share → Add to Home Screen.
+              If your browser supports installable web apps, use its menu
+              (Install app / Add to Home Screen). On iPhone, open FieldKeel in
+              Safari and follow Share → Add to Home Screen.
             </p>
           )}
 
@@ -141,7 +144,7 @@ export function InstallWorkspaceDialog({
                 onClick={() => void onInstall()}
               >
                 <Download className="size-4" />
-                Install
+                {INSTALL_APP_LABEL}
               </Button>
             ) : null}
           </div>
@@ -170,13 +173,11 @@ export function InstallWorkspaceSettingsCard({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <p className="text-sm font-medium">Install FieldKeel</p>
+        <p className="text-sm font-medium">{INSTALL_APP_LABEL}</p>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Workspace: {orgName}
+          Install FieldKeel on this device for app-like access.
         </p>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Status: {status}
-        </p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Status: {status}</p>
       </div>
       {isInstalled ? (
         <span className="inline-flex h-11 items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 md:h-8">
@@ -191,7 +192,7 @@ export function InstallWorkspaceSettingsCard({
           onClick={onOpenInstall}
         >
           <Smartphone className="size-4" />
-          Install Workspace
+          {INSTALL_APP_LABEL}
         </Button>
       )}
     </div>

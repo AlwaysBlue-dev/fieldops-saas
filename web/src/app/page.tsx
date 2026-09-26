@@ -1,4 +1,5 @@
 import { HomeHeroCtas } from "@/components/fieldops/home-hero-ctas";
+import { MarketingInstallAppSection } from "@/components/fieldops/marketing-install";
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { APP_DESCRIPTION, APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
@@ -67,6 +68,8 @@ export default async function HomePage() {
           </article>
         ))}
       </section>
+
+      <MarketingInstallAppSection />
     </MarketingShell>
   );
 }

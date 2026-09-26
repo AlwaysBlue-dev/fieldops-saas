@@ -458,12 +458,7 @@ export function AppShell({
 function MoreInstallWorkspaceButton({ onInstall }: { onInstall: () => void }) {
   const { isInstalled } = usePwaInstall();
   if (isInstalled) {
-    return (
-      <Button variant="ghost" className="h-11 justify-start" disabled>
-        <Download />
-        Installed
-      </Button>
-    );
+    return null;
   }
   return (
     <Button
@@ -472,7 +467,7 @@ function MoreInstallWorkspaceButton({ onInstall }: { onInstall: () => void }) {
       onClick={onInstall}
     >
       <Download />
-      Install Workspace
+      Install FieldKeel App
     </Button>
   );
 }

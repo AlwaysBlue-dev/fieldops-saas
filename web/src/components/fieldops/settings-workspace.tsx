@@ -282,8 +282,8 @@ export function SettingsWorkspace({
             <section className="rounded-lg border border-border bg-card px-4 py-4">
               <h2 className="text-sm font-semibold">App & device</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Install FieldKeel on your phone for an app-like workspace
-                experience.
+                Install the FieldKeel app on your phone, tablet, or desktop for
+                quick access.
               </p>
               <div className="mt-4">
                 <SettingsAppDevice orgSlug={orgSlug} />
