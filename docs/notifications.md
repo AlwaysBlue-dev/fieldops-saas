@@ -59,7 +59,7 @@ Cross-tenant ids → **404**. Email failures never roll back domain transactions
 | `resend` | HTTP API (`RESEND_API_KEY`) — production transactional email |
 | `none` | Skip sends (logged) |
 
-Shared: `EMAIL_FROM`, optional `EMAIL_REPLY_TO`. Do not put API keys in source or docs.
+Shared: `EMAIL_FROM=FieldKeel <support@fieldkeel.com>`, `EMAIL_REPLY_TO=support@fieldkeel.com`. Do not put API keys in source or docs.
 
 Emailed (not every operational ping):
 

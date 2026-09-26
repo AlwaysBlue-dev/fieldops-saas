@@ -4,11 +4,7 @@ import { RequestPlanChangeButton } from "@/components/fieldops/subscription-bann
 import { StatusPill } from "@/components/fieldops/status-pill";
 import { Button } from "@/components/ui/button";
 import { canManageSubscription, resolveCurrentMembership } from "@/lib/current-org";
-import {
-  formatStorageBytes,
-  getOrganizationUsage,
-  type OrganizationUsage,
-} from "@/lib/subscription";
+import { FIELDKEEL_SUPPORT_MAILTO } from "@/lib/brand";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -80,7 +76,7 @@ export function PlanUsageWorkspace() {
     );
   }
 
-  const supportMailto = "mailto:sales@fieldkeel.local";
+  const supportMailto = FIELDKEEL_SUPPORT_MAILTO;
   const accessUntil = usage.subscription.accessUntil
     ? new Date(usage.subscription.accessUntil).toLocaleDateString()
     : "—";

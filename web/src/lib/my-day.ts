@@ -1,4 +1,9 @@
 import { apiRequest } from "./api";
+import {
+  getCurrentLocation,
+  isGeolocationRequestError,
+  type GeoCoordinates,
+} from "./geolocation";
 import type { LocationEvidence } from "./location";
 import type { JobPriority, JobStatus } from "./schedule";
 
@@ -156,21 +161,28 @@ export function weekdayLabel(code: string) {
   return labels[code] ?? code;
 }
 
-export async function readGps(): Promise<GpsPayload | undefined> {
-  if (!navigator.geolocation) return undefined;
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracyMeters: position.coords.accuracy,
-        });
-      },
-      () => resolve(undefined),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
-    );
-  });
+/**
+ * Read GPS for clock events.
+ * - When `required` is true, rejects with GeolocationRequestError on failure.
+ * - When `required` is false, returns undefined on failure (optional evidence).
+ */
+export async function readGps(
+  required = false,
+): Promise<GpsPayload | undefined> {
+  try {
+    const position: GeoCoordinates = await getCurrentLocation();
+    return {
+      latitude: position.latitude,
+      longitude: position.longitude,
+      accuracyMeters: position.accuracyMeters,
+    };
+  } catch (err) {
+    if (required) {
+      if (isGeolocationRequestError(err)) throw err;
+      throw err;
+    }
+    return undefined;
+  }
 }
 
 export function fileToDataUrl(file: File) {

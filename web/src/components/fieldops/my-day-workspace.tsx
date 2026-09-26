@@ -5,6 +5,7 @@
 
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
+import { GeolocationErrorDialog } from "@/components/fieldops/geolocation-error-dialog";
 import { SignaturePad, type SignaturePadHandle } from "@/components/fieldops/signature-pad";
 import { uploadJobFile } from "@/lib/job-files";
 import { MutationButton, useCanMutate } from "@/components/fieldops/mutation-control";
@@ -17,6 +18,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
 import { resolveCurrentMembership } from "@/lib/current-org";
+import {
+  GeolocationRequestError,
+  isGeolocationRequestError,
+} from "@/lib/geolocation";
 import { priorityTone, statusLabel, statusTone } from "@/lib/jobs";
 import {
   addJobMaterial,
@@ -43,6 +48,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type SheetKind = "update" | "photo" | "material" | "signoff" | null;
+type PendingClock = { kind: "in" | "out"; jobId?: string };
 
 export function MyDayWorkspace() {
   const params = useParams<{ orgSlug: string }>();
@@ -53,7 +59,10 @@ export function MyDayWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [geoError, setGeoError] = useState<GeolocationRequestError | null>(null);
+  const [pendingClock, setPendingClock] = useState<PendingClock | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [activeJob, setActiveJob] = useState<MyDayJob | null>(null);
 
@@ -125,17 +134,30 @@ export function MyDayWorkspace() {
   };
 
   const withGps = async () => {
-    const gps = await readGps();
-    if (day?.settings.requireGps && !gps) {
-      throw new Error("Location is required to clock. Allow GPS and try again.");
+    const required = Boolean(day?.settings.requireGps);
+    if (required) {
+      setLocating(true);
+      try {
+        const gps = await readGps(true);
+        return gps ?? {};
+      } finally {
+        setLocating(false);
+      }
     }
-    return gps ?? {};
+    setLocating(true);
+    try {
+      return (await readGps(false)) ?? {};
+    } finally {
+      setLocating(false);
+    }
   };
 
   const runClock = async (kind: "in" | "out", jobId?: string) => {
     if (!organizationId || !requireConnection()) return;
+    if (pending || locating) return;
     setPending(true);
     setActionError(null);
+    setGeoError(null);
     try {
       const gps = await withGps();
       if (kind === "in") {
@@ -143,11 +165,24 @@ export function MyDayWorkspace() {
       } else {
         await clockOut(organizationId, gps);
       }
+      setPendingClock(null);
       await refresh();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Clock failed.");
+      if (isGeolocationRequestError(err)) {
+        setPendingClock({ kind, jobId });
+        setGeoError(err);
+        return;
+      }
+      setActionError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Clock failed.",
+      );
     } finally {
       setPending(false);
+      setLocating(false);
     }
   };
 
@@ -190,7 +225,7 @@ export function MyDayWorkspace() {
       : day.upcomingJobs.find((job) => job.id === day.clock.session?.jobId) ??
         day.currentJob;
   const empty = !day.currentJob && day.upcomingJobs.length === 0;
-  const blocked = !canMutate || !online || pending;
+  const blocked = !canMutate || !online || pending || locating;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-28 md:max-w-3xl md:pb-0">
@@ -267,7 +302,12 @@ export function MyDayWorkspace() {
         ) : null}
         <MutationButton
           className="mt-4 h-14 w-full text-base font-semibold md:h-12"
-          disabled={blocked || (clockedIn ? !day.actions.canClockOut : !day.actions.canClockIn)}
+          disabled={
+            blocked ||
+            pending ||
+            locating ||
+            (clockedIn ? !day.actions.canClockOut : !day.actions.canClockIn)
+          }
           onClick={() =>
             void runClock(
               clockedIn ? "out" : "in",
@@ -275,7 +315,13 @@ export function MyDayWorkspace() {
             )
           }
         >
-          {pending ? "Saving…" : clockedIn ? "Clock out" : "Clock in"}
+          {locating
+            ? "Getting your current location…"
+            : pending
+              ? "Saving…"
+              : clockedIn
+                ? "Clock out"
+                : "Clock in"}
         </MutationButton>
       </section>
 
@@ -340,6 +386,20 @@ export function MyDayWorkspace() {
         onSaved={async () => {
           setSheet(null);
           await refresh();
+        }}
+      />
+
+      <GeolocationErrorDialog
+        open={Boolean(geoError)}
+        error={geoError}
+        pending={locating || pending}
+        onCancel={() => {
+          setGeoError(null);
+          setPendingClock(null);
+        }}
+        onRetry={() => {
+          if (!pendingClock) return;
+          void runClock(pendingClock.kind, pendingClock.jobId);
         }}
       />
     </div>

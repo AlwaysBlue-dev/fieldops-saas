@@ -5,6 +5,7 @@ import {
   formatStorageBytes,
   isNearExpiry,
 } from "@/lib/subscription";
+import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
 import {
   RenewalActionButton,
   RequestActivationButton,
@@ -51,7 +52,7 @@ export function SubscriptionPanel({
     );
   }
 
-  const supportEmail = subscription.supportEmail ?? "sales@fieldkeel.local";
+  const supportEmail = subscription.supportEmail ?? FIELDKEEL_SUPPORT_EMAIL;
   const users = subscription.usage?.users;
   const storage = subscription.usage?.storage;
   const nearExpiry = isNearExpiry(subscription);

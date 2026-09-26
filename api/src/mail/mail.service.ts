@@ -19,7 +19,7 @@ import {
 import type { MailTransport } from './mail-transport.js';
 import { ResendMailTransport } from './resend-mail.transport.js';
 import { SmtpMailTransport } from './smtp-mail.transport.js';
-import { PASSWORD_RESET_TTL_MINUTES } from '../common/constants.js';
+import { PASSWORD_RESET_TTL_MINUTES, DEFAULT_EMAIL_FROM, DEFAULT_EMAIL_REPLY_TO } from '../common/constants.js';
 
 @Injectable()
 export class MailService {
@@ -30,9 +30,9 @@ export class MailService {
 
   constructor(private readonly config: ConfigService<EnvironmentVariables, true>) {
     this.fromAddress =
-      this.config.get('EMAIL_FROM', { infer: true }) ??
-      'FieldKeel <no-reply@fieldkeel.local>';
-    this.replyTo = this.config.get('EMAIL_REPLY_TO', { infer: true });
+      this.config.get('EMAIL_FROM', { infer: true }) ?? DEFAULT_EMAIL_FROM;
+    this.replyTo =
+      this.config.get('EMAIL_REPLY_TO', { infer: true }) ?? DEFAULT_EMAIL_REPLY_TO;
     this.transport = this.createTransport();
     this.logger.log(`Mail transport: ${this.transport.name}`);
   }

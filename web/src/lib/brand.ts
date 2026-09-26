@@ -22,3 +22,13 @@ export const APP_DESCRIPTION =
 
 /** Public brand domain for copy only — never use for redirects or API calls. */
 export const BRAND_DOMAIN = "fieldkeel.com";
+
+/**
+ * Official FieldKeel company contact mailbox (support, sales, security, billing).
+ * Safe to show in the browser. Server mail still prefers env overrides.
+ */
+export const FIELDKEEL_SUPPORT_EMAIL = "support@fieldkeel.com";
+
+export const FIELDKEEL_SUPPORT_MAILTO = `mailto:${FIELDKEEL_SUPPORT_EMAIL}`;
+
+export const FIELDKEEL_EMAIL_FROM = `FieldKeel <${FIELDKEEL_SUPPORT_EMAIL}>`;

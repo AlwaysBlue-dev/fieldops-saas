@@ -120,7 +120,7 @@ Mutation controls (Create Job, Clock In, Add Client, Invite Member, Approve, New
 ## Environment
 
 ```
-PLATFORM_SALES_EMAIL=sales@fieldkeel.local
+PLATFORM_SALES_EMAIL=support@fieldkeel.com
 ```
 
-Optional. Defaults to `sales@fieldkeel.local` for Mailpit.
+Optional. Defaults to `support@fieldkeel.com` (single official FieldKeel mailbox).

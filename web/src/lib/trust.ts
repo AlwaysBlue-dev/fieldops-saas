@@ -1,3 +1,5 @@
+import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
+
 export type LegalVersion = {
   version: string;
   effectiveDate: string;
@@ -18,9 +20,9 @@ export type PublicTrust = {
 
 const FALLBACK: PublicTrust = {
   productName: "FieldKeel",
-  supportEmail: "support@fieldkeel.local",
-  salesEmail: "sales@fieldkeel.local",
-  securityEmail: "security@fieldkeel.local",
+  supportEmail: FIELDKEEL_SUPPORT_EMAIL,
+  salesEmail: FIELDKEEL_SUPPORT_EMAIL,
+  securityEmail: FIELDKEEL_SUPPORT_EMAIL,
   legalEntityName: null,
   governingLaw: null,
   hostingRegionConfigured: false,

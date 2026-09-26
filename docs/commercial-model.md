@@ -68,7 +68,7 @@ Tenant users receive 403 on platform routes.
 
 `SubscriptionNotification` is the idempotent ledger (`organizationId` + `kind` + `periodKey`). Kinds include trial ending/expired, activation/renewal requested, activated/renewed, 30/14/7/1 renewal reminders, paid expiry, and workspace read-only.
 
-Sales mail goes to `PLATFORM_SALES_EMAIL` (default `sales@fieldkeel.local`). Owner mail goes to active organization owners.
+Sales mail goes to `PLATFORM_SALES_EMAIL` (default `support@fieldkeel.com`). Owner mail goes to active organization owners.
 
 Daily cron `15 6 * * *` UTC runs reconciliation: persist effective statuses when safe, send due notifications, write `SUBSCRIPTION_EXPIRED` when a workspace becomes expired. Guards still recompute entitlement on every mutation.
 

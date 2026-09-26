@@ -28,14 +28,19 @@ Signup requires `acceptTerms: true`. The API stores `termsAcceptedAt`, `termsVer
 ## Contacts
 
 ```
-PLATFORM_SUPPORT_EMAIL
-PLATFORM_SALES_EMAIL
-SECURITY_CONTACT_EMAIL
-LEGAL_ENTITY_NAME
-LEGAL_GOVERNING_LAW
+PLATFORM_SUPPORT_EMAIL=support@fieldkeel.com
+PLATFORM_SALES_EMAIL=support@fieldkeel.com
+SECURITY_CONTACT_EMAIL=support@fieldkeel.com
+LEGAL_ENTITY_NAME=
+LEGAL_GOVERNING_LAW=
 ```
 
-Optional. Local defaults use `*.fieldkeel.local` for Mailpit. Do not hardcode personal addresses in components.
+Optional. Defaults (and the public website fallback) use `support@fieldkeel.com` as the single official FieldKeel contact mailbox for support, sales, security, and billing inquiries. Do not hardcode personal addresses in components.
+
+```
+EMAIL_FROM=FieldKeel <support@fieldkeel.com>
+EMAIL_REPLY_TO=support@fieldkeel.com
+```
 
 ## Invoices
 

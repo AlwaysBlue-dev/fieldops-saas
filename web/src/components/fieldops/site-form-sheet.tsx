@@ -1,6 +1,7 @@
 "use client";
 
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
+import { GeolocationErrorDialog } from "@/components/fieldops/geolocation-error-dialog";
 import { StickyMobileActionBar } from "@/components/fieldops/sticky-mobile-action-bar";
 import { TimezoneCombobox } from "@/components/fieldops/timezone-combobox";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,11 @@ import {
   type SiteRecord,
   type SiteWriteBody,
 } from "@/lib/clients";
+import {
+  GeolocationRequestError,
+  getCurrentLocation,
+  isGeolocationRequestError,
+} from "@/lib/geolocation";
 import { MutationButton } from "./mutation-control";
 import { ResponsiveDrawer } from "./responsive-drawer";
 import { useEffect, useState } from "react";
@@ -38,6 +44,7 @@ export function SiteFormSheet({
   const [pending, setPending] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [geoError, setGeoError] = useState<GeolocationRequestError | null>(null);
   const [timezone, setTimezone] = useState(site?.timezone ?? "");
   const [clientId, setClientId] = useState(clientIdProp ?? site?.clientId ?? "");
   const [clients, setClients] = useState<ClientSummary[]>([]);
@@ -274,28 +281,31 @@ export function SiteFormSheet({
           className="h-11 md:h-8"
           disabled={locating}
           onClick={() => {
-            if (!navigator.geolocation) {
-              setError("This browser cannot provide a location.");
-              return;
-            }
-            setLocating(true);
-            setError(null);
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
+            void (async () => {
+              setLocating(true);
+              setError(null);
+              setGeoError(null);
+              try {
+                const position = await getCurrentLocation();
                 setCoords({
-                  latitude: position.coords.latitude.toFixed(7),
-                  longitude: position.coords.longitude.toFixed(7),
+                  latitude: position.latitude.toFixed(7),
+                  longitude: position.longitude.toFixed(7),
                 });
+              } catch (err) {
+                if (isGeolocationRequestError(err)) {
+                  setGeoError(err);
+                } else {
+                  setError(
+                    "Location was not available. You can enter coordinates manually.",
+                  );
+                }
+              } finally {
                 setLocating(false);
-              },
-              () => {
-                setError("Location was not available. You can enter coordinates manually.");
-                setLocating(false);
-              },
-            );
+              }
+            })();
           }}
         >
-          {locating ? "Locating…" : "Use current location"}
+          {locating ? "Getting your current location…" : "Use current location"}
         </Button>
         <FormField>
           <Label htmlFor="timezone">Timezone</Label>
@@ -359,6 +369,36 @@ export function SiteFormSheet({
           </MutationButton>
         </StickyMobileActionBar>
       </ResponsiveForm>
+      <GeolocationErrorDialog
+        open={Boolean(geoError)}
+        error={geoError}
+        pending={locating}
+        onCancel={() => setGeoError(null)}
+        onRetry={() => {
+          void (async () => {
+            setLocating(true);
+            setError(null);
+            setGeoError(null);
+            try {
+              const position = await getCurrentLocation();
+              setCoords({
+                latitude: position.latitude.toFixed(7),
+                longitude: position.longitude.toFixed(7),
+              });
+            } catch (err) {
+              if (isGeolocationRequestError(err)) {
+                setGeoError(err);
+              } else {
+                setError(
+                  "Location was not available. You can enter coordinates manually.",
+                );
+              }
+            } finally {
+              setLocating(false);
+            }
+          })();
+        }}
+      />
     </ResponsiveDrawer>
   );
 }

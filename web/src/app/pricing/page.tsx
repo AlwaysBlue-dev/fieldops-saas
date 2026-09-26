@@ -6,6 +6,7 @@ import {
   getPublicCatalog,
   type PublicPlan,
 } from "@/lib/pricing";
+import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -305,7 +306,7 @@ export default async function PricingPage() {
   const plans = catalog?.plans ?? [];
   const professional = catalogPlan(catalog, "professional");
   const trialDays = catalog?.trialDays ?? 14;
-  const supportEmail = catalog?.supportEmail ?? "sales@fieldkeel.local";
+  const supportEmail = catalog?.supportEmail ?? FIELDKEEL_SUPPORT_EMAIL;
   const trialPlanName = professional?.name ?? "Professional";
 
   return (
