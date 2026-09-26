@@ -10,25 +10,23 @@ import { StatusPill } from "@/components/fieldops/status-pill";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
 import { canManageCustomers, resolveCurrentMembership } from "@/lib/current-org";
-import { listClients, type ClientStatus, type ClientSummary } from "@/lib/clients";
+import {
+  formatSiteAddress,
+  listSites,
+  type ClientStatus,
+  type SiteRecord,
+} from "@/lib/clients";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClientFormSheet } from "./client-form-sheet";
 import { MutationButton } from "./mutation-control";
+import { SiteFormSheet } from "./site-form-sheet";
 
-function activityLabel(client: ClientSummary) {
-  if (client.lastJob) {
-    return `${client.lastJob.jobNumber} · ${client.lastJob.title}`;
-  }
-  return `${client.siteCount} site${client.siteCount === 1 ? "" : "s"}`;
-}
-
-export function ClientsWorkspace() {
+export function SitesWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const router = useRouter();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
-  const [clients, setClients] = useState<ClientSummary[]>([]);
+  const [sites, setSites] = useState<SiteRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ClientStatus | "">("");
@@ -65,17 +63,17 @@ export function ClientsWorkspace() {
   const load = useCallback(async () => {
     if (!organizationId) return;
     try {
-      const result = await listClients(organizationId, {
+      const result = await listSites(organizationId, {
         search: search.trim() || undefined,
         status,
         pageSize: 50,
         sort: "name",
       });
-      setClients(result.items);
+      setSites(result.items);
       setTotal(result.total);
       setStatusFilter("ready");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not load clients.");
+      setError(err instanceof ApiError ? err.message : "Could not load sites.");
       setStatusFilter("error");
     }
   }, [organizationId, search, status]);
@@ -83,7 +81,7 @@ export function ClientsWorkspace() {
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
-    listClients(organizationId, {
+    listSites(organizationId, {
       search: search.trim() || undefined,
       status,
       pageSize: 50,
@@ -91,13 +89,13 @@ export function ClientsWorkspace() {
     })
       .then((result) => {
         if (cancelled) return;
-        setClients(result.items);
+        setSites(result.items);
         setTotal(result.total);
         setStatusFilter("ready");
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof ApiError ? err.message : "Could not load clients.");
+        setError(err instanceof ApiError ? err.message : "Could not load sites.");
         setStatusFilter("error");
       });
     return () => {
@@ -107,10 +105,9 @@ export function ClientsWorkspace() {
 
   const counts = useMemo(
     () => ({
-      active: clients.filter((item) => item.status === "ACTIVE").length,
-      sites: clients.reduce((sum, item) => sum + item.siteCount, 0),
+      active: sites.filter((item) => item.status === "ACTIVE").length,
     }),
-    [clients],
+    [sites],
   );
 
   if (statusFilter === "loading" && !organizationId) {
@@ -123,29 +120,27 @@ export function ClientsWorkspace() {
   return (
     <div className="mx-auto flex max-w-350 flex-col gap-4">
       <PageHeader
-        title="Customers"
-        description="Accounts and service locations for this organization."
+        title="Sites"
+        description="Service locations across all customers in this organization."
         hideTitleOnMobile
         actions={
           canManage ? (
-            <MutationButton className="hidden h-8 md:inline-flex" onClick={() => setCreateOpen(true)}>
-              Add Client
+            <MutationButton
+              className="hidden h-8 md:inline-flex"
+              onClick={() => setCreateOpen(true)}
+            >
+              Create Site
             </MutationButton>
           ) : null
         }
       />
 
-      <div className="hidden gap-3 md:grid md:grid-cols-3">
-        <SummaryCard label="Accounts" value={String(total)} hint="In this organization" />
+      <div className="hidden gap-3 md:grid md:grid-cols-2">
+        <SummaryCard label="Sites" value={String(total)} hint="In this organization" />
         <SummaryCard
           label="Active"
           value={String(counts.active)}
           hint="Currently serviceable"
-        />
-        <SummaryCard
-          label="Sites"
-          value={String(counts.sites)}
-          hint="Locations on loaded accounts"
         />
       </div>
 
@@ -153,9 +148,9 @@ export function ClientsWorkspace() {
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search clients…"
+          placeholder="Search sites…"
           className="h-11 max-w-sm md:h-8"
-          aria-label="Search clients"
+          aria-label="Search sites"
         />
         <select
           aria-label="Filter by status"
@@ -170,46 +165,42 @@ export function ClientsWorkspace() {
       </FilterBar>
 
       <div className="hidden divide-y divide-border overflow-hidden rounded-lg border border-border bg-card md:block">
-        {clients.length === 0 ? (
+        {sites.length === 0 ? (
           <div className="px-4">
             <EmptyState
-              title="No customers yet"
-              description="Add a client to start attaching sites and jobs. Nothing is seeded into this view beyond live organization records."
+              title="No sites yet"
+              description="Create a site under a client to start attaching jobs to real locations."
             />
           </div>
         ) : (
-          clients.map((client) => (
+          sites.map((site) => (
             <button
-              key={client.id}
+              key={site.id}
               type="button"
               className="flex w-full items-start gap-4 px-4 py-3 text-left hover:bg-muted/60"
               onClick={() =>
-                router.push(`/app/${params.orgSlug}/clients/${client.id}`)
+                router.push(`/app/${params.orgSlug}/clients/${site.clientId}`)
               }
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-semibold">{client.name}</p>
+                  <p className="truncate text-sm font-semibold">{site.name}</p>
                   <StatusPill
-                    label={client.status === "ACTIVE" ? "Active" : "Inactive"}
-                    tone={client.status === "ACTIVE" ? "emerald" : "muted"}
+                    label={site.status === "ACTIVE" ? "Active" : "Inactive"}
+                    tone={site.status === "ACTIVE" ? "emerald" : "muted"}
                   />
                 </div>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {client.primaryContactName || "No primary contact"}
-                  {client.primaryContactEmail ? ` · ${client.primaryContactEmail}` : ""}
-                </p>
-              </div>
-              <div className="w-28 shrink-0 text-right">
-                <p className="type-numeric text-sm">{client.siteCount}</p>
-                <p className="text-xs text-muted-foreground">
-                  {client.siteCount === 1 ? "site" : "sites"}
+                  {site.client?.name ?? "Unknown client"}
+                  {site.siteCode ? ` · ${site.siteCode}` : ""}
                 </p>
               </div>
               <div className="hidden min-w-0 flex-1 lg:block">
-                <p className="truncate text-sm">{activityLabel(client)}</p>
+                <p className="truncate text-sm">
+                  {formatSiteAddress(site) || "Address not complete"}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {client.lastJob ? "Latest job" : "No jobs yet"}
+                  {site.timezone ?? "No site timezone"}
                 </p>
               </div>
             </button>
@@ -220,25 +211,27 @@ export function ClientsWorkspace() {
       <MobileList
         empty={
           <EmptyState
-            title="No customers yet"
-            description="Accounts you add will appear here as service cards."
+            title="No sites yet"
+            description="Locations you add will appear here as service cards."
           />
         }
       >
-        {clients.map((client) => (
+        {sites.map((site) => (
           <button
-            key={client.id}
+            key={site.id}
             type="button"
             className="w-full text-left"
-            onClick={() => router.push(`/app/${params.orgSlug}/clients/${client.id}`)}
+            onClick={() =>
+              router.push(`/app/${params.orgSlug}/clients/${site.clientId}`)
+            }
           >
             <MobileListItem
-              title={client.name}
-              meta={`${client.primaryContactName ?? "No contact"} · ${client.siteCount} sites`}
+              title={site.name}
+              meta={`${site.client?.name ?? "Client"} · ${formatSiteAddress(site) || "No address"}`}
               trailing={
                 <StatusPill
-                  label={client.status === "ACTIVE" ? "Active" : "Inactive"}
-                  tone={client.status === "ACTIVE" ? "emerald" : "muted"}
+                  label={site.status === "ACTIVE" ? "Active" : "Inactive"}
+                  tone={site.status === "ACTIVE" ? "emerald" : "muted"}
                 />
               }
             />
@@ -249,12 +242,12 @@ export function ClientsWorkspace() {
       {canManage ? (
         <div className="md:hidden">
           <MutationButton className="h-11 w-full" onClick={() => setCreateOpen(true)}>
-            Add Client
+            Create Site
           </MutationButton>
         </div>
       ) : null}
 
-      <ClientFormSheet
+      <SiteFormSheet
         open={createOpen}
         onOpenChange={setCreateOpen}
         organizationId={organizationId}

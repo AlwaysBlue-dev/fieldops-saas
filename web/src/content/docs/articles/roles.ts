@@ -19,6 +19,7 @@ export const roles: DocArticle = {
     "workspace-concept",
     "approvals",
     "my-day",
+    "job-workflow",
   ],
   sections: [
     {
@@ -33,8 +34,8 @@ export const roles: DocArticle = {
       id: "owner-admin",
       heading: "OWNER and ADMIN",
       paragraphs: [
-        "OWNER runs the company commercially and operationally: billing/activation requests, membership, settings, and full operational scope. ADMIN configures the organization — users, roles, clients, sites, and settings — and typically has broad operational access without being the commercial owner of record.",
-        "Both roles can request activation or renewal when the workspace needs FieldKeel to activate a paid plan. Both should be careful with last-owner protection when changing memberships.",
+        "OWNER runs the company commercially and operationally: billing visibility, membership, settings, and full operational scope. Only the OWNER can request subscription activation, renewal, or plan changes. ADMIN configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
+        "Both roles can manage members and organization profile settings. ADMIN cannot activate or renew the paid plan; that remains OWNER-only. Both should be careful with last-owner protection when changing memberships.",
       ],
     },
     {

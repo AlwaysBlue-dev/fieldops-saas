@@ -120,11 +120,22 @@ export function TeamFormSheet({
         <div className="flex flex-col gap-3 overflow-y-auto pr-1">
           <FormField>
             <Label htmlFor="name">Team name</Label>
-            <Input id="name" name="name" required defaultValue={team?.name ?? ""} />
+            <Input
+              id="name"
+              name="name"
+              required
+              defaultValue={team?.name ?? ""}
+              placeholder="e.g. North Crew"
+            />
           </FormField>
           <FormField>
             <Label htmlFor="code">Team code</Label>
-            <Input id="code" name="code" defaultValue={team?.code ?? ""} />
+            <Input
+              id="code"
+              name="code"
+              defaultValue={team?.code ?? ""}
+              placeholder="e.g. NC-01"
+            />
           </FormField>
           <FormField>
             <Label>Supervisor</Label>

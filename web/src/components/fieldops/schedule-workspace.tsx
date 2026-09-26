@@ -28,9 +28,11 @@ import {
   type ScheduleJob,
 } from "@/lib/schedule";
 import { listTeams, listTechnicians, type TeamSummary, type TechnicianSummary } from "@/lib/teams";
-import { addCalendarDays, formatYmdInZone } from "@/lib/timezone";
+import { addCalendarDays, formatYmdInZone, isOutsideWorkingWeek, outsideWorkingDayMessage } from "@/lib/timezone";
+import { getOrganization } from "@/lib/organizations";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { OutsideWorkingDayDialog } from "./outside-working-day-dialog";
 import { ScheduleAgenda } from "./schedule-agenda";
 import { ScheduleBoard } from "./schedule-board";
 import { ScheduleJobSheet } from "./schedule-job-sheet";
@@ -39,6 +41,7 @@ export function ScheduleWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
+  const [workingWeek, setWorkingWeek] = useState<string[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [showTechnician, setShowTechnician] = useState(false);
   const [board, setBoard] = useState<ScheduleBoardData | null>(null);
@@ -56,6 +59,18 @@ export function ScheduleWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ScheduleJob | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
+  const [outsideDrop, setOutsideDrop] = useState<{
+    message: string;
+    input: {
+      jobId: string;
+      scheduledStart: string;
+      expectedFinish: string;
+      technicianUserIds?: string[];
+      teamId?: string | null;
+      confirmOverlap?: boolean;
+      skipWorkingDayCheck?: boolean;
+    };
+  } | null>(null);
   const [pendingDrop, setPendingDrop] = useState<{
     jobId: string;
     scheduledStart: string;
@@ -81,6 +96,13 @@ export function ScheduleWorkspace() {
         setCanEdit(canEditSchedule(membership));
         setShowTechnician(membership.role === "TECHNICIAN");
         setDate(formatYmdInZone(new Date(), membership.organization.timezone));
+        void getOrganization(membership.organization.id)
+          .then((org) => {
+            if (!cancelled) {
+              setWorkingWeek(org.settings?.workingWeek ?? []);
+            }
+          })
+          .catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -177,8 +199,23 @@ export function ScheduleWorkspace() {
     technicianUserIds?: string[];
     teamId?: string | null;
     confirmOverlap?: boolean;
+    skipWorkingDayCheck?: boolean;
   }) {
     if (!organizationId) return;
+    if (!input.skipWorkingDayCheck) {
+      const check = isOutsideWorkingWeek(
+        input.scheduledStart,
+        timezone,
+        workingWeek,
+      );
+      if (check.outside) {
+        setOutsideDrop({
+          message: outsideWorkingDayMessage(check.weekdayName),
+          input,
+        });
+        return;
+      }
+    }
     try {
       await scheduleJob(organizationId, input.jobId, {
         scheduledStart: input.scheduledStart,
@@ -189,12 +226,14 @@ export function ScheduleWorkspace() {
       });
       setConflicts([]);
       setPendingDrop(null);
+      setOutsideDrop(null);
       await load();
     } catch (err) {
       if (isScheduleConflict(err)) {
         setPendingDrop(input);
         setConflicts(err.conflicts);
         setError(err.message);
+        setOutsideDrop(null);
       } else {
         setError(err instanceof ApiError ? err.message : "Could not move job.");
       }
@@ -425,11 +464,25 @@ export function ScheduleWorkspace() {
         organizationId={organizationId}
         orgSlug={params.orgSlug}
         timezone={visibleBoard.timezone}
+        workingWeek={workingWeek}
         job={selected}
         technicians={technicians}
         teams={teams}
         canEdit={canEdit}
         onSaved={() => void load()}
+      />
+
+      <OutsideWorkingDayDialog
+        open={Boolean(outsideDrop)}
+        message={outsideDrop?.message ?? ""}
+        onCancel={() => setOutsideDrop(null)}
+        onContinue={() => {
+          if (!outsideDrop) return;
+          void persistDrop({
+            ...outsideDrop.input,
+            skipWorkingDayCheck: true,
+          });
+        }}
       />
     </div>
   );

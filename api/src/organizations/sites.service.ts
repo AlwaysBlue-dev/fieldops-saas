@@ -28,6 +28,54 @@ export class SitesService {
     private readonly audit: AuditService,
   ) {}
 
+  async list(organizationId: string, query: ListQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const sort = query.sort ?? 'name';
+    const order = query.order ?? 'asc';
+    const search = query.search?.trim();
+
+    const where: Prisma.SiteWhereInput = {
+      organizationId,
+      ...(query.status ? { status: query.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { siteCode: { contains: search, mode: 'insensitive' } },
+              { city: { contains: search, mode: 'insensitive' } },
+              { addressLine1: { contains: search, mode: 'insensitive' } },
+              { client: { name: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.site.count({ where }),
+      this.prisma.site.findMany({
+        where,
+        include: {
+          contacts: { orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }] },
+          client: { select: { id: true, name: true } },
+        },
+        orderBy: { [sort]: order },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    return {
+      items: rows.map((row) => ({
+        ...serializeSite(row, { contacts: row.contacts }),
+        client: row.client,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
   async listForClient(organizationId: string, clientId: string, query: ListQueryDto) {
     await this.requireClient(organizationId, clientId, false);
     const page = query.page ?? 1;

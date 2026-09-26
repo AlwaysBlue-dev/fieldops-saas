@@ -144,6 +144,37 @@ export function listClients(
   );
 }
 
+export type SiteListResponse = {
+  items: SiteRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export function listSites(
+  organizationId: string,
+  query: {
+    search?: string;
+    status?: ClientStatus | "";
+    page?: number;
+    pageSize?: number;
+    sort?: string;
+    order?: "asc" | "desc";
+  } = {},
+) {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.status) params.set("status", query.status);
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  if (query.sort) params.set("sort", query.sort);
+  if (query.order) params.set("order", query.order);
+  const suffix = params.toString() ? `?${params}` : "";
+  return apiRequest<SiteListResponse>(
+    `/organizations/${organizationId}/sites${suffix}`,
+  );
+}
+
 export function listClientSites(
   organizationId: string,
   clientId: string,
@@ -160,12 +191,9 @@ export function listClientSites(
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
   if (query.search) params.set("search", query.search);
   const suffix = params.toString() ? `?${params}` : "";
-  return apiRequest<{
-    items: SiteRecord[];
-    total: number;
-    page: number;
-    pageSize: number;
-  }>(`/organizations/${organizationId}/clients/${clientId}/sites${suffix}`);
+  return apiRequest<SiteListResponse>(
+    `/organizations/${organizationId}/clients/${clientId}/sites${suffix}`,
+  );
 }
 
 export function getClient(organizationId: string, clientId: string) {

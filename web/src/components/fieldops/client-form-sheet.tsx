@@ -81,6 +81,7 @@ export function ClientFormSheet({
             id="name"
             name="name"
             required
+            placeholder="e.g. Northstar Apartments"
             defaultValue={client?.name ?? ""}
             className="h-11 md:h-8"
           />
@@ -90,6 +91,7 @@ export function ClientFormSheet({
           <Input
             id="clientCode"
             name="clientCode"
+            placeholder="ACM-001"
             defaultValue={client?.clientCode ?? ""}
             className="h-11 md:h-8"
           />
@@ -100,6 +102,7 @@ export function ClientFormSheet({
             <Input
               id="primaryContactName"
               name="primaryContactName"
+              placeholder="e.g. John Smith"
               defaultValue={client?.primaryContactName ?? ""}
               className="h-11 md:h-8"
             />
@@ -109,6 +112,7 @@ export function ClientFormSheet({
             <Input
               id="primaryContactPhone"
               name="primaryContactPhone"
+              placeholder="e.g. +1 555 123 4567"
               defaultValue={client?.primaryContactPhone ?? ""}
               className="h-11 md:h-8"
             />
@@ -120,6 +124,7 @@ export function ClientFormSheet({
             id="primaryContactEmail"
             name="primaryContactEmail"
             type="email"
+            placeholder="e.g. john@company.com"
             defaultValue={client?.primaryContactEmail ?? ""}
             className="h-11 md:h-8"
           />
@@ -130,6 +135,7 @@ export function ClientFormSheet({
             id="billingEmail"
             name="billingEmail"
             type="email"
+            placeholder="billing@client.com"
             defaultValue={client?.billingEmail ?? ""}
             className="h-11 md:h-8"
           />
@@ -139,13 +145,20 @@ export function ClientFormSheet({
           <Input
             id="website"
             name="website"
+            placeholder="https://client.com"
             defaultValue={client?.website ?? ""}
             className="h-11 md:h-8"
           />
         </FormField>
         <FormField>
           <Label htmlFor="notes">Notes</Label>
-          <Textarea id="notes" name="notes" defaultValue={client?.notes ?? ""} rows={4} />
+          <Textarea
+            id="notes"
+            name="notes"
+            placeholder="Account notes…"
+            defaultValue={client?.notes ?? ""}
+            rows={4}
+          />
         </FormField>
         {error ? (
           <p role="alert" className="text-sm text-destructive">

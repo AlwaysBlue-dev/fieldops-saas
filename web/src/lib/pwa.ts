@@ -45,8 +45,8 @@ export function workspaceShortName(orgName: string): string {
   return truncateShortName(orgName.trim() || "FieldKeel");
 }
 
-export function workspaceStartUrl(orgSlug: string): string {
-  return `/app/${orgSlug}`;
+export function workspaceStartUrl(_orgSlug?: string): string {
+  return "/app";
 }
 
 /** Stable manifest id scoped to the workspace route (best-effort separate installs). */

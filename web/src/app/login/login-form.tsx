@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { friendlyErrorMessage } from "@/lib/friendly-message";
 import { getMyOrganizations, login } from "@/lib/auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 
-export function LoginForm() {
+function LoginFormInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("reason") === "session-expired";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,8 @@ export function LoginForm() {
         );
         return;
       }
-      router.replace(`/app/${memberships[0].organization.slug}/overview`);
+      // Installed PWA and shared entry: resolve org + role home via /app bootstrap.
+      router.replace("/app");
     } catch (err) {
       setError(friendlyErrorMessage(err, "Unable to sign in right now."));
     } finally {
@@ -62,6 +65,14 @@ export function LoginForm() {
         </p>
       }
     >
+      {sessionExpired ? (
+        <p
+          role="status"
+          className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+        >
+          Your session has expired. Please sign in again.
+        </p>
+      ) : null}
       <ResponsiveForm onSubmit={onSubmit}>
         <FormField>
           <Label htmlFor="email">Work email</Label>
@@ -116,5 +127,13 @@ export function LoginForm() {
         </Button>
       </ResponsiveForm>
     </AuthShell>
+  );
+}
+
+export function LoginForm() {
+  return (
+    <Suspense fallback={null}>
+      <LoginFormInner />
+    </Suspense>
   );
 }

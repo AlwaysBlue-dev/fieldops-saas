@@ -259,7 +259,7 @@ export function CreateWorkspaceForm() {
                 id="organizationName"
                 name="organizationName"
                 autoComplete="organization"
-                placeholder="Acme Electrical"
+                placeholder="ABC Electrical Services"
                 required
                 minLength={2}
                 maxLength={120}

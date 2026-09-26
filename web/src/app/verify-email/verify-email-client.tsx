@@ -35,11 +35,11 @@ async function continueAfterVerified(
     const slug = memberships[0]?.organization.slug;
     if (slug) {
       const org = memberships[0].organization;
-      router.replace(
-        org.onboardingCompletedAt
-          ? `/app/${slug}/overview`
-          : `/onboarding?org=${slug}`,
-      );
+      if (!org.onboardingCompletedAt) {
+        router.replace(`/onboarding?org=${slug}`);
+        return;
+      }
+      router.replace("/app");
       return;
     }
   }

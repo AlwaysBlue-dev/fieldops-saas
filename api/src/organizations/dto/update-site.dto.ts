@@ -9,7 +9,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
 } from 'class-validator';
+import { IsValidIanaTimeZone } from '../../common/timezone.js';
 import { EntityStatus } from '../../generated/prisma/client.js';
 
 export class UpdateSiteDto {
@@ -74,6 +76,7 @@ export class UpdateSiteDto {
   @IsOptional()
   @IsString()
   @MaxLength(80)
+  @Validate(IsValidIanaTimeZone)
   timezone?: string;
 
   @IsOptional()

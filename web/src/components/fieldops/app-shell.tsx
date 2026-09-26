@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ApiError } from "@/lib/api";
+import { ApiError, SessionExpiredError } from "@/lib/api";
 import {
   getMe,
   getMyOrganizations,
@@ -10,8 +10,13 @@ import {
   type OrganizationMembership,
   type PublicUser,
 } from "@/lib/auth";
+import { canManageCustomers, canManageSubscription } from "@/lib/current-org";
 import { desktopPrimaryNav } from "@/lib/navigation";
 import { unreadNotificationCount } from "@/lib/notifications";
+import {
+  rememberPreferredOrgSlug,
+  workspaceHomePath,
+} from "@/lib/workspace-home";
 import { cn } from "cn";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -102,8 +107,11 @@ export function AppShell({
       }
       setStatus("ready");
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        router.replace("/login");
+      if (
+        error instanceof SessionExpiredError ||
+        (error instanceof ApiError && error.status === 401)
+      ) {
+        router.replace("/login?reason=session-expired");
         return;
       }
       setStatus("error");
@@ -120,9 +128,14 @@ export function AppShell({
       (item) => item.organization.slug === orgSlug,
     );
     if (!current) {
-      router.replace(`/app/${memberships[0].organization.slug}/overview`);
+      const fallback = memberships[0];
+      rememberPreferredOrgSlug(fallback.organization.slug);
+      router.replace(
+        workspaceHomePath(fallback.organization.slug, fallback.role),
+      );
       return;
     }
+    rememberPreferredOrgSlug(current.organization.slug);
     const canOnboard = current.role === "OWNER" || current.role === "ADMIN";
     if (canOnboard && !current.organization.onboardingCompletedAt) {
       router.replace(`/onboarding?org=${current.organization.slug}`);
@@ -173,8 +186,9 @@ export function AppShell({
     (item) => item.organization.slug === orgSlug,
   );
   const organizationId = membershipOrganizationId(memberships, orgSlug);
-  const canManage =
-    currentMembership?.role === "OWNER" || currentMembership?.role === "ADMIN";
+  const canManageSubscriptionActions = canManageSubscription(
+    currentMembership ?? null,
+  );
 
   return (
     <TooltipProvider>
@@ -216,7 +230,7 @@ export function AppShell({
             <SubscriptionBanners
               organizationId={organizationId}
               orgSlug={orgSlug}
-              canManage={canManage}
+              canManage={canManageSubscriptionActions}
             />
           ) : null}
           <main
@@ -239,6 +253,7 @@ export function AppShell({
           open={commandOpen}
           onOpenChange={setCommandOpen}
           onHelp={() => setHelpOpen(true)}
+          role={currentMembership?.role}
         />
         {organizationId ? (
           <QuickCreateSheet
@@ -269,7 +284,7 @@ export function AppShell({
                 Overview
               </Button>
             ) : null}
-            {desktopPrimaryNav(orgSlug)
+            {desktopPrimaryNav(orgSlug, currentMembership?.role)
               .filter((item) =>
                 !["overview", "my-day", "jobs", "schedule", "time"].some((key) =>
                   item.href.endsWith(`/${key}`),
@@ -309,16 +324,18 @@ export function AppShell({
             >
               Plan & Usage
             </Button>
-            <Button
-              variant="ghost"
-              className="h-11 justify-start"
-              onClick={() => {
-                setMoreOpen(false);
-                router.push(`/app/${orgSlug}/settings/storage`);
-              }}
-            >
-              Storage
-            </Button>
+            {canManageCustomers(currentMembership ?? null) ? (
+              <Button
+                variant="ghost"
+                className="h-11 justify-start"
+                onClick={() => {
+                  setMoreOpen(false);
+                  router.push(`/app/${orgSlug}/settings/storage`);
+                }}
+              >
+                Storage
+              </Button>
+            ) : null}
             <MoreInstallWorkspaceButton
               onInstall={() => {
                 setMoreOpen(false);

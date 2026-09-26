@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
+import { canInviteMembers } from "@/lib/current-org";
 import {
   createInvitation,
   listInvitations,
@@ -52,6 +53,7 @@ export function MembersPanel() {
   const [success, setSuccess] = useState<string | null>(null);
   const [seatLimitHit, setSeatLimitHit] = useState(false);
   const [pending, setPending] = useState(false);
+  const [denied, setDenied] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -86,6 +88,11 @@ export function MembersPanel() {
         );
         if (!match) {
           throw new ApiError(404, "Organization not found");
+        }
+        if (!canInviteMembers(match)) {
+          setDenied(true);
+          setStatus("ready");
+          return;
         }
         setOrganizationId(match.organization.id);
       })
@@ -130,6 +137,16 @@ export function MembersPanel() {
 
   if (status === "loading") {
     return <SkeletonBlock rows={6} />;
+  }
+  if (denied) {
+    return (
+      <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+        <p className="text-sm font-medium">Insufficient permission</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Only owners and admins can manage members and invitations.
+        </p>
+      </div>
+    );
   }
   if (status === "error" || !organizationId) {
     return <ErrorState description={error ?? undefined} onRetry={() => void load()} />;

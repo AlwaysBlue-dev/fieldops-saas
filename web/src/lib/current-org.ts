@@ -25,6 +25,27 @@ export function canInviteMembers(membership: OrganizationMembership | null) {
   return membership?.role === "OWNER" || membership?.role === "ADMIN";
 }
 
+/** Organization operational settings (working days, timezone, branding). */
+export function canEditOrganizationSettings(
+  membership: OrganizationMembership | null,
+) {
+  return canInviteMembers(membership);
+}
+
+/** Owner-only commercial subscription controls. */
+export function canManageSubscription(membership: OrganizationMembership | null) {
+  return membership?.role === "OWNER";
+}
+
+/** Billing / invoices (Owner + Admin). */
+export function canManageBilling(membership: OrganizationMembership | null) {
+  return canInviteMembers(membership);
+}
+
+export function canViewSettings(membership: OrganizationMembership | null) {
+  return Boolean(membership);
+}
+
 export function canManageSchedule(membership: OrganizationMembership | null) {
   return canManageCrew(membership);
 }

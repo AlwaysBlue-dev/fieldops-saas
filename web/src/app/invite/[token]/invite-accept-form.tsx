@@ -15,6 +15,7 @@ import {
   previewInvitation,
   type InvitationPreview,
 } from "@/lib/organizations";
+import { rememberPreferredOrgSlug } from "@/lib/workspace-home";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
@@ -66,7 +67,8 @@ export function InviteAcceptForm({ token }: { token: string }) {
         fullName,
         password,
       });
-      router.replace(`/app/${result.organization.slug}/overview`);
+      rememberPreferredOrgSlug(result.organization.slug);
+      router.replace("/app");
     } catch (err) {
       setError(
         friendlyErrorMessage(err, "Could not accept the invitation. Please try again."),
@@ -86,7 +88,8 @@ export function InviteAcceptForm({ token }: { token: string }) {
         await login(preview.email, password);
       }
       const result = await acceptInvitation(token);
-      router.replace(`/app/${result.organization.slug}/overview`);
+      rememberPreferredOrgSlug(result.organization.slug);
+      router.replace("/app");
     } catch (err) {
       setError(
         friendlyErrorMessage(err, "Could not accept the invitation. Please try again."),

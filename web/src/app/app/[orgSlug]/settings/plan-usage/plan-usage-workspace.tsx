@@ -3,7 +3,7 @@
 import { RequestPlanChangeButton } from "@/components/fieldops/subscription-banners";
 import { StatusPill } from "@/components/fieldops/status-pill";
 import { Button } from "@/components/ui/button";
-import { getMyOrganizations } from "@/lib/auth";
+import { canManageSubscription, resolveCurrentMembership } from "@/lib/current-org";
 import {
   formatStorageBytes,
   getOrganizationUsage,
@@ -36,18 +36,15 @@ export function PlanUsageWorkspace() {
 
   useEffect(() => {
     let cancelled = false;
-    getMyOrganizations()
-      .then(async (memberships) => {
+    resolveCurrentMembership(params.orgSlug)
+      .then(async (match) => {
         if (cancelled) return;
-        const match = memberships.find(
-          (item) => item.organization.slug === params.orgSlug,
-        );
         if (!match) {
           setError("Organization not found.");
           return;
         }
         setOrganizationId(match.organization.id);
-        setCanManage(match.role === "OWNER" || match.role === "ADMIN");
+        setCanManage(canManageSubscription(match));
         const next = await getOrganizationUsage(match.organization.id);
         if (!cancelled) setUsage(next);
       })

@@ -24,6 +24,7 @@ import { scheduleDispatch } from "./articles/schedule-dispatch";
 
 import { jobsOverview } from "./articles/jobs-overview";
 import { jobLifecycle } from "./articles/job-lifecycle";
+import { jobWorkflow } from "./articles/job-workflow";
 
 import { myDay } from "./articles/my-day";
 
@@ -217,6 +218,7 @@ export const allArticles: DocArticle[] = [
   scheduleDispatch,
   jobsOverview,
   jobLifecycle,
+  jobWorkflow,
   myDay,
   timeGps,
   jobExecution,

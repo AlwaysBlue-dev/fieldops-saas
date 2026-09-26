@@ -99,9 +99,12 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
 
   if (!canManage) {
     return (
-      <p className="mt-4 text-sm text-muted-foreground">
-        Only owners and admins can view billing and invoices.
-      </p>
+      <div className="mt-4 rounded-md border border-border bg-muted/30 px-3 py-3">
+        <p className="text-sm font-medium">Insufficient permission</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Only owners and admins can view billing and invoices.
+        </p>
+      </div>
     );
   }
 

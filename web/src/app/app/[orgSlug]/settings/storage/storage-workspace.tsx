@@ -70,7 +70,7 @@ export function StorageWorkspace({ orgSlug }: { orgSlug: string }) {
           role !== "OPERATIONS_MANAGER"
         ) {
           if (!cancelled) {
-            setError("Only owners, admins, and operations managers can view organization storage.");
+            setError("Insufficient permission");
           }
           return;
         }
@@ -112,6 +112,17 @@ export function StorageWorkspace({ orgSlug }: { orgSlug: string }) {
   }, [loadFiles]);
 
   if (error && !usage) {
+    if (error === "Insufficient permission") {
+      return (
+        <div className="rounded-md border border-border bg-muted/30 px-3 py-3">
+          <p className="text-sm font-medium">Insufficient permission</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Only owners, admins, and operations managers can view organization
+            storage.
+          </p>
+        </div>
+      );
+    }
     return <p className="text-sm text-muted-foreground">{error}</p>;
   }
   if (!usage) {

@@ -27,7 +27,7 @@ export class SubscriptionController {
 
   @Post('activation-requests')
   @UseGuards(OrganizationRolesGuard)
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.OWNER)
   requestActivation(
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
@@ -38,7 +38,7 @@ export class SubscriptionController {
 
   @Post('renewal-requests')
   @UseGuards(OrganizationRolesGuard)
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.OWNER)
   requestRenewal(
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
@@ -49,7 +49,7 @@ export class SubscriptionController {
 
   @Post('plan-change-requests')
   @UseGuards(OrganizationRolesGuard)
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
+  @OrganizationRoles(OrganizationRole.OWNER)
   requestPlanChange(
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,

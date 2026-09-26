@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 
 /**
- * Default FieldKeel web app manifest (marketing / non-workspace).
- * Authenticated workspaces override the linked manifest via
- * `/app/[orgSlug]/manifest.webmanifest` for install naming and start_url.
+ * Default FieldKeel web app manifest (marketing site visitors still use `/`).
+ * Installed PWA opens `/app` for authenticated workspace bootstrap.
+ * Authenticated workspaces may also link
+ * `/app/[orgSlug]/manifest.webmanifest` for install naming; start_url remains `/app`.
  *
  * Multiple per-workspace installations are best-effort only — browsers on the
  * same origin often keep a single installed app. See product docs.
@@ -14,7 +15,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "FieldKeel",
     short_name: "FieldKeel",
     description: "The backbone of your field operations.",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",

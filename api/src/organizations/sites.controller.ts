@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { OrganizationRole } from '../generated/prisma/client.js';
@@ -19,6 +20,7 @@ import { OrganizationRolesGuard } from '../tenancy/organization-roles.guard.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import { RequiresActiveSubscription } from '../subscription/requires-active-subscription.decorator.js';
 import { CreateSiteContactDto, UpdateSiteContactDto } from './dto/site-contact.dto.js';
+import { ListQueryDto } from './dto/list-query.dto.js';
 import { UpdateSiteDto } from './dto/update-site.dto.js';
 import { SitesService } from './sites.service.js';
 
@@ -32,6 +34,14 @@ const CATALOG_ROLES = [
 @UseGuards(JwtAuthGuard, OrganizationMembershipGuard, OrganizationRolesGuard)
 export class SitesController {
   constructor(private readonly sites: SitesService) {}
+
+  @Get()
+  list(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListQueryDto,
+  ) {
+    return this.sites.list(organization.organizationId, query);
+  }
 
   @Get(':siteId')
   getSite(

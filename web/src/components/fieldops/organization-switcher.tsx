@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { OrganizationMembership } from "@/lib/auth";
+import { workspaceHomePath, rememberPreferredOrgSlug } from "@/lib/workspace-home";
 import { ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { OrgAvatar } from "./org-avatar";
@@ -64,7 +65,13 @@ export function OrganizationSwitcher({
               disabled={inactive}
               onClick={() => {
                 if (inactive) return;
-                router.push(`/app/${membership.organization.slug}/overview`);
+                rememberPreferredOrgSlug(membership.organization.slug);
+                router.push(
+                  workspaceHomePath(
+                    membership.organization.slug,
+                    membership.role,
+                  ),
+                );
               }}
             >
               <OrgAvatar

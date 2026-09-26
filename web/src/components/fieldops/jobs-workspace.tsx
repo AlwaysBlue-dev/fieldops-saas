@@ -251,7 +251,7 @@ export function JobsWorkspace() {
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search number, title, client, or site"
+          placeholder="Search jobs…"
           className="h-11 max-w-sm md:h-8"
           aria-label="Search jobs"
         />

@@ -8,7 +8,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { desktopPrimaryNav, desktopSecondaryNav } from "@/lib/navigation";
+import { desktopPrimaryNav, desktopSecondaryNav, type OrgNavRole } from "@/lib/navigation";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -17,16 +17,18 @@ export function CommandLauncher({
   open,
   onOpenChange,
   onHelp,
+  role,
 }: {
   orgSlug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onHelp?: () => void;
+  role?: OrgNavRole;
 }) {
   const router = useRouter();
   const destinations = [
-    ...desktopPrimaryNav(orgSlug),
-    ...desktopSecondaryNav(orgSlug),
+    ...desktopPrimaryNav(orgSlug, role),
+    ...desktopSecondaryNav(orgSlug, role),
   ];
 
   useEffect(() => {

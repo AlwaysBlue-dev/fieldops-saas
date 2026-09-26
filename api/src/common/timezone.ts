@@ -1,3 +1,7 @@
+import {
+  ValidatorConstraint,
+  type ValidatorConstraintInterface,
+} from 'class-validator';
 import { DEFAULT_JOB_WINDOW_MINUTES, WORK_WEEK_DAYS, type WorkWeekDay } from './constants.js';
 
 export type ZonedParts = {
@@ -20,6 +24,17 @@ export function isValidIanaTimeZone(value: string): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+@ValidatorConstraint({ name: 'IsValidIanaTimeZone', async: false })
+export class IsValidIanaTimeZone implements ValidatorConstraintInterface {
+  validate(value: unknown) {
+    return typeof value === 'string' && isValidIanaTimeZone(value);
+  }
+
+  defaultMessage() {
+    return 'Please select a valid timezone.';
   }
 }
 

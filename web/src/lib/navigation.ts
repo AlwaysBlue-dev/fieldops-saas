@@ -11,8 +11,16 @@ import {
   BarChart3,
   HelpCircle,
   BookOpen,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
+
+export type OrgNavRole =
+  | "OWNER"
+  | "ADMIN"
+  | "OPERATIONS_MANAGER"
+  | "SUPERVISOR"
+  | "TECHNICIAN";
 
 export type AppNavItem = {
   href: string;
@@ -20,22 +28,53 @@ export type AppNavItem = {
   icon: LucideIcon;
 };
 
-export function desktopPrimaryNav(orgSlug: string): AppNavItem[] {
+function canApproveNav(role?: OrgNavRole) {
+  return (
+    role === "OWNER" ||
+    role === "ADMIN" ||
+    role === "OPERATIONS_MANAGER" ||
+    role === "SUPERVISOR"
+  );
+}
+
+/** Filter primary/secondary nav items by organization role. */
+export function filterNavByRole(
+  items: AppNavItem[],
+  role?: OrgNavRole,
+): AppNavItem[] {
+  if (!role) return items;
+  return items.filter((item) => {
+    if (item.href.endsWith("/approvals")) {
+      return canApproveNav(role);
+    }
+    return true;
+  });
+}
+
+export function desktopPrimaryNav(
+  orgSlug: string,
+  role?: OrgNavRole,
+): AppNavItem[] {
   const base = `/app/${orgSlug}`;
-  return [
+  const items: AppNavItem[] = [
     { href: `${base}/overview`, label: "Overview", icon: LayoutDashboard },
     { href: `${base}/my-day`, label: "My Day", icon: Sun },
     { href: `${base}/schedule`, label: "Schedule", icon: CalendarDays },
     { href: `${base}/jobs`, label: "Jobs", icon: FolderKanban },
     { href: `${base}/clients`, label: "Clients", icon: BriefcaseBusiness },
+    { href: `${base}/sites`, label: "Sites", icon: MapPin },
     { href: `${base}/teams`, label: "Teams", icon: Users },
     { href: `${base}/time`, label: "Timesheets", icon: Clock3 },
     { href: `${base}/approvals`, label: "Approvals", icon: ClipboardCheck },
     { href: `${base}/reports`, label: "Reports", icon: BarChart3 },
   ];
+  return filterNavByRole(items, role);
 }
 
-export function desktopSecondaryNav(orgSlug: string): AppNavItem[] {
+export function desktopSecondaryNav(
+  orgSlug: string,
+  _role?: OrgNavRole,
+): AppNavItem[] {
   return [
     { href: `/app/${orgSlug}/settings`, label: "Settings", icon: Settings },
     { href: "/docs", label: "Documentation", icon: BookOpen },
@@ -50,7 +89,7 @@ export const helpNavItem: AppNavItem = {
 
 export function mobilePrimaryNav(
   orgSlug: string,
-  role?: "OWNER" | "ADMIN" | "OPERATIONS_MANAGER" | "SUPERVISOR" | "TECHNICIAN",
+  role?: OrgNavRole,
 ): AppNavItem[] {
   const base = `/app/${orgSlug}`;
   const home =
@@ -104,6 +143,7 @@ export function pageTitleFromPath(pathname: string) {
     schedule: "Schedule",
     jobs: "Jobs",
     clients: "Clients",
+    sites: "Sites",
     teams: "Teams",
     time: "Timesheets",
     approvals: "Approvals",

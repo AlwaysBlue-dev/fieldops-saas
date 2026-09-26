@@ -34,9 +34,9 @@ export function NavigationRail({
   onHelp: () => void;
 }) {
   const pathname = usePathname();
-  const primary = desktopPrimaryNav(orgSlug);
-  const secondary = desktopSecondaryNav(orgSlug);
   const current = memberships.find((item) => item.organization.slug === orgSlug);
+  const primary = desktopPrimaryNav(orgSlug, current?.role);
+  const secondary = desktopSecondaryNav(orgSlug, current?.role);
   const orgName = current?.organization.name ?? "Organization";
   const orgId = current?.organization.id ?? "";
   const hasLogo = Boolean(current?.organization.hasLogo);

@@ -2,6 +2,7 @@
 
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { StickyMobileActionBar } from "@/components/fieldops/sticky-mobile-action-bar";
+import { TimezoneCombobox } from "@/components/fieldops/timezone-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,36 +10,69 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
 import {
   createSite,
+  listClients,
   updateSite,
+  type ClientSummary,
   type SiteRecord,
   type SiteWriteBody,
 } from "@/lib/clients";
 import { MutationButton } from "./mutation-control";
 import { ResponsiveDrawer } from "./responsive-drawer";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function SiteFormSheet({
   open,
   onOpenChange,
   organizationId,
-  clientId,
+  clientId: clientIdProp,
   site,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   organizationId: string;
-  clientId: string;
+  clientId?: string;
   site?: SiteRecord | null;
   onSaved: () => void;
 }) {
   const [pending, setPending] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState(site?.timezone ?? "");
+  const [clientId, setClientId] = useState(clientIdProp ?? site?.clientId ?? "");
+  const [clients, setClients] = useState<ClientSummary[]>([]);
   const [coords, setCoords] = useState({
     latitude: site?.latitude?.toString() ?? "",
     longitude: site?.longitude?.toString() ?? "",
   });
+
+  const needsClientSelect = !site && !clientIdProp;
+
+  useEffect(() => {
+    if (!open) return;
+    setTimezone(site?.timezone ?? "");
+    setClientId(clientIdProp ?? site?.clientId ?? "");
+    setCoords({
+      latitude: site?.latitude?.toString() ?? "",
+      longitude: site?.longitude?.toString() ?? "",
+    });
+    setError(null);
+  }, [open, site, clientIdProp]);
+
+  useEffect(() => {
+    if (!open || !needsClientSelect) return;
+    let cancelled = false;
+    listClients(organizationId, { status: "ACTIVE", pageSize: 100, sort: "name" })
+      .then((result) => {
+        if (!cancelled) setClients(result.items);
+      })
+      .catch(() => {
+        if (!cancelled) setClients([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, needsClientSelect, organizationId]);
 
   return (
     <ResponsiveDrawer
@@ -52,6 +86,11 @@ export function SiteFormSheet({
         onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
+          const resolvedClientId = clientIdProp ?? clientId;
+          if (!site && !resolvedClientId) {
+            setError("Select a client for this site.");
+            return;
+          }
           const latitude = Number(form.get("latitude"));
           const longitude = Number(form.get("longitude"));
           const body: SiteWriteBody = {
@@ -63,7 +102,7 @@ export function SiteFormSheet({
             stateRegion: String(form.get("stateRegion") ?? "") || undefined,
             postalCode: String(form.get("postalCode") ?? "") || undefined,
             country: String(form.get("country") ?? ""),
-            timezone: String(form.get("timezone") ?? "") || undefined,
+            timezone: timezone.trim() || undefined,
             siteContactName: String(form.get("siteContactName") ?? "") || undefined,
             siteContactEmail: String(form.get("siteContactEmail") ?? "") || undefined,
             siteContactPhone: String(form.get("siteContactPhone") ?? "") || undefined,
@@ -81,7 +120,7 @@ export function SiteFormSheet({
             if (site) {
               await updateSite(organizationId, site.id, body);
             } else {
-              await createSite(organizationId, clientId, body);
+              await createSite(organizationId, resolvedClientId, body);
             }
             onOpenChange(false);
             onSaved();
@@ -92,12 +131,32 @@ export function SiteFormSheet({
           }
         }}
       >
+        {needsClientSelect ? (
+          <FormField>
+            <Label htmlFor="site-client">Client</Label>
+            <select
+              id="site-client"
+              required
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
+            >
+              <option value="">Select client…</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        ) : null}
         <FormField>
           <Label htmlFor="site-name">Site name</Label>
           <Input
             id="site-name"
             name="name"
             required
+            placeholder="e.g. Downtown Office"
             defaultValue={site?.name ?? ""}
             className="h-11 md:h-8"
           />
@@ -107,6 +166,7 @@ export function SiteFormSheet({
           <Input
             id="siteCode"
             name="siteCode"
+            placeholder="WH-01"
             defaultValue={site?.siteCode ?? ""}
             className="h-11 md:h-8"
           />
@@ -117,6 +177,7 @@ export function SiteFormSheet({
             id="addressLine1"
             name="addressLine1"
             required
+            placeholder="Enter street address"
             defaultValue={site?.addressLine1 ?? ""}
             className="h-11 md:h-8"
           />
@@ -126,6 +187,7 @@ export function SiteFormSheet({
           <Input
             id="addressLine2"
             name="addressLine2"
+            placeholder="Suite 200"
             defaultValue={site?.addressLine2 ?? ""}
             className="h-11 md:h-8"
           />
@@ -137,6 +199,7 @@ export function SiteFormSheet({
               id="city"
               name="city"
               required
+              placeholder="Austin"
               defaultValue={site?.city ?? ""}
               className="h-11 md:h-8"
             />
@@ -146,6 +209,7 @@ export function SiteFormSheet({
             <Input
               id="stateRegion"
               name="stateRegion"
+              placeholder="TX"
               defaultValue={site?.stateRegion ?? ""}
               className="h-11 md:h-8"
             />
@@ -157,6 +221,7 @@ export function SiteFormSheet({
             <Input
               id="postalCode"
               name="postalCode"
+              placeholder="78701"
               defaultValue={site?.postalCode ?? ""}
               className="h-11 md:h-8"
             />
@@ -167,6 +232,7 @@ export function SiteFormSheet({
               id="country"
               name="country"
               required
+              placeholder="US"
               defaultValue={site?.country ?? "US"}
               className="h-11 md:h-8"
             />
@@ -179,6 +245,7 @@ export function SiteFormSheet({
               id="latitude"
               name="latitude"
               inputMode="decimal"
+              placeholder="30.2672"
               value={coords.latitude}
               onChange={(event) =>
                 setCoords((current) => ({ ...current, latitude: event.target.value }))
@@ -192,6 +259,7 @@ export function SiteFormSheet({
               id="longitude"
               name="longitude"
               inputMode="decimal"
+              placeholder="-97.7431"
               value={coords.longitude}
               onChange={(event) =>
                 setCoords((current) => ({ ...current, longitude: event.target.value }))
@@ -231,11 +299,10 @@ export function SiteFormSheet({
         </Button>
         <FormField>
           <Label htmlFor="timezone">Timezone</Label>
-          <Input
+          <TimezoneCombobox
             id="timezone"
-            name="timezone"
-            defaultValue={site?.timezone ?? ""}
-            className="h-11 md:h-8"
+            value={timezone}
+            onChange={setTimezone}
           />
         </FormField>
         <FormField>
@@ -243,6 +310,7 @@ export function SiteFormSheet({
           <Input
             id="siteContactName"
             name="siteContactName"
+            placeholder="e.g. John Smith"
             defaultValue={site?.siteContactName ?? ""}
             className="h-11 md:h-8"
           />
@@ -254,6 +322,7 @@ export function SiteFormSheet({
               id="siteContactEmail"
               name="siteContactEmail"
               type="email"
+              placeholder="e.g. site@client.com"
               defaultValue={site?.siteContactEmail ?? ""}
               className="h-11 md:h-8"
             />
@@ -263,6 +332,7 @@ export function SiteFormSheet({
             <Input
               id="siteContactPhone"
               name="siteContactPhone"
+              placeholder="e.g. +1 555 123 4567"
               defaultValue={site?.siteContactPhone ?? ""}
               className="h-11 md:h-8"
             />
@@ -270,7 +340,13 @@ export function SiteFormSheet({
         </div>
         <FormField>
           <Label htmlFor="site-notes">Access notes</Label>
-          <Textarea id="site-notes" name="notes" defaultValue={site?.notes ?? ""} rows={3} />
+          <Textarea
+            id="site-notes"
+            name="notes"
+            placeholder="Gate code, parking, safety notes…"
+            defaultValue={site?.notes ?? ""}
+            rows={3}
+          />
         </FormField>
         {error ? (
           <p role="alert" className="text-sm text-destructive">

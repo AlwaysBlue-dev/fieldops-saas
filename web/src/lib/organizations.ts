@@ -78,6 +78,32 @@ export function updateOrganization(
   });
 }
 
+export function updateOrganizationSettings(
+  organizationId: string,
+  body: Partial<
+    Pick<
+      OrganizationSettings,
+      | "jobNumberPrefix"
+      | "workingWeek"
+      | "requireClientSignature"
+      | "requireGps"
+      | "gpsReviewDistanceMeters"
+      | "allowManualTime"
+      | "allowOvertimeRequests"
+      | "defaultDailyHoursLimit"
+      | "defaultWeeklyHoursLimit"
+    >
+  >,
+) {
+  return apiRequest<OrganizationDetail>(
+    `/organizations/${organizationId}/settings`,
+    {
+      method: "PATCH",
+      body,
+    },
+  );
+}
+
 export function advanceOnboarding(
   organizationId: string,
   body: {

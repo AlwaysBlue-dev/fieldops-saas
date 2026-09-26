@@ -1025,7 +1025,7 @@ function CompletionSection({
             disabled={!canEdit}
             value={workPerformed}
             onChange={(event) => setWorkPerformed(event.target.value)}
-            placeholder="Replaced damaged contactor and tested system."
+            placeholder="Describe the work completed"
           />
         </div>
         <div className="space-y-1.5">

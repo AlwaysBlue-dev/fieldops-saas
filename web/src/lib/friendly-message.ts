@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/api";
+import { ApiError, SessionExpiredError } from "@/lib/api";
 
 const EXACT: Record<string, string> = {
   "Invalid credentials":
@@ -95,12 +95,18 @@ export function friendlyErrorMessage(
   err: unknown,
   fallback = "Something went wrong. Please try again.",
 ): string {
+  if (err instanceof SessionExpiredError) {
+    return err.message || "Your session has expired. Please sign in again.";
+  }
   if (err instanceof ApiError) {
+    if (err.status === 0 || err.error === "NetworkError") {
+      return "We couldn't reach the server. Check your connection and try again.";
+    }
     if (err.status === 429) {
       return "Too many attempts. Please wait a moment and try again.";
     }
     if (err.status === 401 && (!err.message || err.message === "Unauthorized")) {
-      return "Please sign in again to continue.";
+      return "Your session has expired. Please sign in again.";
     }
     if (err.code === "EMAIL_NOT_VERIFIED") {
       return "Your email address has not been verified yet. Check your inbox or resend the link.";

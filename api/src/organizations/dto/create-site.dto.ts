@@ -8,7 +8,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Validate,
 } from 'class-validator';
+import { IsValidIanaTimeZone } from '../../common/timezone.js';
 
 function trimToUndefined(value: unknown) {
   if (typeof value !== 'string') return value;
@@ -74,6 +76,7 @@ export class CreateSiteDto {
   @IsOptional()
   @IsString()
   @MaxLength(80)
+  @Validate(IsValidIanaTimeZone)
   timezone?: string;
 
   @IsOptional()

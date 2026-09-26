@@ -12,18 +12,25 @@ import { ApiError } from "@/lib/api";
 import { listClientSites, listClients } from "@/lib/clients";
 import { canCreateJobs, resolveCurrentMembership } from "@/lib/current-org";
 import { createJob, JOB_TYPES, jobTypeLabel, type JobWriteBody } from "@/lib/jobs";
+import { getOrganization } from "@/lib/organizations";
 import { personDisplayName, personSecondaryLine } from "@/lib/person-label";
 import { listTeams, listTechnicians } from "@/lib/teams";
-import { zonedLocalToUtc } from "@/lib/timezone";
+import {
+  isOutsideWorkingWeek,
+  outsideWorkingDayMessage,
+  zonedLocalToUtc,
+} from "@/lib/timezone";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { OutsideWorkingDayDialog } from "./outside-working-day-dialog";
 
 export function JobFormWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const router = useRouter();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
+  const [workingWeek, setWorkingWeek] = useState<string[]>([]);
   const [allowed, setAllowed] = useState(false);
   const [clientId, setClientId] = useState("");
   const [siteId, setSiteId] = useState("");
@@ -39,6 +46,10 @@ export function JobFormWorkspace() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [outsidePrompt, setOutsidePrompt] = useState<{
+    message: string;
+    body: JobWriteBody;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +71,13 @@ export function JobFormWorkspace() {
         setTimezone(membership.organization.timezone);
         setAllowed(true);
         setLoadState("ready");
+        void getOrganization(membership.organization.id)
+          .then((org) => {
+            if (!cancelled) {
+              setWorkingWeek(org.settings?.workingWeek ?? []);
+            }
+          })
+          .catch(() => undefined);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -278,6 +296,19 @@ export function JobFormWorkspace() {
           setPending(true);
           setError(null);
           try {
+            const check = isOutsideWorkingWeek(
+              body.scheduledStart,
+              timezone,
+              workingWeek,
+            );
+            if (check.outside && !outsidePrompt) {
+              setOutsidePrompt({
+                message: outsideWorkingDayMessage(check.weekdayName),
+                body,
+              });
+              setPending(false);
+              return;
+            }
             const created = await createJob(organizationId, body);
             router.push(`/app/${params.orgSlug}/jobs/${created.id}`);
           } catch (err) {
@@ -319,7 +350,13 @@ export function JobFormWorkspace() {
         <Section title="Work" description="What the crew is going on site to do.">
           <FormField>
             <Label htmlFor="title">Title</Label>
-            <Input id="title" name="title" required className="h-11 md:h-8" />
+            <Input
+              id="title"
+              name="title"
+              required
+              placeholder="e.g. Emergency AC Repair"
+              className="h-11 md:h-8"
+            />
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField>
@@ -362,6 +399,7 @@ export function JobFormWorkspace() {
               id="scope"
               name="scope"
               rows={4}
+              placeholder="Describe the work required"
               className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm"
             />
           </FormField>
@@ -542,6 +580,26 @@ export function JobFormWorkspace() {
           </MutationButton>
         </div>
       </ResponsiveForm>
+
+      <OutsideWorkingDayDialog
+        open={Boolean(outsidePrompt)}
+        message={outsidePrompt?.message ?? ""}
+        pending={pending}
+        onCancel={() => setOutsidePrompt(null)}
+        onContinue={async () => {
+          if (!outsidePrompt || !organizationId) return;
+          setPending(true);
+          setError(null);
+          try {
+            const created = await createJob(organizationId, outsidePrompt.body);
+            router.push(`/app/${params.orgSlug}/jobs/${created.id}`);
+          } catch (err) {
+            setError(err instanceof ApiError ? err.message : "Could not create job.");
+            setPending(false);
+            setOutsidePrompt(null);
+          }
+        }}
+      />
     </div>
   );
 }

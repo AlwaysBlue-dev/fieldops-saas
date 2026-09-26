@@ -39,7 +39,8 @@ function labelFromSlug(orgSlug: string): string {
  * private org logos / presigned URLs are not safe install icons.
  *
  * Manifest `id` is org-scoped for best-effort separate installs; same-origin
- * browsers often still keep a single installed app.
+ * browsers often still keep a single installed app. start_url is always `/app`
+ * so the installed icon opens the shared auth/org bootstrap (not marketing `/`).
  */
 export async function GET(
   request: Request,

@@ -91,3 +91,74 @@ export function formatDateTimeInZone(iso: string | null, timeZone: string) {
     minute: "2-digit",
   }).format(new Date(iso));
 }
+
+export type WorkWeekDayCode =
+  | "MON"
+  | "TUE"
+  | "WED"
+  | "THU"
+  | "FRI"
+  | "SAT"
+  | "SUN";
+
+const WEEKDAY_LABELS: Record<WorkWeekDayCode, string> = {
+  MON: "Monday",
+  TUE: "Tuesday",
+  WED: "Wednesday",
+  THU: "Thursday",
+  FRI: "Friday",
+  SAT: "Saturday",
+  SUN: "Sunday",
+};
+
+/** Day-of-week code for an instant in an IANA timezone (matches API weekdayCodeInZone). */
+export function weekdayCodeInZone(
+  date: Date,
+  timeZone: string,
+): WorkWeekDayCode {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+  }).format(date);
+  const map: Record<string, WorkWeekDayCode> = {
+    Mon: "MON",
+    Tue: "TUE",
+    Wed: "WED",
+    Thu: "THU",
+    Fri: "FRI",
+    Sat: "SAT",
+    Sun: "SUN",
+  };
+  return map[weekday] ?? "MON";
+}
+
+export function weekdayLabel(code: WorkWeekDayCode) {
+  return WEEKDAY_LABELS[code];
+}
+
+/** True when the scheduled instant falls outside the org's normal working week. */
+export function isOutsideWorkingWeek(
+  scheduledAt: Date | string | null | undefined,
+  timeZone: string,
+  workingWeek: string[] | null | undefined,
+): { outside: boolean; weekday: WorkWeekDayCode; weekdayName: string } {
+  const week = (workingWeek ?? []).map((d) => d.toUpperCase());
+  if (!scheduledAt || week.length === 0) {
+    return { outside: false, weekday: "MON", weekdayName: "Monday" };
+  }
+  const date =
+    typeof scheduledAt === "string" ? new Date(scheduledAt) : scheduledAt;
+  if (Number.isNaN(date.getTime())) {
+    return { outside: false, weekday: "MON", weekdayName: "Monday" };
+  }
+  const weekday = weekdayCodeInZone(date, timeZone);
+  return {
+    outside: !week.includes(weekday),
+    weekday,
+    weekdayName: weekdayLabel(weekday),
+  };
+}
+
+export function outsideWorkingDayMessage(weekdayName: string) {
+  return `${weekdayName} is outside this organization's normal working week. Continue scheduling this job?`;
+}
