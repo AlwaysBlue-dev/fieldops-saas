@@ -15,7 +15,7 @@ import {
 import { canManageCustomers, canManageSubscription } from "@/lib/current-org";
 import { desktopPrimaryNav } from "@/lib/navigation";
 import { unreadNotificationCount } from "@/lib/notifications";
-import { ownerInboxUnreadCount } from "@/lib/owner-inbox";
+import { OWNER_INBOX_CHANGED, ownerInboxUnreadCount } from "@/lib/owner-inbox";
 import {
   clearPreferredOrgSlug,
   rememberPreferredOrgSlug,
@@ -203,13 +203,26 @@ export function AppShell({
       return;
     }
     let cancelled = false;
-    ownerInboxUnreadCount(previewOrgId)
-      .then((result) => {
-        if (!cancelled) setOwnerInboxUnread(result.count);
-      })
-      .catch(() => undefined);
+    let version = 0;
+    setOwnerInboxUnread(0);
+    const refreshInboxCount = () => {
+      const requestVersion = ++version;
+      void ownerInboxUnreadCount(previewOrgId)
+        .then((result) => {
+          if (!cancelled && requestVersion === version) setOwnerInboxUnread(result.count);
+        })
+        .catch(() => undefined);
+    };
+    const onInboxChanged = (event: Event) => {
+      if ((event as CustomEvent<{ organizationId: string }>).detail.organizationId === previewOrgId) {
+        refreshInboxCount();
+      }
+    };
+    refreshInboxCount();
+    window.addEventListener(OWNER_INBOX_CHANGED, onInboxChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(OWNER_INBOX_CHANGED, onInboxChanged);
     };
   }, [previewOrgId, orgSlug, memberships]);
 

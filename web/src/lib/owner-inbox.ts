@@ -1,6 +1,14 @@
 import { apiRequest } from "./api";
 import type { AppNotification } from "./notifications";
 
+export const OWNER_INBOX_CHANGED = "fieldkeel:owner-inbox-changed";
+
+async function notifyInboxChange<T>(organizationId: string, request: Promise<T>) {
+  const result = await request;
+  window.dispatchEvent(new CustomEvent(OWNER_INBOX_CHANGED, { detail: { organizationId } }));
+  return result;
+}
+
 export type OwnerInboxMessage = AppNotification & {
   category?: string | null;
   ctaLabel?: string | null;
@@ -51,27 +59,27 @@ export function markOwnerInboxRead(
   organizationId: string,
   notificationId: string,
 ) {
-  return apiRequest<OwnerInboxMessage>(
+  return notifyInboxChange(organizationId, apiRequest<OwnerInboxMessage>(
     `/organizations/${organizationId}/owner-inbox/${notificationId}/read`,
     { method: "PATCH" },
-  );
+  ));
 }
 
 export function markOwnerInboxUnread(
   organizationId: string,
   notificationId: string,
 ) {
-  return apiRequest<OwnerInboxMessage>(
+  return notifyInboxChange(organizationId, apiRequest<OwnerInboxMessage>(
     `/organizations/${organizationId}/owner-inbox/${notificationId}/unread`,
     { method: "PATCH" },
-  );
+  ));
 }
 
 export function markAllOwnerInboxRead(organizationId: string) {
-  return apiRequest<{ updated: number }>(
+  return notifyInboxChange(organizationId, apiRequest<{ updated: number }>(
     `/organizations/${organizationId}/owner-inbox/read-all`,
     { method: "PATCH" },
-  );
+  ));
 }
 
 export function ownerMessageHref(

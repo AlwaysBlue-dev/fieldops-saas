@@ -334,20 +334,25 @@ export class NotificationsService {
       ctx.organizationId,
       messageId,
     );
-    const receipt = await this.prisma.ownerMessageReceipt.upsert({
-      where: {
-        messageId_userId: { messageId: message.id, userId: actorUserId },
-      },
-      create: {
-        messageId: message.id,
-        userId: actorUserId,
-        status: NotificationStatus.READ,
-        readAt: new Date(),
-      },
-      update: {
-        status: NotificationStatus.READ,
-        readAt: new Date(),
-      },
+    const existing = await this.prisma.ownerMessageReceipt.findUnique({
+      where: { messageId_userId: { messageId: message.id, userId: actorUserId } },
+    });
+    if (existing?.status === NotificationStatus.READ) {
+      return this.serializeOwnerMessage(message, existing);
+    }
+    const receipt = await this.prisma.$transaction(async (tx) => {
+      // The unique message/user key also protects concurrent read-all requests.
+      await tx.ownerMessageReceipt.createMany({
+        data: [{ messageId: message.id, userId: actorUserId, status: NotificationStatus.READ, readAt: new Date() }],
+        skipDuplicates: true,
+      });
+      await tx.ownerMessageReceipt.updateMany({
+        where: { messageId: message.id, userId: actorUserId, status: NotificationStatus.UNREAD },
+        data: { status: NotificationStatus.READ, readAt: new Date() },
+      });
+      return tx.ownerMessageReceipt.findUniqueOrThrow({
+        where: { messageId_userId: { messageId: message.id, userId: actorUserId } },
+      });
     });
     return this.serializeOwnerMessage(message, receipt);
   }
@@ -382,37 +387,31 @@ export class NotificationsService {
 
   async markOwnerInboxAllRead(ctx: OrganizationContext, actorUserId: string) {
     await this.assertActiveOwner(ctx.organizationId, actorUserId);
-    const messages = await this.prisma.ownerMessage.findMany({
-      where: { organizationId: ctx.organizationId },
-      select: { id: true },
+    return this.prisma.$transaction(async (tx) => {
+      const messages = await tx.ownerMessage.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          receipts: { none: { userId: actorUserId, status: NotificationStatus.READ } },
+        },
+        orderBy: { id: 'asc' },
+        select: { id: true },
+      });
+      if (!messages.length) return { updated: 0 };
+      const ids = messages.map((message) => message.id);
+      const now = new Date();
+      // Existing UNREAD receipts must be updated as well as missing ones inserted.
+      const inserted = await tx.ownerMessageReceipt.createMany({
+        data: ids.map((messageId) => ({
+          messageId, userId: actorUserId, status: NotificationStatus.READ, readAt: now,
+        })),
+        skipDuplicates: true,
+      });
+      const changed = await tx.ownerMessageReceipt.updateMany({
+        where: { messageId: { in: ids }, userId: actorUserId, status: NotificationStatus.UNREAD },
+        data: { status: NotificationStatus.READ, readAt: now },
+      });
+      return { updated: inserted.count + changed.count };
     });
-    const now = new Date();
-    let updated = 0;
-    for (const message of messages) {
-      const existing = await this.prisma.ownerMessageReceipt.findUnique({
-        where: {
-          messageId_userId: { messageId: message.id, userId: actorUserId },
-        },
-      });
-      if (existing?.status === NotificationStatus.READ) continue;
-      await this.prisma.ownerMessageReceipt.upsert({
-        where: {
-          messageId_userId: { messageId: message.id, userId: actorUserId },
-        },
-        create: {
-          messageId: message.id,
-          userId: actorUserId,
-          status: NotificationStatus.READ,
-          readAt: now,
-        },
-        update: {
-          status: NotificationStatus.READ,
-          readAt: now,
-        },
-      });
-      updated += 1;
-    }
-    return { updated };
   }
 
   private normalizeOwnerCtaPath(raw: string | null | undefined): string | null {

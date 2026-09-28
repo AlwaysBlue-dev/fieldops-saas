@@ -19,10 +19,15 @@ import {
 } from "@/lib/owner-inbox";
 import { cn } from "@/lib/utils";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function OwnerInboxWorkspace() {
   const params = useParams<{ orgSlug: string }>();
+  return <OwnerInboxContent key={params.orgSlug} orgSlug={params.orgSlug} />;
+}
+
+function OwnerInboxContent({ orgSlug }: { orgSlug: string }) {
+  const params = { orgSlug };
   const router = useRouter();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
@@ -32,6 +37,8 @@ export function OwnerInboxWorkspace() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">(
     "loading",
   );
+  const mutationLock = useRef(false);
+  const [mutating, setMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -85,6 +92,25 @@ export function OwnerInboxWorkspace() {
     });
   }, [organizationId, allowed, refresh]);
 
+  async function changeReadState(item: OwnerInboxMessage, read: boolean) {
+    if (!organizationId || mutationLock.current) return;
+    mutationLock.current = true;
+    setMutating(true);
+    setError(null);
+    try {
+      const updated = await (read
+        ? markOwnerInboxRead(organizationId, item.id)
+        : markOwnerInboxUnread(organizationId, item.id));
+      setItems((rows) => rows.map((row) => row.id === updated.id ? updated : row));
+      setSelected((current) => current?.id === updated.id ? updated : current);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Unable to update message read state. Please try again.");
+    } finally {
+      mutationLock.current = false;
+      setMutating(false);
+    }
+  }
+
   if (loadState === "loading") return <SkeletonBlock className="h-72" />;
   if (loadState === "error" && items.length === 0) {
     return (
@@ -105,16 +131,32 @@ export function OwnerInboxWorkspace() {
             type="button"
             variant="outline"
             className="h-11 md:h-8"
+            disabled={mutating}
             onClick={async () => {
-              if (!organizationId) return;
-              await markAllOwnerInboxRead(organizationId);
-              await refresh();
+              if (!organizationId || mutationLock.current) return;
+              mutationLock.current = true;
+              setMutating(true);
+              setError(null);
+              try {
+                await markAllOwnerInboxRead(organizationId);
+                const readAt = new Date().toISOString();
+                setItems((rows) => rows.map((row) => ({ ...row, status: "READ", readAt: row.readAt ?? readAt })));
+                setSelected((row) => row ? { ...row, status: "READ", readAt: row.readAt ?? readAt } : null);
+                await refresh();
+              } catch (caught) {
+                setError(caught instanceof ApiError ? caught.message : "Unable to mark all messages read. Please try again.");
+              } finally {
+                mutationLock.current = false;
+                setMutating(false);
+              }
             }}
           >
             Mark all read
           </Button>
         }
       />
+
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
 
       {items.length === 0 ? (
         <EmptyState
@@ -140,27 +182,14 @@ export function OwnerInboxWorkspace() {
                       item.status === "UNREAD" && "bg-primary/5",
                       selected?.id === item.id && "bg-muted/70",
                     )}
-                    onClick={async () => {
+                    disabled={mutating}
+                    onClick={() => {
                       setSelected(item);
-                      if (!organizationId) return;
-                      if (item.status === "UNREAD") {
-                        const updated = await markOwnerInboxRead(
-                          organizationId,
-                          item.id,
-                        ).catch(() => null);
-                        if (updated) {
-                          setItems((rows) =>
-                            rows.map((row) =>
-                              row.id === updated.id ? updated : row,
-                            ),
-                          );
-                          setSelected(updated);
-                        }
-                      }
+                      if (item.status === "UNREAD") void changeReadState(item, true);
                     }}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-semibold">{item.title}</p>
+                      <p className={cn("text-sm", item.status === "UNREAD" ? "font-semibold" : "font-normal")}>{item.title}</p>
                       <p className="shrink-0 text-[11px] text-muted-foreground">
                         {formatNotificationTime(item.createdAt, timezone)}
                       </p>
@@ -225,25 +254,8 @@ export function OwnerInboxWorkspace() {
                     type="button"
                     variant="outline"
                     className="h-11 md:h-8"
-                    onClick={async () => {
-                      if (!organizationId) return;
-                      const updated =
-                        selected.status === "UNREAD"
-                          ? await markOwnerInboxRead(
-                              organizationId,
-                              selected.id,
-                            )
-                          : await markOwnerInboxUnread(
-                              organizationId,
-                              selected.id,
-                            );
-                      setItems((rows) =>
-                        rows.map((row) =>
-                          row.id === updated.id ? updated : row,
-                        ),
-                      );
-                      setSelected(updated);
-                    }}
+                    disabled={mutating}
+                    onClick={() => void changeReadState(selected, selected.status === "UNREAD")}
                   >
                     {selected.status === "UNREAD"
                       ? "Mark read"
