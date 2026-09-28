@@ -381,7 +381,7 @@ function ProfileStep({
       <FormField>
         <Label htmlFor="name">Company name</Label>
         <Input
-          id="name"
+          id="name" placeholder="e.g. ABC Electrical Services"
           name="name"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -406,7 +406,7 @@ function ProfileStep({
       <FormField>
         <Label htmlFor="phone">Phone</Label>
         <Input
-          id="phone"
+          id="phone" placeholder="e.g. +1 555 123 4567"
           name="phone"
           type="tel"
           value={phone}
@@ -492,7 +492,7 @@ function OperationsStep({
       <FormField>
         <Label htmlFor="jobNumberPrefix">Job number prefix</Label>
         <Input
-          id="jobNumberPrefix"
+          id="jobNumberPrefix" placeholder="e.g. JOB-"
           name="jobNumberPrefix"
           defaultValue={org.settings?.jobNumberPrefix ?? "JOB-"}
           className="h-11"
@@ -598,7 +598,7 @@ function InviteStep({
       </p>
       <FormField>
         <Label htmlFor="email">Work email</Label>
-        <Input id="email" name="email" type="email" className="h-11" />
+        <Input id="email" placeholder="e.g. colleague@company.com" name="email" type="email" className="h-11" />
       </FormField>
       <FormField>
         <Label htmlFor="role">Role</Label>
@@ -652,23 +652,23 @@ function ClientStep({
       </p>
       <FormField>
         <Label htmlFor="clientName">Client name</Label>
-        <Input id="clientName" name="clientName" className="h-11" />
+        <Input id="clientName" placeholder="e.g. Northstar Apartments" name="clientName" className="h-11" />
       </FormField>
       <FormField>
         <Label htmlFor="clientEmail">Client email</Label>
-        <Input id="clientEmail" name="clientEmail" type="email" className="h-11" />
+        <Input id="clientEmail" placeholder="e.g. contact@company.com" name="clientEmail" type="email" className="h-11" />
       </FormField>
       <FormField>
         <Label htmlFor="siteName">Site name</Label>
-        <Input id="siteName" name="siteName" className="h-11" />
+        <Input id="siteName" placeholder="e.g. Downtown Office" name="siteName" className="h-11" />
       </FormField>
       <FormField>
         <Label htmlFor="addressLine1">Street</Label>
-        <Input id="addressLine1" name="addressLine1" className="h-11" />
+        <Input id="addressLine1" placeholder="Enter street address" name="addressLine1" className="h-11" />
       </FormField>
       <FormField>
         <Label htmlFor="city">City</Label>
-        <Input id="city" name="city" className="h-11" />
+        <Input id="city" placeholder="e.g. Austin" name="city" className="h-11" />
       </FormField>
       <StepError error={error} />
       <StickyMobileActionBar>

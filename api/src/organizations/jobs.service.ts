@@ -14,6 +14,7 @@ import {
   AUDIT_JOB_STARTED,
   AUDIT_JOB_SUBMITTED,
   AUDIT_JOB_UPDATED,
+  WORK_PERFORMED_MIN_LENGTH,
 } from '../common/constants.js';
 import {
   formatYmdInZone,
@@ -58,6 +59,8 @@ import { ApprovalRecordsService } from './approval-records.service.js';
 import { JobApprovalValidationService } from './approval-validation.service.js';
 import {
   executionRecordsLocked,
+  isMeaningfulWorkPerformed,
+  outcomeNeedsReason,
   requiredSafetySatisfied,
   SAFETY_CONTROL_DEFS,
   safetyControlStatus,
@@ -186,7 +189,7 @@ export class JobsService {
     );
     const settings = await this.prisma.organizationSettings.findUnique({
       where: { organizationId: ctx.organizationId },
-      select: { gpsReviewDistanceMeters: true },
+      select: { gpsReviewDistanceMeters: true, requireClientSignature: true },
     });
     const reviewDistance =
       settings?.gpsReviewDistanceMeters ?? DEFAULT_GPS_REVIEW_DISTANCE_METERS;
@@ -219,6 +222,25 @@ export class JobsService {
       assigned,
       job.status,
     );
+
+    const submissionBlockers: Array<{ code: string; message: string }> = [];
+    for (const def of SAFETY_CONTROL_DEFS) {
+      const control = job.safetyControls.find((row) => row.code === def.code);
+      if (job[def.flag] && !control?.completedAt) {
+        submissionBlockers.push({ code: 'SAFETY', message: `Confirm ${def.title.toLowerCase()}.` });
+      }
+    }
+    if (clockedInOnJob) submissionBlockers.push({ code: 'CLOCK', message: 'End your active work session on this job before submitting.' });
+    if (!isMeaningfulWorkPerformed(job.workPerformed)) {
+      submissionBlockers.push({ code: 'WORK_PERFORMED', message: `Describe the work completed (at least ${WORK_PERFORMED_MIN_LENGTH} characters).` });
+    }
+    if (!job.outcome) submissionBlockers.push({ code: 'OUTCOME', message: 'Select how the job was completed.' });
+    if (outcomeNeedsReason(job.outcome) && !job.outcomeReason?.trim()) {
+      submissionBlockers.push({ code: 'OUTCOME_REASON', message: 'Explain why follow-up is needed or why the job could not be completed.' });
+    }
+    if ((job.requireClientSignOff || settings?.requireClientSignature) && job.signatures.length === 0) {
+      submissionBlockers.push({ code: 'SIGNATURE', message: 'Add the required client signature.' });
+    }
 
     return {
       ...serializeJobSummary(job),
@@ -282,6 +304,8 @@ export class JobsService {
         recordsLocked,
         safetySatisfied,
         clockedInOnThisJob: clockedInOnJob,
+        submissionBlockers,
+        workPerformedMinLength: WORK_PERFORMED_MIN_LENGTH,
       },
       safetyControls:
         job.safetyControls.length > 0

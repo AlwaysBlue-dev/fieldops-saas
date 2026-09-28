@@ -134,6 +134,8 @@ export type JobDetail = JobSummary & {
     recordsLocked: boolean;
     safetySatisfied: boolean;
     clockedInOnThisJob: boolean;
+    submissionBlockers?: Array<{ code: string; message: string }>;
+    workPerformedMinLength?: number;
   };
   safetyControls: JobSafetyControl[];
   workLogs: Array<{

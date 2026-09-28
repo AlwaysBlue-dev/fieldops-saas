@@ -681,7 +681,7 @@ function FieldSheets({
           <>
             <Label htmlFor="work-update">What did you do?</Label>
             <Textarea
-              id="work-update"
+              id="work-update" placeholder="Describe the work completed or progress made"
               value={body}
               onChange={(event) => setBody(event.target.value)}
               rows={5}
@@ -744,7 +744,7 @@ function FieldSheets({
             <div className="grid gap-1.5">
               <Label htmlFor="material-name">Material</Label>
               <Input
-                id="material-name"
+                id="material-name" placeholder="e.g. Replacement air filter"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 className="h-11"
@@ -766,7 +766,7 @@ function FieldSheets({
               <div className="grid gap-1.5">
                 <Label htmlFor="material-unit">Unit</Label>
                 <Input
-                  id="material-unit"
+                  id="material-unit" placeholder="e.g. each, metres, or litres"
                   value={unit}
                   onChange={(event) => setUnit(event.target.value)}
                   className="h-11"
@@ -780,7 +780,7 @@ function FieldSheets({
             <div className="grid gap-1.5">
               <Label htmlFor="signer-name">Signer name</Label>
               <Input
-                id="signer-name"
+                id="signer-name" placeholder="e.g. John Smith"
                 value={signerName}
                 onChange={(event) => setSignerName(event.target.value)}
                 className="h-11"
@@ -789,7 +789,7 @@ function FieldSheets({
             <div className="grid gap-1.5">
               <Label htmlFor="signer-title">Title</Label>
               <Input
-                id="signer-title"
+                id="signer-title" placeholder="e.g. Site Manager"
                 value={signerTitle}
                 onChange={(event) => setSignerTitle(event.target.value)}
                 className="h-11"

@@ -132,7 +132,7 @@ export default function PlatformOwnerMessagesPage() {
         <div className="space-y-2">
           <Label htmlFor="subject">Subject</Label>
           <Input
-            id="subject"
+            id="subject" placeholder="e.g. Upcoming maintenance"
             value={subject}
             maxLength={200}
             disabled={pending}
@@ -144,7 +144,7 @@ export default function PlatformOwnerMessagesPage() {
         <div className="space-y-2">
           <Label htmlFor="message">Message</Label>
           <textarea
-            id="message"
+            id="message" placeholder="Explain the update and any action the Owner should take"
             className="min-h-36 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
             value={message}
             maxLength={8000}

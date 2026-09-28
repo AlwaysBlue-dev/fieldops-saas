@@ -82,7 +82,7 @@ export default function WorkspaceDeletionRequestsPage() {
             </DialogDescription>
           </DialogHeader>
           <label className="space-y-1 text-sm">Optional review note
-            <textarea maxLength={2000} className="min-h-24 w-full rounded-md border border-input bg-background p-2" value={note} onChange={(event) => setNote(event.target.value)} />
+            <textarea placeholder="Explain the deletion review decision" maxLength={2000} className="min-h-24 w-full rounded-md border border-input bg-background p-2" value={note} onChange={(event) => setNote(event.target.value)} />
           </label>
           <DialogFooter className="gap-2">
             <Button variant="outline" disabled={busy} onClick={() => setSelected(null)}>Cancel</Button>

@@ -395,7 +395,7 @@ export default function PlatformInvoicesPage() {
               <div>
                 <Label htmlFor="billingName">Billing contact name</Label>
                 <Input
-                  id="billingName"
+                  id="billingName" placeholder="e.g. John Smith"
                   className="mt-1 h-11"
                   value={billingContactName}
                   onChange={(event) => setBillingContactName(event.target.value)}
@@ -404,7 +404,7 @@ export default function PlatformInvoicesPage() {
               <div>
                 <Label htmlFor="billingEmail">Billing contact email</Label>
                 <Input
-                  id="billingEmail"
+                  id="billingEmail" placeholder="e.g. billing@company.com"
                   className="mt-1 h-11"
                   type="email"
                   value={billingContactEmail}
@@ -427,7 +427,7 @@ export default function PlatformInvoicesPage() {
             <div>
               <Label htmlFor="extRef">External reference (internal)</Label>
               <Input
-                id="extRef"
+                id="extRef" placeholder="e.g. Purchase order PO-1042"
                 className="mt-1 h-11"
                 value={externalReference}
                 onChange={(event) => setExternalReference(event.target.value)}

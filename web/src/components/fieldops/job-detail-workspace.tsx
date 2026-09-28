@@ -60,9 +60,15 @@ import { formatDateTimeInZone, formatTimeInZone } from "@/lib/timezone";
 import { Navigation } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useContext, useId, useCallback, useEffect, useState } from "react";
 
 const MOBILE_TABS = ["Overview", "Work", "Time", "Files", "Activity"] as const;
+
+type CompletionDraft = { workPerformed: string; notes: string; outcome: JobOutcome; reason: string };
+const CompletionDraftContext = createContext<{
+  draft: CompletionDraft | null;
+  setDraft: (draft: CompletionDraft) => void;
+} | null>(null);
 
 export function JobDetailWorkspace() {
   const params = useParams<{ orgSlug: string; jobId: string }>();
@@ -76,6 +82,7 @@ export function JobDetailWorkspace() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [completionDraft, setCompletionDraft] = useState<CompletionDraft | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +173,7 @@ export function JobDetailWorkspace() {
       .join(", ");
 
   return (
+    <CompletionDraftContext.Provider value={{ draft: completionDraft, setDraft: setCompletionDraft }}>
     <div className="mx-auto flex max-w-[1120px] flex-col gap-4">
       <Header job={job} orgSlug={params.orgSlug} />
 
@@ -314,6 +322,7 @@ export function JobDetailWorkspace() {
         </StickyMobileActionBar>
       </div>
     </div>
+    </CompletionDraftContext.Provider>
   );
 }
 
@@ -481,16 +490,39 @@ function PrimaryActions({
   const width = fullWidth ? "h-11 w-full" : "h-11 w-full md:h-8";
   const [returnComment, setReturnComment] = useState("");
   const [returnOpen, setReturnOpen] = useState(false);
-  const safetyReady = job.execution?.safetySatisfied ?? true;
-  const canSubmit =
-    job.status === "IN_PROGRESS" &&
-    job.permissions.canFieldAdvance &&
-    safetyReady &&
-    !job.execution?.clockedInOnThisJob &&
-    Boolean(job.workPerformed);
+  const context = useContext(CompletionDraftContext);
+  const { canMutate } = useCanMutate();
+  const helpId = useId();
+  const draft = context?.draft;
+  const minimum = job.execution?.workPerformedMinLength ?? 8;
+  const blockers = (job.execution?.submissionBlockers ?? []).filter(
+    (item) => !['WORK_PERFORMED', 'OUTCOME', 'OUTCOME_REASON'].includes(item.code),
+  ).map((item) => item.message);
+  // Older API responses still explain the existing safety/clock gates.
+  if (!job.execution?.submissionBlockers) {
+    if (job.execution?.safetySatisfied === false) blockers.push('Confirm the required safety controls.');
+    if (job.execution?.clockedInOnThisJob) blockers.push('End your active work session on this job before submitting.');
+  }
+  const work = draft?.workPerformed ?? job.workPerformed ?? "";
+  const outcome = draft?.outcome ?? job.outcome;
+  const reason = draft?.reason ?? job.outcomeReason ?? "";
+  if (work.trim().length < minimum) blockers.push(`Describe the work completed (at least ${minimum} characters).`);
+  if (!outcome) blockers.push('Select how the job was completed.');
+  const needsReason = outcome === "FOLLOW_UP_REQUIRED" || outcome === "UNABLE_TO_COMPLETE";
+  if (needsReason && !reason.trim()) blockers.push('Explain why follow-up is needed or why the job could not be completed.');
+  const unsaved = draft && (
+    draft.workPerformed.trim() !== (job.workPerformed ?? "").trim() ||
+    draft.notes.trim() !== (job.completionNotes ?? "").trim() ||
+    draft.outcome !== job.outcome || draft.reason.trim() !== (job.outcomeReason ?? "").trim()
+  );
+  if (unsaved && work.trim().length >= minimum && outcome && (!needsReason || reason.trim())) {
+    blockers.push('Save your completion summary before submitting.');
+  }
+  if (!canMutate) blockers.push('This workspace is read-only. Ask the Owner to activate or renew it before submitting.');
+  const canSubmit = blockers.length === 0 && !unsaved;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2">
       {job.status === "SCHEDULED" && job.permissions.canDispatch ? (
         <MutationButton
           className={width}
@@ -510,13 +542,25 @@ function PrimaryActions({
         </MutationButton>
       ) : null}
       {job.status === "IN_PROGRESS" && job.permissions.canFieldAdvance ? (
+        <>
+        {blockers.length > 0 ? (
+          <div id={helpId} className="space-y-1 text-sm" aria-live="polite">
+            <p className="font-medium">Before you can submit</p>
+            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+              {blockers.map((message, index) => <li key={index}>{message}</li>)}
+            </ul>
+            <p className="text-xs text-muted-foreground">Complete these items, then submit for approval.</p>
+          </div>
+        ) : pending ? <p id={helpId} className="text-xs text-muted-foreground">Saving changes…</p> : null}
         <MutationButton
+          aria-describedby={blockers.length || pending ? helpId : undefined}
           className={width}
           disabled={pending || !canSubmit}
           onClick={() => onAction(() => submitJob(organizationId, job.id))}
         >
           Submit for approval
         </MutationButton>
+        </>
       ) : null}
       {job.status === "PENDING_APPROVAL" && job.permissions.canApprove ? (
         <>
@@ -542,7 +586,7 @@ function PrimaryActions({
                 id={`return-${job.id}`}
                 value={returnComment}
                 onChange={(event) => setReturnComment(event.target.value)}
-                placeholder="Required"
+                placeholder="Explain what needs to be updated"
                 className="h-11 md:h-8"
               />
               <MutationButton
@@ -699,6 +743,8 @@ function WorkLogsSection({
               {editing === row.id ? (
                 <div className="space-y-2">
                   <Textarea
+                    aria-label="Work note"
+                    placeholder="Describe the work completed or progress made"
                     value={editText}
                     onChange={(event) => setEditText(event.target.value)}
                   />
@@ -868,7 +914,7 @@ function MaterialsSection({
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="material-name">Item name</Label>
             <Input
-              id="material-name"
+              id="material-name" placeholder="e.g. Replacement air filter"
               className="h-11 md:h-9"
               value={itemName}
               onChange={(event) => setItemName(event.target.value)}
@@ -877,7 +923,7 @@ function MaterialsSection({
           <div className="space-y-1.5">
             <Label htmlFor="material-pn">Part number</Label>
             <Input
-              id="material-pn"
+              id="material-pn" placeholder="e.g. AF-120"
               className="h-11 md:h-9"
               value={partNumber}
               onChange={(event) => setPartNumber(event.target.value)}
@@ -910,7 +956,7 @@ function MaterialsSection({
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="material-notes">Notes</Label>
             <Input
-              id="material-notes"
+              id="material-notes" placeholder="Add installation details or material notes"
               className="h-11 md:h-9"
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
@@ -969,10 +1015,10 @@ function ClientContactSection({
         Job-specific contact only. This does not change the client or site record.
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field label="Representative" id="rep-name" value={name} onChange={setName} disabled={!canEdit} />
-        <Field label="Role" id="rep-role" value={role} onChange={setRole} disabled={!canEdit} />
-        <Field label="Phone" id="rep-phone" value={phone} onChange={setPhone} disabled={!canEdit} />
-        <Field label="Email" id="rep-email" value={email} onChange={setEmail} disabled={!canEdit} />
+        <Field label="Representative" id="rep-name" placeholder="e.g. John Smith" value={name} onChange={setName} disabled={!canEdit} />
+        <Field label="Role" id="rep-role" placeholder="e.g. Site Manager" value={role} onChange={setRole} disabled={!canEdit} />
+        <Field label="Phone" id="rep-phone" placeholder="e.g. +1 555 123 4567" value={phone} onChange={setPhone} disabled={!canEdit} />
+        <Field label="Email" id="rep-email" placeholder="e.g. john@company.com" value={email} onChange={setEmail} disabled={!canEdit} />
       </div>
       {canEdit ? (
         <MutationButton
@@ -1014,6 +1060,10 @@ function CompletionSection({
   const [notes, setNotes] = useState(job.completionNotes ?? "");
   const [outcome, setOutcome] = useState<JobOutcome>(job.outcome ?? "COMPLETED");
   const [reason, setReason] = useState(job.outcomeReason ?? "");
+  const setDraft = useContext(CompletionDraftContext)?.setDraft;
+  useEffect(() => {
+    setDraft?.({ workPerformed, notes, outcome, reason });
+  }, [workPerformed, notes, outcome, reason, setDraft]);
 
   const needsReason =
     outcome === "FOLLOW_UP_REQUIRED" || outcome === "UNABLE_TO_COMPLETE";
@@ -1035,7 +1085,7 @@ function CompletionSection({
         <div className="space-y-1.5">
           <Label htmlFor="completion-notes">Completion notes</Label>
           <Textarea
-            id="completion-notes"
+            id="completion-notes" placeholder="Add handover details or follow-up notes (optional)"
             disabled={!canEdit}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
@@ -1062,7 +1112,7 @@ function CompletionSection({
         {needsReason ? (
           <Field
             label="Reason"
-            id="outcome-reason"
+            id="outcome-reason" placeholder="Explain why follow-up is needed or the work could not be completed"
             value={reason}
             onChange={setReason}
             disabled={!canEdit}
@@ -1072,7 +1122,7 @@ function CompletionSection({
       {canEdit ? (
         <MutationButton
           className="mt-3 h-11 w-full md:h-8 md:w-auto"
-          disabled={pending || workPerformed.trim().length < 8}
+          disabled={pending || workPerformed.trim().length < (job.execution?.workPerformedMinLength ?? 8) || (needsReason && !reason.trim())}
           onClick={() =>
             onSave({
               workPerformed: workPerformed.trim(),
@@ -1181,18 +1231,21 @@ function Field({
   value,
   onChange,
   disabled,
+  placeholder,
 }: {
   label: string;
   id: string;
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       <Input
         id={id}
+        placeholder={placeholder}
         className="h-11 md:h-9"
         value={value}
         disabled={disabled}

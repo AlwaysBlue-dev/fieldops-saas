@@ -300,7 +300,7 @@ export function JobFilesPanel({
             <div>
               <Label htmlFor="rep-name">Representative name</Label>
               <Input
-                id="rep-name"
+                id="rep-name" placeholder="e.g. John Smith"
                 className="mt-1 h-11"
                 value={signerName}
                 onChange={(event) => setSignerName(event.target.value)}
@@ -309,7 +309,7 @@ export function JobFilesPanel({
             <div>
               <Label htmlFor="rep-role">Role</Label>
               <Input
-                id="rep-role"
+                id="rep-role" placeholder="e.g. Site Manager"
                 className="mt-1 h-11"
                 value={signerRole}
                 onChange={(event) => setSignerRole(event.target.value)}
@@ -318,7 +318,7 @@ export function JobFilesPanel({
             <div>
               <Label htmlFor="rep-comments">Comments</Label>
               <Textarea
-                id="rep-comments"
+                id="rep-comments" placeholder="Add client feedback or sign-off comments"
                 className="mt-1"
                 value={comments}
                 onChange={(event) => setComments(event.target.value)}

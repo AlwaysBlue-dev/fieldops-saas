@@ -60,7 +60,7 @@ export function InviteTechnicianSheet({
       >
         <FormField>
           <Label htmlFor="invite-email">Email</Label>
-          <Input id="invite-email" name="email" type="email" required autoComplete="email" />
+          <Input id="invite-email" placeholder="e.g. technician@company.com" name="email" type="email" required autoComplete="email" />
         </FormField>
         <FormField>
           <Label htmlFor="invite-team">Team after acceptance</Label>

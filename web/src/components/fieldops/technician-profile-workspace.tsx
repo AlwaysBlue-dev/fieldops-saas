@@ -303,16 +303,16 @@ export function TechnicianProfileWorkspace() {
             <p className="text-sm font-medium">Add certification</p>
             <FormField>
               <Label htmlFor="cert-name">Name</Label>
-              <Input id="cert-name" name="name" required className="h-11 md:h-8" />
+              <Input id="cert-name" placeholder="e.g. First Aid Certification" name="name" required className="h-11 md:h-8" />
             </FormField>
             <div className="grid gap-2 md:grid-cols-2">
               <FormField>
                 <Label htmlFor="cert-number">Number</Label>
-                <Input id="cert-number" name="certificateNumber" className="h-11 md:h-8" />
+                <Input id="cert-number" placeholder="Enter the certificate number" name="certificateNumber" className="h-11 md:h-8" />
               </FormField>
               <FormField>
                 <Label htmlFor="cert-ref">Document reference</Label>
-                <Input id="cert-ref" name="documentRef" className="h-11 md:h-8" />
+                <Input id="cert-ref" placeholder="Enter the document reference or storage location" name="documentRef" className="h-11 md:h-8" />
               </FormField>
               <FormField>
                 <Label htmlFor="cert-issued">Issued</Label>

@@ -818,7 +818,7 @@ function AssignSkillDrawer({
           <FormField>
             <Label htmlFor="skill-name">Skill name</Label>
             <Input
-              id="skill-name"
+              id="skill-name" placeholder="e.g. Electrical troubleshooting"
               className="h-11"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
@@ -957,7 +957,7 @@ function CertificationDrawer({
         <FormField>
           <Label htmlFor="cert-name">Certification name</Label>
           <Input
-            id="cert-name"
+            id="cert-name" placeholder="e.g. First Aid Certification"
             className="h-11"
             value={name}
             onChange={(event) => setName(event.target.value)}
@@ -968,7 +968,7 @@ function CertificationDrawer({
         <FormField>
           <Label htmlFor="cert-number">Certificate number</Label>
           <Input
-            id="cert-number"
+            id="cert-number" placeholder="Enter the certificate number"
             className="h-11"
             value={certificateNumber}
             onChange={(event) => setCertificateNumber(event.target.value)}

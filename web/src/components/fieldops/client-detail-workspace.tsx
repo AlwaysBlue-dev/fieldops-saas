@@ -417,19 +417,19 @@ function ContactQuickAdd({
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <FormField>
           <Label htmlFor="contact-name">Name</Label>
-          <Input id="contact-name" name="name" required className="h-11 md:h-8" />
+          <Input id="contact-name" placeholder="e.g. John Smith" name="name" required className="h-11 md:h-8" />
         </FormField>
         <FormField>
           <Label htmlFor="contact-title">Title</Label>
-          <Input id="contact-title" name="title" className="h-11 md:h-8" />
+          <Input id="contact-title" placeholder="e.g. Facilities Manager" name="title" className="h-11 md:h-8" />
         </FormField>
         <FormField>
           <Label htmlFor="contact-email">Email</Label>
-          <Input id="contact-email" name="email" type="email" className="h-11 md:h-8" />
+          <Input id="contact-email" placeholder="e.g. john@company.com" name="email" type="email" className="h-11 md:h-8" />
         </FormField>
         <FormField>
           <Label htmlFor="contact-phone">Phone</Label>
-          <Input id="contact-phone" name="phone" className="h-11 md:h-8" />
+          <Input id="contact-phone" placeholder="e.g. +1 555 123 4567" name="phone" className="h-11 md:h-8" />
         </FormField>
       </div>
       {error ? (

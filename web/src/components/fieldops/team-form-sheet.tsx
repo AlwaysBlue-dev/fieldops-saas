@@ -159,7 +159,7 @@ export function TeamFormSheet({
           <FormField>
             <Label htmlFor="description">Description</Label>
             <Textarea
-              id="description"
+              id="description" placeholder="Describe this team's work or service area"
               name="description"
               rows={3}
               defaultValue={team?.description ?? ""}

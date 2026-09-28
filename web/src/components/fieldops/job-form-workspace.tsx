@@ -391,7 +391,7 @@ export function JobFormWorkspace() {
           </div>
           <FormField>
             <Label htmlFor="workOrderNumber">Work order / PO</Label>
-            <Input id="workOrderNumber" name="workOrderNumber" className="h-11 md:h-8" />
+            <Input id="workOrderNumber" placeholder="e.g. WO-1042" name="workOrderNumber" className="h-11 md:h-8" />
           </FormField>
           <FormField>
             <Label htmlFor="scope">Scope of work</Label>
@@ -522,19 +522,19 @@ export function JobFormWorkspace() {
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField>
               <Label htmlFor="clientRepName">Name</Label>
-              <Input id="clientRepName" name="clientRepName" className="h-11 md:h-8" />
+              <Input id="clientRepName" placeholder="e.g. John Smith" name="clientRepName" className="h-11 md:h-8" />
             </FormField>
             <FormField>
               <Label htmlFor="clientRepTitle">Title</Label>
-              <Input id="clientRepTitle" name="clientRepTitle" className="h-11 md:h-8" />
+              <Input id="clientRepTitle" placeholder="e.g. Site Manager" name="clientRepTitle" className="h-11 md:h-8" />
             </FormField>
             <FormField>
               <Label htmlFor="clientRepPhone">Phone</Label>
-              <Input id="clientRepPhone" name="clientRepPhone" className="h-11 md:h-8" />
+              <Input id="clientRepPhone" placeholder="e.g. +1 555 123 4567" name="clientRepPhone" className="h-11 md:h-8" />
             </FormField>
             <FormField>
               <Label htmlFor="clientRepEmail">Email</Label>
-              <Input id="clientRepEmail" name="clientRepEmail" type="email" className="h-11 md:h-8" />
+              <Input id="clientRepEmail" placeholder="e.g. john@company.com" name="clientRepEmail" type="email" className="h-11 md:h-8" />
             </FormField>
           </div>
         </Section>
@@ -559,7 +559,7 @@ export function JobFormWorkspace() {
           <FormField>
             <Label htmlFor="internalNotes">Internal notes</Label>
             <textarea
-              id="internalNotes"
+              id="internalNotes" placeholder="Add internal instructions for your team"
               name="internalNotes"
               rows={3}
               className="rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm"
