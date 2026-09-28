@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { logout } from "@/lib/auth";
-import { canInviteMembers } from "@/lib/current-org";
+import { canInviteMembers, canManageSubscription } from "@/lib/current-org";
 import { pageTitleFromPath } from "@/lib/navigation";
-import { Bell, Download, Plus, Search } from "lucide-react";
+import { Bell, Inbox, Plus, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "./brand-mark";
 import { MutationButton } from "./mutation-control";
@@ -28,6 +28,7 @@ export function TopBar({
   memberships,
   user,
   unreadCount = 0,
+  ownerInboxUnread = 0,
   onSearch,
   onNotifications,
   onQuickCreate,
@@ -37,6 +38,7 @@ export function TopBar({
   memberships: OrganizationMembership[];
   user: PublicUser;
   unreadCount?: number;
+  ownerInboxUnread?: number;
   onSearch: () => void;
   onNotifications: () => void;
   onQuickCreate: () => void;
@@ -63,6 +65,7 @@ export function TopBar({
         .join(" ")
     : null;
   const showManageMembers = canInviteMembers(currentMembership ?? null);
+  const showOwnerInbox = canManageSubscription(currentMembership ?? null);
 
   return (
     <header
@@ -125,6 +128,27 @@ export function TopBar({
               </span>
             ) : null}
           </Button>
+          {showOwnerInbox ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="relative size-11 md:size-8"
+              aria-label={
+                ownerInboxUnread > 0
+                  ? `Inbox, ${ownerInboxUnread} unread`
+                  : "Inbox"
+              }
+              onClick={() => router.push(`/app/${orgSlug}/inbox`)}
+            >
+              <Inbox />
+              {ownerInboxUnread > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {ownerInboxUnread > 99 ? "99+" : ownerInboxUnread}
+                </span>
+              ) : null}
+            </Button>
+          ) : null}
           <TrialChip />
           <MutationButton
             type="button"
@@ -171,6 +195,14 @@ export function TopBar({
                 ) : null}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {showOwnerInbox ? (
+                <DropdownMenuItem
+                  onClick={() => router.push(`/app/${orgSlug}/inbox`)}
+                >
+                  Inbox
+                  {ownerInboxUnread > 0 ? ` · ${ownerInboxUnread}` : ""}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 onClick={() => router.push(`/app/${orgSlug}/settings`)}
               >
@@ -187,7 +219,7 @@ export function TopBar({
               ) : null}
               {!pwa?.isInstalled && onInstallWorkspace ? (
                 <DropdownMenuItem onClick={onInstallWorkspace}>
-                  <Download className="size-4" />
+                  <BrandMark className="size-4 bg-white" alt="" />
                   Install FieldKeel App
                 </DropdownMenuItem>
               ) : null}

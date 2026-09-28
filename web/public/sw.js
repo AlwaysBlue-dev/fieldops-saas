@@ -2,11 +2,12 @@
  * Does NOT cache authenticated API responses, app HTML, or tenant business data.
  * Navigation failures fall back to /offline.html (static message only).
  */
-const SHELL = "fieldops-shell-v2";
+const SHELL = "fieldops-shell-v3";
 const PRECACHE = [
   "/offline.html",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
+  "/icons/icon-maskable-192.png",
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
 ];

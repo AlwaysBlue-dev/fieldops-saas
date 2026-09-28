@@ -123,8 +123,7 @@ function activationCopy(
   }
 
   // readonly / trial expired
-  const title =
-    "Your workspace is read-only until the subscription is activated.";
+  const title = "Your trial has ended.";
   switch (state) {
     case "request_sent":
       return {
@@ -155,7 +154,47 @@ function activationCopy(
       return {
         title,
         description:
-          "Request activation from this banner or Plan & Subscription. Billing stays available.",
+          "Reactivate your workspace from Billing to restore full field operations access.",
+      };
+  }
+}
+
+function neverActivatedCopy(
+  subscription: OrganizationSubscription,
+): { title: string; description: string } {
+  const state = progressState(subscription, "activation");
+  const title = "This workspace needs activation.";
+  switch (state) {
+    case "request_sent":
+      return {
+        title,
+        description:
+          "Your activation request is in progress. Billing stays available.",
+      };
+    case "invoice_preparing":
+      return {
+        title,
+        description:
+          "Your activation invoice is being prepared. It will appear in Billing when ready.",
+      };
+    case "pay_invoice":
+    case "view_invoice":
+      return {
+        title,
+        description:
+          "Complete payment from Billing to start creating and managing field operations.",
+      };
+    case "awaiting_verification":
+      return {
+        title,
+        description:
+          "Your payment is awaiting verification. Full access unlocks after payment is confirmed.",
+      };
+    default:
+      return {
+        title,
+        description:
+          "Activate your subscription to start creating and managing field operations.",
       };
   }
 }
@@ -246,8 +285,7 @@ function renewalCopy(
     }
   }
 
-  const title =
-    "Your workspace is read-only until the subscription is renewed.";
+  const title = "Your subscription has expired.";
   switch (state) {
     case "request_sent":
       return {
@@ -277,7 +315,7 @@ function renewalCopy(
       return {
         title,
         description:
-          "Request renewal from this banner or Plan & Subscription. Billing stays available.",
+          "Reactivate your workspace from Billing to restore full field operations access.",
       };
   }
 }
@@ -393,6 +431,37 @@ export function SubscriptionBanners({
     );
   }
 
+  if (subscription.effectiveStatus === "PENDING_ACTIVATION") {
+    const copy = neverActivatedCopy(subscription);
+    return (
+      <Banner
+        tone="critical"
+        title={copy.title}
+        description={
+          canManage
+            ? copy.description
+            : "Ask the organization owner to activate this workspace. Existing records stay visible."
+        }
+        action={
+          <div className="flex flex-wrap gap-2">
+            {canManage ? (
+              <WorkspaceBillingCta
+                organizationId={organizationId}
+                orgSlug={orgSlug}
+                mode="activate"
+              />
+            ) : null}
+            {canManage ? (
+              <Button asChild variant="outline" className="h-9 md:h-8">
+                <Link href={`/app/${orgSlug}/settings/billing`}>Billing</Link>
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
+    );
+  }
+
   if (subscription.effectiveStatus === "TRIAL_EXPIRED") {
     const copy = activationCopy(subscription, "readonly");
     return (
@@ -407,9 +476,10 @@ export function SubscriptionBanners({
         action={
           <div className="flex flex-wrap gap-2">
             {canManage ? (
-              <RequestActivationButton
+              <WorkspaceBillingCta
                 organizationId={organizationId}
                 orgSlug={orgSlug}
+                mode="reactivate"
               />
             ) : null}
             {canManage ? (
@@ -437,9 +507,11 @@ export function SubscriptionBanners({
         action={
           <div className="flex flex-wrap gap-2">
             {canManage ? (
-              <RenewalActionButton
+              <WorkspaceBillingCta
                 organizationId={organizationId}
                 orgSlug={orgSlug}
+                mode="reactivate"
+                kind="renewal"
               />
             ) : null}
             {canManage ? (
@@ -538,6 +610,157 @@ function progressFromSubscription(
     (kind === "activation"
       ? subscription.activationProgress
       : subscription.renewalProgress) ?? empty
+  );
+}
+
+/** Banner CTA: Activate Workspace vs Reactivate Workspace → Billing workflow. */
+export function WorkspaceBillingCta({
+  organizationId,
+  orgSlug,
+  mode,
+  kind = "activation",
+}: {
+  organizationId: string;
+  orgSlug: string;
+  mode: "activate" | "reactivate";
+  kind?: "activation" | "renewal";
+}) {
+  const { subscription, refresh } = useSubscription();
+  const progress = progressFromSubscription(subscription, kind);
+  const [pending, setPending] = useState(false);
+  const billingHref = `/app/${orgSlug}/settings/billing`;
+  const idleLabel =
+    mode === "activate" ? "Activate Workspace" : "Reactivate Workspace";
+
+  if (progress.state === "active") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Subscription active"
+      >
+        <Check className="size-3.5" aria-hidden />
+        Active
+      </Button>
+    );
+  }
+
+  if (progress.state === "awaiting_verification") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Payment awaiting verification"
+      >
+        Payment Awaiting Verification
+      </Button>
+    );
+  }
+
+  if (progress.state === "invoice_preparing") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Invoice being prepared"
+      >
+        Invoice Being Prepared
+      </Button>
+    );
+  }
+
+  if (progress.state === "pay_invoice" || progress.state === "view_invoice") {
+    return (
+      <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
+        <Link href={billingHref}>{progress.label}</Link>
+      </Button>
+    );
+  }
+
+  if (progress.state === "request_sent") {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled
+        aria-label="Request sent"
+      >
+        <Check className="size-3.5" aria-hidden />
+        Request Sent
+      </Button>
+    );
+  }
+
+  if (progress.state === "can_request") {
+    return (
+      <Button
+        type="button"
+        className={ACTIVATION_CONTROL_CLASS}
+        disabled={pending}
+        aria-busy={pending}
+        aria-label={pending ? "Opening billing" : idleLabel}
+        onClick={async () => {
+          if (pending) return;
+          setPending(true);
+          try {
+            if (kind === "activation") {
+              const result = await requestActivation(
+                organizationId,
+                mode === "activate"
+                  ? "Please activate this FieldKeel workspace."
+                  : "Please reactivate this FieldKeel workspace.",
+              );
+              if (!result.alreadyOpen) {
+                toast.success(
+                  mode === "activate"
+                    ? "Activation request sent."
+                    : "Reactivation request sent.",
+                );
+              }
+            } else {
+              const result = await requestRenewal(
+                organizationId,
+                "Please renew this FieldKeel workspace.",
+              );
+              if (!result.alreadyOpen) {
+                toast.success("Renewal request sent.");
+              }
+            }
+            await refresh();
+          } catch (error) {
+            toast.error(
+              error instanceof ApiError
+                ? error.message
+                : "Could not send the request.",
+            );
+          } finally {
+            setPending(false);
+          }
+        }}
+      >
+        {pending ? (
+          <>
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            Requesting...
+          </>
+        ) : (
+          idleLabel
+        )}
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
+      <Link href={billingHref}>{idleLabel}</Link>
+    </Button>
   );
 }
 

@@ -215,6 +215,27 @@ export function platformCancel(organizationId: string) {
   );
 }
 
+export function sendPlatformOwnerMessage(input: {
+  organizationId: string;
+  subject: string;
+  message: string;
+  category: string;
+  ctaLabel?: string;
+  ctaPath?: string;
+}) {
+  return apiRequest<{
+    id: string;
+    organization: { id: string; name: string; slug: string };
+    subject: string;
+    category: string;
+    recipientCount: number;
+    createdAt: string;
+  }>("/platform/owner-messages", {
+    method: "POST",
+    body: input,
+  });
+}
+
 export function formatBytes(value: string | number | null | undefined) {
   const n = typeof value === "string" ? Number(value) : (value ?? 0);
   if (!Number.isFinite(n) || n <= 0) return "0 B";

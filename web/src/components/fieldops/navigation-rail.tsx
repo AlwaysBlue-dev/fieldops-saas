@@ -18,6 +18,7 @@ import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { OrgAvatar } from "./org-avatar";
+import { BrandMark } from "./brand-mark";
 import { OrganizationSwitcher } from "./organization-switcher";
 
 export function NavigationRail({
@@ -48,6 +49,10 @@ export function NavigationRail({
         collapsed ? "w-19" : "w-68",
       )}
     >
+      <div className={cn("flex shrink-0 items-center gap-2 px-3 pt-3", collapsed && "justify-center px-1.5")}>
+        <BrandMark inverted alt={collapsed ? APP_NAME : ""} />
+        {!collapsed ? <span className="text-sm font-semibold">{APP_NAME}</span> : null}
+      </div>
       <div
         className={cn(
           "flex shrink-0 items-start gap-2 border-b border-white/8 px-2.5 py-3",
@@ -69,7 +74,6 @@ export function NavigationRail({
               <p className="truncate text-[13px] font-semibold tracking-tight text-white">
                 {orgName}
               </p>
-              <p className="type-label text-nav-muted">{APP_NAME}</p>
             </div>
           ) : null}
         </div>

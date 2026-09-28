@@ -23,6 +23,17 @@ In-app notifications and selective transactional email for FieldKeel.
 
 Do not insert notification rows from controllers.
 
+## Owner Inbox
+
+Organization-scoped platform messages for the current Owner (`OwnerMessage` + `OwnerMessageReceipt`).
+
+- Super Admin: `POST /api/v1/platform/owner-messages`
+- Owner: `GET/PATCH .../organizations/:organizationId/owner-inbox` (no subscription guard — usable while read-only)
+- Categories: `GENERAL`, `BILLING`, `ACCOUNT`, `MAINTENANCE`, `IMPORTANT`
+- Optional CTA label + safe internal path (resolved under `/app/{orgSlug}`)
+
+Messages belong to the organization and remain visible to whoever is currently OWNER. Read/unread is tracked per Owner user.
+
 ## Event types (in-app)
 
 | Type | Source |

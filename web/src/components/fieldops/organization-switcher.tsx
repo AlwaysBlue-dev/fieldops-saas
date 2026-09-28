@@ -15,6 +15,28 @@ import { ChevronsUpDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { OrgAvatar } from "./org-avatar";
 
+function subscriptionBadge(membership: OrganizationMembership): string | null {
+  const status = membership.subscription?.effectiveStatus;
+  if (!status) return null;
+  switch (status) {
+    case "TRIALING":
+    case "GRACE":
+      return "Trial";
+    case "ACTIVE":
+    case "PAID_GRACE":
+      return "Active";
+    case "PENDING_ACTIVATION":
+      return "Activation Required";
+    case "TRIAL_EXPIRED":
+    case "EXPIRED":
+    case "SUSPENDED":
+    case "CANCELLED":
+      return "Read Only";
+    default:
+      return membership.subscription?.readOnly ? "Read Only" : null;
+  }
+}
+
 export function OrganizationSwitcher({
   currentSlug,
   memberships,
@@ -55,10 +77,11 @@ export function OrganizationSwitcher({
           <ChevronsUpDown className="size-3.5 shrink-0 opacity-60" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64">
+      <DropdownMenuContent align="start" className="w-72">
         <DropdownMenuLabel>Organizations</DropdownMenuLabel>
         {memberships.map((membership) => {
           const inactive = membership.organization.status !== "ACTIVE";
+          const badge = subscriptionBadge(membership);
           return (
             <DropdownMenuItem
               key={membership.membershipId}
@@ -80,9 +103,16 @@ export function OrganizationSwitcher({
                 hasLogo={membership.organization.hasLogo}
                 className="size-6"
               />
-              <span className="min-w-0 truncate">
-                {membership.organization.name}
-                {inactive ? " (inactive)" : ""}
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate">
+                  {membership.organization.name}
+                  {inactive ? " (inactive)" : ""}
+                </span>
+                {badge && !inactive ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {badge}
+                  </span>
+                ) : null}
               </span>
             </DropdownMenuItem>
           );

@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "./brand-mark";
+
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApiError, SessionExpiredError } from "@/lib/api";
@@ -13,6 +15,7 @@ import {
 import { canManageCustomers, canManageSubscription } from "@/lib/current-org";
 import { desktopPrimaryNav } from "@/lib/navigation";
 import { unreadNotificationCount } from "@/lib/notifications";
+import { ownerInboxUnreadCount } from "@/lib/owner-inbox";
 import {
   rememberPreferredOrgSlug,
   workspaceHomePath,
@@ -45,7 +48,6 @@ import {
 } from "./subscription-provider";
 import { TopBar } from "./top-bar";
 import { WorkspaceManifestLink } from "./workspace-manifest-link";
-import { Download } from "lucide-react";
 
 const RAIL_KEY = "fieldops.rail-collapsed";
 
@@ -84,6 +86,7 @@ export function AppShell({
   const [moreOpen, setMoreOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [ownerInboxUnread, setOwnerInboxUnread] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
@@ -157,6 +160,26 @@ export function AppShell({
     };
   }, [previewOrgId, notifyOpen]);
 
+  useEffect(() => {
+    if (!previewOrgId) return;
+    const membership = memberships.find(
+      (item) => item.organization.slug === orgSlug,
+    );
+    if (!canManageSubscription(membership ?? null)) {
+      setOwnerInboxUnread(0);
+      return;
+    }
+    let cancelled = false;
+    ownerInboxUnreadCount(previewOrgId)
+      .then((result) => {
+        if (!cancelled) setOwnerInboxUnread(result.count);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [previewOrgId, orgSlug, memberships]);
+
   const toggleRail = () => {
     const next = !collapsed;
     window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
@@ -220,6 +243,7 @@ export function AppShell({
             memberships={memberships}
             user={user}
             unreadCount={unreadCount}
+            ownerInboxUnread={ownerInboxUnread}
             onSearch={() => setCommandOpen(true)}
             onNotifications={() => setNotifyOpen(true)}
             onQuickCreate={() => setCreateOpen(true)}
@@ -304,6 +328,19 @@ export function AppShell({
                   {item.label}
                 </Button>
               ))}
+            {canManageSubscription(currentMembership ?? null) ? (
+              <Button
+                variant="ghost"
+                className="h-11 justify-start"
+                onClick={() => {
+                  setMoreOpen(false);
+                  router.push(`/app/${orgSlug}/inbox`);
+                }}
+              >
+                Inbox
+                {ownerInboxUnread > 0 ? ` · ${ownerInboxUnread}` : ""}
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               className="h-11 justify-start"
@@ -466,7 +503,7 @@ function MoreInstallWorkspaceButton({ onInstall }: { onInstall: () => void }) {
       className="h-11 justify-start"
       onClick={onInstall}
     >
-      <Download />
+      <BrandMark className="size-4 bg-white" alt="" />
       Install FieldKeel App
     </Button>
   );

@@ -28,6 +28,12 @@ export type OrganizationMembership = {
     onboardingCompletedAt?: string | null;
     hasLogo?: boolean;
   };
+  /** Lightweight subscription snapshot for switcher badges (org-scoped). */
+  subscription?: {
+    effectiveStatus: string;
+    readOnly: boolean;
+    status: string;
+  } | null;
 };
 
 export type AuthPayload = {

@@ -21,6 +21,7 @@ export type EffectiveSubscriptionStatus =
   | "GRACE"
   | "ACTIVE"
   | "PAID_GRACE"
+  | "PENDING_ACTIVATION"
   | "TRIAL_EXPIRED"
   | "EXPIRED"
   | "SUSPENDED"

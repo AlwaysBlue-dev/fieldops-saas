@@ -1,12 +1,14 @@
 "use client";
 
+import { BrandMark } from "./brand-mark";
+
 import {
   INSTALL_APP_LABEL,
   InstallWorkspaceDialog,
 } from "@/components/fieldops/install-workspace";
 import { Button } from "@/components/ui/button";
 import { PWA_DOCS_HREF, isStandaloneDisplay } from "@/lib/pwa";
-import { Download, Smartphone } from "lucide-react";
+import { Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePwaInstallOptional } from "./pwa-install-provider";
@@ -65,7 +67,7 @@ export function MarketingInstallAppButton({
           setOpen(true);
         }}
       >
-        <Download className="size-4" />
+        <BrandMark className="size-4 bg-white" alt="" />
         {label}
       </Button>
       <InstallWorkspaceDialog open={open} onOpenChange={setOpen} />

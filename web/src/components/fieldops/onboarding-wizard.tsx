@@ -148,7 +148,7 @@ export function OnboardingWizard() {
       >
         <header className="flex items-center justify-between py-3">
           <div className="flex items-center gap-2">
-            <BrandMark />
+            <BrandMark variant="full" />
             <div>
               <p className="text-sm font-semibold">Set up {org.name}</p>
               <p className="text-xs text-muted-foreground">

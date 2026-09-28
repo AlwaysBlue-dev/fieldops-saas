@@ -1,5 +1,5 @@
 import { BrandMark } from "@/components/fieldops/brand-mark";
-import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { APP_TAGLINE } from "@/lib/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -25,12 +25,9 @@ export function AuthShell({
       >
         <Link href="/" className="mb-8 inline-flex flex-col gap-1">
           <span className="inline-flex items-center gap-2">
-            <BrandMark />
-            <span className="text-sm font-semibold tracking-tight">
-              {APP_NAME}
-            </span>
+            <BrandMark variant="full" className="h-24 w-32" />
           </span>
-          <span className="pl-9 text-xs text-muted-foreground">{APP_TAGLINE}</span>
+          <span className="text-xs text-muted-foreground">{APP_TAGLINE}</span>
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>

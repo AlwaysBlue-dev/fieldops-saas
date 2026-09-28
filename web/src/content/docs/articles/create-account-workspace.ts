@@ -48,7 +48,7 @@ export const createAccountWorkspace: DocArticle = {
       id: "additional-workspaces",
       heading: "Creating additional workspaces later",
       paragraphs: [
-        "The same FieldKeel account can own or join many organizations. Only the first self-created trial workspace receives the free trial. Additional workspaces you create require their own subscription (Starter, Professional, or Business) and use the normal request-activation / invoice flow. Joining someone else’s organization by invitation never uses your free trial.",
+        "The same FieldKeel account can own or join many organizations. Only the first self-created trial workspace receives the free trial. Additional workspaces you create can be opened immediately — they stay read-only until you activate a subscription from Billing (Activate Workspace). Joining someone else’s organization by invitation never uses your free trial.",
       ],
     },
     {

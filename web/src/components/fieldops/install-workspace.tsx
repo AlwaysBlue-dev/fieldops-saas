@@ -1,5 +1,7 @@
 "use client";
 
+import { BrandMark } from "./brand-mark";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PWA_DOCS_HREF, workspaceAppName } from "@/lib/pwa";
-import { Check, Download, Smartphone } from "lucide-react";
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePwaInstall } from "./pwa-install-provider";
@@ -143,7 +145,7 @@ export function InstallWorkspaceDialog({
                 disabled={busy}
                 onClick={() => void onInstall()}
               >
-                <Download className="size-4" />
+                <BrandMark className="size-4 bg-white" alt="" />
                 {INSTALL_APP_LABEL}
               </Button>
             ) : null}
@@ -191,7 +193,7 @@ export function InstallWorkspaceSettingsCard({
           className="h-11 md:h-8"
           onClick={onOpenInstall}
         >
-          <Smartphone className="size-4" />
+          <BrandMark className="size-4 bg-white" alt="" />
           {INSTALL_APP_LABEL}
         </Button>
       )}

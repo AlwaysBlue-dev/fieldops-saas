@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   Clock3,
   FolderKanban,
+  Inbox,
   LayoutDashboard,
   Settings,
   Sun,
@@ -73,12 +74,20 @@ export function desktopPrimaryNav(
 
 export function desktopSecondaryNav(
   orgSlug: string,
-  _role?: OrgNavRole,
+  role?: OrgNavRole,
 ): AppNavItem[] {
-  return [
+  const items: AppNavItem[] = [
     { href: `/app/${orgSlug}/settings`, label: "Settings", icon: Settings },
     { href: "/docs", label: "Documentation", icon: BookOpen },
   ];
+  if (role === "OWNER") {
+    items.unshift({
+      href: `/app/${orgSlug}/inbox`,
+      label: "Inbox",
+      icon: Inbox,
+    });
+  }
+  return items;
 }
 
 export const helpNavItem: AppNavItem = {
@@ -137,6 +146,9 @@ export function pageTitleFromPath(pathname: string) {
   if (parts.includes("notifications")) {
     return "Notifications";
   }
+  if (parts.includes("inbox")) {
+    return "Inbox";
+  }
   const titles: Record<string, string> = {
     overview: "Overview",
     "my-day": "My Day",
@@ -150,6 +162,7 @@ export function pageTitleFromPath(pathname: string) {
     reports: "Reports",
     settings: "Settings",
     notifications: "Notifications",
+    inbox: "Inbox",
   };
   return titles[segment] ?? "FieldKeel";
 }

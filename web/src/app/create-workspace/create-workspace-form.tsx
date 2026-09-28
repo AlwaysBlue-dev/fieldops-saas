@@ -177,7 +177,7 @@ export function CreateWorkspaceForm() {
       if (result.trialStarted) {
         router.replace(`/onboarding?org=${result.organization.slug}`);
       } else {
-        router.replace(`/app/${result.organization.slug}/settings/billing`);
+        router.replace(`/app/${result.organization.slug}/overview`);
       }
     } catch (err) {
       if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
@@ -224,7 +224,7 @@ export function CreateWorkspaceForm() {
       description={
         trialEligible
           ? "Name your company to start the FieldKeel 14-day Professional trial."
-          : "Your account has already used its free trial. Additional workspaces require their own subscription."
+          : "Your account has already used its free trial. You can create this workspace now and activate it whenever you're ready. Until activation, the workspace will be available in read-only mode."
       }
       footer={
         <button
@@ -246,10 +246,9 @@ export function CreateWorkspaceForm() {
         <>
           {!trialEligible ? (
             <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Each verified FieldKeel account receives one 14-day Professional
-              trial. Choose a plan for this workspace, then request activation
-              after it is created — payment is arranged with FieldKeel outside
-              the product.
+              Your account has already used its free trial. You can still create
+              this workspace. It will remain read-only until a subscription is
+              activated.
             </p>
           ) : null}
           <ResponsiveForm onSubmit={onSubmit}>
@@ -333,8 +332,8 @@ export function CreateWorkspaceForm() {
                 </select>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   {planCode === "business"
-                    ? "Business is sales-assisted. After creating the workspace, contact sales or request activation from billing."
-                    : "After create, open billing to request activation. FieldKeel sends an official invoice — there is no card checkout in the app."}
+                    ? "Business is sales-assisted. After creating the workspace, use Activate Workspace or Billing to continue."
+                    : "After create, use Activate Workspace from the banner or open Billing. FieldKeel sends an official invoice — there is no card checkout in the app."}
                 </p>
               </FormField>
             ) : null}

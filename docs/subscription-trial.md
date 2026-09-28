@@ -8,7 +8,7 @@ No payment provider is connected. Access is decided on the API from subscription
 
 Each **verified FieldKeel account** is eligible for **one** 14-day Professional free trial. The trial starts when the first trial workspace is successfully provisioned after email verification. No credit card is required.
 
-Additional workspaces the same account creates are allowed, but they do **not** receive another free trial — they use the selected plan and require manual activation. Accepting invitations never consumes trial eligibility. Deleting a workspace never restores it.
+Additional workspaces the same account creates are allowed, but they do **not** receive another free trial. They start in effective status `PENDING_ACTIVATION` (stored `NONE`) and stay read-only until the Owner activates a paid subscription through Billing. Accepting invitations never consumes trial eligibility. Deleting a workspace never restores it.
 
 Trial organizations receive:
 
@@ -22,14 +22,17 @@ Trial organizations receive:
 | Days 1–14 (`now <= trialEndsAt`) | `TRIALING` | Allowed |
 | Days 15–17 (`now <= graceEndsAt`) | `GRACE` | Allowed, with a non-blocking warning |
 | Day 18+ (`now > graceEndsAt`) | `TRIAL_EXPIRED` | Read-only |
+| Additional workspace (no trial dates) | `PENDING_ACTIVATION` | Read-only until first activation |
 
-Expired workspaces keep all data, users, and files. People can still sign in, read jobs/clients/sites/timesheets/reports, and open account/subscription screens.
+Expired or never-activated workspaces keep all data, users, and files. People can still sign in, read jobs/clients/sites/timesheets/reports, and open account/subscription screens, Owner Inbox, and Billing.
 
 They cannot create or edit jobs, clock in/out, create clients/sites, invite members, add materials, upload photos, create timesheets, or approve workflow records.
 
-Owner/admin messaging after expiry is state-aware (no vague “Contact us”):
+Owner messaging after expiry or for never-activated workspaces is state-aware:
 
-- No request yet: **Your workspace is read-only until the subscription is activated.** CTA: **Request Activation**
+- Never activated (`PENDING_ACTIVATION`): **This workspace needs activation.** CTA: **Activate Workspace**
+- Trial expired: **Your trial has ended.** CTA: **Reactivate Workspace**
+- Paid expired: **Your subscription has expired.** CTA: **Reactivate Workspace**
 - Request sent / invoice preparing: status **Request Sent** or **Invoice Being Prepared**
 - Invoice ready: **Pay Invoice** / **View Invoice** from Billing
 - Payment reported: **Payment Awaiting Verification**
@@ -58,7 +61,7 @@ A later reconciliation job may persist `GRACE` / `TRIAL_EXPIRED` for reporting. 
 - `cancelAtPeriodEnd`
 - `createdAt`, `updatedAt`
 
-Statuses supported: `TRIALING`, `GRACE`, `ACTIVE`, `TRIAL_EXPIRED`, `SUSPENDED`, `CANCELLED`. Legacy `NONE`, `PAST_DUE`, and `CANCELED` remain on the enum.
+Statuses supported: `TRIALING`, `GRACE`, `ACTIVE`, `TRIAL_EXPIRED`, `SUSPENDED`, `CANCELLED`. Legacy `NONE`, `PAST_DUE`, and `CANCELED` remain on the enum. Stored `NONE` (additional never-activated workspace) resolves to effective `PENDING_ACTIVATION`.
 
 `ActivationRequest` stores a lightweight sales request: organization, requester, optional message, `OPEN` | `CONTACTED` | `CLOSED`, timestamps.
 

@@ -61,10 +61,7 @@ export function MarketingShell({
               }
             >
               <Link href="/" className="flex items-center gap-2">
-                <BrandMark />
-                <span className="text-sm font-semibold tracking-tight">
-                  {APP_NAME}
-                </span>
+                <BrandMark variant="full" />
               </Link>
               <nav
                 className="hidden items-center gap-5 text-sm md:flex"

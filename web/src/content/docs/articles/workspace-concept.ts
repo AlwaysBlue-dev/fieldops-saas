@@ -50,10 +50,11 @@ export const workspaceConcept: DocArticle = {
     },
     {
       id: "multiple-workspaces",
-      heading: "Creating multiple workspaces",
+      heading: "Additional workspaces",
       paragraphs: [
-        "One FieldKeel account can belong to many organizations and can also own multiple organizations. You can manage ABC Electrical and ABC Plumbing from the same FieldKeel account, but each workspace has its own plan, users, storage, and billing.",
-        "Invited organizations do not consume your personal free-trial eligibility. Only the first self-created trial workspace receives the free 14-day Professional trial. Additional workspaces you create require their own subscription.",
+        "A FieldKeel account receives one eligible free trial. Owners may create additional workspaces immediately from Create workspace. Additional workspaces do not receive another free trial — they remain read-only until activated. The Owner can activate the workspace through Billing (Activate Workspace).",
+        "One FieldKeel account can belong to many organizations and can also own multiple organizations. You can manage ABC Electrical and ABC Plumbing from the same FieldKeel account, but each workspace has its own plan, users, storage, and billing. Invited organizations do not consume your personal free-trial eligibility.",
+        "FieldKeel may send account, billing, maintenance, or important service messages to Owners. Open Inbox even if a workspace is temporarily read-only.",
       ],
     },
     {

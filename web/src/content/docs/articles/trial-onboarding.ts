@@ -28,7 +28,7 @@ export const trialOnboarding: DocArticle = {
       heading: "One free trial per verified account",
       paragraphs: [
         "Each verified FieldKeel account is eligible for one 14-day Professional trial. The trial begins when your first trial workspace is successfully created after email verification. No credit card is required.",
-        "Accepting invitations to other organizations does not use your free trial. Creating additional workspaces after your first trial is allowed, but those workspaces require their own subscription. Deleting a trial workspace does not restore free-trial eligibility.",
+        "Accepting invitations to other organizations does not use your free trial. Creating additional workspaces after your first trial is allowed. Those workspaces do not receive another free trial — they open in read-only mode until you activate a subscription from Billing. Deleting a trial workspace does not restore free-trial eligibility.",
       ],
     },
     {
@@ -53,6 +53,14 @@ export const trialOnboarding: DocArticle = {
       paragraphs: [
         "There is no self-serve card checkout. Owners request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldKeel confirms payment and the subscription becomes Active.",
         "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
+        "Never-activated additional workspaces show Activate Workspace. Workspaces that previously had a trial or paid period and later expired show Reactivate Workspace. Both open the same Billing activation workflow.",
+      ],
+    },
+    {
+      id: "owner-inbox",
+      heading: "Owner Inbox while read-only",
+      paragraphs: [
+        "FieldKeel may send account, billing, maintenance, or important service messages to organization owners. Open Inbox from the top bar or sidebar. Inbox stays available even when the workspace is temporarily read-only after trial expiry or before first activation.",
       ],
     },
   ],
