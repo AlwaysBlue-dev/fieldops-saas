@@ -72,7 +72,7 @@ export class JobNotificationHook {
     const newTechnicians = technicians.filter((id) => !previousTechnicians.has(id) &&
       !(id === after.supervisorUserId && before?.supervisorUserId !== after.supervisorUserId));
     const draft = after.status === JobStatus.DRAFT ? ' The job is currently being prepared.' : '';
-    const details = ` ${context}.${scheduled ? ` Scheduled for ${windowLabel} (${ctx.timezone}).` : ''}`;
+    const details = ` ${context}.${scheduled ? ` ${after.status === JobStatus.DRAFT ? 'Planned for' : 'Scheduled for'} ${windowLabel} (${ctx.timezone}).` : ''}`;
     if (newTechnicians.length) await emit('JOB_ASSIGNED', 'New job assigned',
       `You've been assigned to ${label}.${draft}${details}`, newTechnicians, newTechnicians);
     if (after.supervisorUserId && before?.supervisorUserId !== after.supervisorUserId) {
@@ -81,8 +81,10 @@ export class JobNotificationHook {
     }
     const scheduleChanged = before?.scheduledStart?.getTime() !== after.scheduledStart?.getTime() ||
       before?.expectedFinish?.getTime() !== after.expectedFinish?.getTime();
-    if (scheduleChanged && (after.scheduledStart || before?.scheduledStart)) {
-      const rescheduled = Boolean(before?.scheduledStart);
+    const becameScheduled = before?.status === JobStatus.DRAFT && after.status === JobStatus.SCHEDULED;
+    const rescheduled = before !== null && before.status !== JobStatus.DRAFT &&
+      after.status !== JobStatus.DRAFT && scheduleChanged && Boolean(after.scheduledStart || before.scheduledStart);
+    if (becameScheduled || rescheduled) {
       await emit(rescheduled ? 'JOB_RESCHEDULED' : 'JOB_SCHEDULED',
         rescheduled ? 'Job schedule changed' : 'Job scheduled',
         after.scheduledStart
