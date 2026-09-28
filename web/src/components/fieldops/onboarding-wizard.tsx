@@ -115,6 +115,9 @@ export function OnboardingWizard() {
     );
   }
 
+  const pendingActivation =
+    membership.subscription?.effectiveStatus === "PENDING_ACTIVATION";
+
   async function go(next: number, complete = false) {
     if (!org) return;
     setPending(true);
@@ -235,7 +238,20 @@ export function OnboardingWizard() {
           />
         ) : null}
 
-        {step === 3 ? (
+        {pendingActivation && step >= 3 ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Your workspace setup is ready. Team invitations and client creation
+              will be available after activation.
+            </p>
+            {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+            <Button disabled={pending} onClick={() => void go(5, true)}>
+              {pending ? "Saving…" : "Complete setup"}
+            </Button>
+          </div>
+        ) : null}
+
+        {step === 3 && !pendingActivation ? (
           <InviteStep
             pending={pending}
             error={error}
@@ -257,7 +273,7 @@ export function OnboardingWizard() {
           />
         ) : null}
 
-        {step === 4 ? (
+        {step === 4 && !pendingActivation ? (
           <ClientStep
             pending={pending}
             error={error}

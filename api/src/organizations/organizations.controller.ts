@@ -1,6 +1,7 @@
 import {
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Header,
   HttpCode,
@@ -30,6 +31,8 @@ import {
   UpdateOrganizationSettingsDto,
 } from './dto/update-organization.dto.js';
 import { RequiresActiveSubscription } from '../subscription/requires-active-subscription.decorator.js';
+import { EntitlementService } from '../subscription/entitlement.service.js';
+import { readOnlyMessage } from '../subscription/entitlement.js';
 import { OrganizationBrandingService } from './organization-branding.service.js';
 import { OrganizationsService } from './organizations.service.js';
 
@@ -41,6 +44,7 @@ export class OrganizationsController {
   constructor(
     private readonly organizations: OrganizationsService,
     private readonly branding: OrganizationBrandingService,
+    private readonly entitlements: EntitlementService,
   ) {}
 
   @Get()
@@ -82,13 +86,27 @@ export class OrganizationsController {
   }
 
   @Post('onboarding')
-  @RequiresActiveSubscription()
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.ADMIN)
-  advance(
+  async advance(
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
     @Body() dto: AdvanceOnboardingDto,
   ) {
+    const entitlement = await this.entitlements.evaluate(organization.organizationId);
+    if (!entitlement.canMutate) {
+      // Only initial account setup is exempt; operational writes and expired
+      // subscriptions retain their existing read-only protection.
+      const pendingSetup =
+        entitlement.effectiveStatus === 'PENDING_ACTIVATION' &&
+        !(await this.organizations.get(organization.organizationId)).onboardingCompletedAt;
+      if (!pendingSetup) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          error: 'SUBSCRIPTION_READ_ONLY',
+          message: readOnlyMessage(entitlement.effectiveStatus),
+        });
+      }
+    }
     return this.organizations.advanceOnboarding(organization, dto, user.id);
   }
 
