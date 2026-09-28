@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import { RequestPlanChangeButton } from "@/components/fieldops/subscription-banners";
 import { StatusPill } from "@/components/fieldops/status-pill";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,13 @@ export function PlanUsageWorkspace() {
       cancelled = true;
     };
   }, [params.orgSlug]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId || !canManage) return;
+    const next = await getOrganizationUsage(organizationId);
+    setUsage(next);
+    setError(null);
+  });
 
   if (error === "Insufficient permission") {
     return (

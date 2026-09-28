@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
@@ -85,6 +86,19 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       cancelled = true;
     };
   }, [canManage, organizationId, page]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId || !canManage) return;
+    const [nextSub, nextInvoices, nextSelected] = await Promise.all([
+      getOrganizationSubscription(organizationId),
+      listOrganizationInvoices(organizationId, { page, pageSize: 20 }),
+      selected ? getOrganizationInvoice(organizationId, selected.id) : Promise.resolve(null),
+    ]);
+    setSubscription(nextSub);
+    setInvoices(nextInvoices.items);
+    setTotalPages(nextInvoices.totalPages);
+    if (nextSelected) setSelected(nextSelected);
+  });
 
   const currentInvoice =
     selected ??

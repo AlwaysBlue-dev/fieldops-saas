@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { FormField } from "@/components/fieldops/responsive-form";
@@ -136,6 +137,15 @@ export function MembersPanel() {
     if (!organizationId) return;
     void load();
   }, [organizationId, load]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId || denied) return;
+    const [memberResult, nextInvites] = await Promise.all([
+      listMembers(organizationId, { search: debouncedSearch || undefined, page, pageSize, sort: "fullName" }),
+      listInvitations(organizationId),
+    ]);
+    applyLists(organizationId, memberResult.items, nextInvites, memberResult.total);
+  });
 
   if (status === "loading") {
     return <SkeletonBlock rows={6} />;

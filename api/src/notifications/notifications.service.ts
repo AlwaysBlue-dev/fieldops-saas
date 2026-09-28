@@ -167,6 +167,15 @@ export class NotificationsService {
     return this.serialize(updated);
   }
 
+  async markUnread(ctx: OrganizationContext, actorUserId: string, notificationId: string) {
+    const row = await this.requireOwn(ctx.organizationId, actorUserId, notificationId);
+    if (row.status === NotificationStatus.UNREAD) return this.serialize(row);
+    const updated = await this.prisma.notification.update({
+      where: { id: row.id }, data: { status: NotificationStatus.UNREAD, readAt: null },
+    });
+    return this.serialize(updated);
+  }
+
   async markAllRead(ctx: OrganizationContext, actorUserId: string) {
     await this.assertActiveMember(ctx.organizationId, actorUserId);
     const result = await this.prisma.notification.updateMany({

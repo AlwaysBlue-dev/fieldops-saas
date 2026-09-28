@@ -1,8 +1,10 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
-import { MutationButton } from "@/components/fieldops/mutation-control";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/fieldops/page-header";
 import { SkeletonBlock } from "@/components/fieldops/skeleton-block";
 import { ApiError } from "@/lib/api";
@@ -13,6 +15,7 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationUnread,
   notificationHref,
 } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -37,6 +40,8 @@ export function NotificationInbox() {
     setLoadState("ready");
     setError(null);
   }, [organizationId]);
+
+  useRefreshLoader(refresh);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,7 +96,7 @@ export function NotificationInbox() {
         title="Notifications"
         description="Assignments, approvals, invitations, and subscription updates for this workspace."
         actions={
-          <MutationButton
+          <Button
             type="button"
             variant="outline"
             className="h-11 md:h-8"
@@ -102,9 +107,10 @@ export function NotificationInbox() {
             }}
           >
             Mark all read
-          </MutationButton>
+          </Button>
         }
       />
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       {items.length === 0 ? (
         <EmptyState
           title="Inbox is clear"
@@ -123,9 +129,12 @@ export function NotificationInbox() {
                 onClick={async () => {
                   if (!organizationId) return;
                   if (item.status === "UNREAD") {
-                    await markNotificationRead(organizationId, item.id).catch(
-                      () => undefined,
-                    );
+                    try {
+                      const updated = await markNotificationRead(organizationId, item.id);
+                      setItems((rows) => rows.map((row) => row.id === updated.id ? updated : row));
+                    } catch {
+                      setError("Unable to update notification read state. Please try again.");
+                    }
                   }
                   const href = notificationHref(params.orgSlug, item);
                   if (href) router.push(href);
@@ -139,6 +148,20 @@ export function NotificationInbox() {
                 </div>
                 <p className="text-sm text-muted-foreground">{item.message}</p>
               </button>
+              {item.status === "READ" ? (
+                <Button type="button" variant="ghost" className="mb-2 ml-2"
+                  onClick={async () => {
+                    if (!organizationId) return;
+                    try {
+                      const updated = await markNotificationUnread(organizationId, item.id);
+                      setItems((rows) => rows.map((row) => row.id === updated.id ? updated : row));
+                    } catch {
+                      setError("Unable to update notification read state. Please try again.");
+                    }
+                  }}>
+                  Mark unread
+                </Button>
+              ) : null}
             </li>
           ))}
         </ul>

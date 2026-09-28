@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { ActivityTimeline } from "@/components/fieldops/activity-timeline";
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { JobFilesPanel } from "@/components/fieldops/job-files-panel";
@@ -107,6 +109,8 @@ export function JobDetailWorkspace() {
     setStatus("ready");
     return next;
   }, [organizationId, params.jobId]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId) return;

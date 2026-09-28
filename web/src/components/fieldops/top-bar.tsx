@@ -1,5 +1,6 @@
 "use client";
 
+import { useDataRefresh } from "./data-refresh-provider";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { logout } from "@/lib/auth";
 import { canInviteMembers, canManageSubscription } from "@/lib/current-org";
 import { pageTitleFromPath } from "@/lib/navigation";
-import { Bell, Inbox, Plus, Search } from "lucide-react";
+import { Bell, Inbox, Plus, Search, RefreshCw } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "./brand-mark";
 import { MutationButton } from "./mutation-control";
@@ -44,6 +45,7 @@ export function TopBar({
   onQuickCreate: () => void;
   onInstallWorkspace?: () => void;
 }) {
+  const dataRefresh = useDataRefresh();
   const pathname = usePathname();
   const router = useRouter();
   const pwa = usePwaInstallOptional();
@@ -87,6 +89,18 @@ export function TopBar({
         </div>
 
         <div className="flex items-center gap-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="hidden h-9 w-9 shrink-0 sm:inline-flex"
+            aria-label={dataRefresh?.refreshing ? "Refreshing…" : "Refresh data"}
+            title={dataRefresh?.refreshing ? "Refreshing…" : "Refresh data"}
+            disabled={!dataRefresh || dataRefresh.refreshing}
+            onClick={() => void dataRefresh?.refresh()}
+          >
+            <RefreshCw className={dataRefresh?.refreshing ? "size-4 animate-spin" : "size-4"} aria-hidden />
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -181,6 +195,14 @@ export function TopBar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                className="sm:hidden"
+                disabled={!dataRefresh || dataRefresh.refreshing}
+                onSelect={() => void dataRefresh?.refresh()}
+              >
+                <RefreshCw className={dataRefresh?.refreshing ? "size-4 animate-spin" : "size-4"} aria-hidden />
+                {dataRefresh?.refreshing ? "Refreshing…" : "Refresh data"}
+              </DropdownMenuItem>
               <DropdownMenuLabel>
                 <p className="truncate text-sm font-medium text-foreground">
                   {user.fullName}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { FormField } from "@/components/fieldops/responsive-form";
@@ -97,6 +99,8 @@ export function TeamDetailWorkspace() {
     setCatalogSkills(skills);
     setStatus("ready");
   }, [organizationId, params.teamId]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId) return;

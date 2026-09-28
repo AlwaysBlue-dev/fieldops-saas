@@ -70,6 +70,15 @@ type RequestOptions = Omit<RequestInit, "body"> & {
   skipAuthRefresh?: boolean;
 };
 
+// Only coalesce identical GETs during one explicit refresh, never retain a cache.
+let requestBatch: Map<string, Promise<unknown>> | null = null;
+export async function withApiRequestBatch<T>(action: () => Promise<T>): Promise<T> {
+  if (requestBatch) return action();
+  requestBatch = new Map();
+  try { return await action(); }
+  finally { requestBatch = null; }
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshSession(): Promise<boolean> {
@@ -171,6 +180,7 @@ export async function apiRequest<T>(
     }
 
     if (response.status === 204) {
+      if (method !== "GET" && method !== "HEAD") requestBatch?.clear();
       return undefined as T;
     }
 
@@ -224,8 +234,17 @@ export async function apiRequest<T>(
       throw err;
     }
 
+    if (method !== "GET" && method !== "HEAD") requestBatch?.clear();
     return payload as T;
   };
 
+  if (requestBatch && (options.method ?? "GET").toUpperCase() === "GET") {
+    const key = path + JSON.stringify(options);
+    const existing = requestBatch.get(key);
+    if (existing) return existing as Promise<T>;
+    const request = run(false);
+    requestBatch.set(key, request);
+    return request;
+  }
   return run(false);
 }

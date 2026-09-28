@@ -106,6 +106,19 @@ export class MailService {
     await this.dispatch({ to: input.to, content, logLabel: 'invitation' });
   }
 
+  async sendJobWorkflow(input: {
+    to: string; recipientName: string; organizationName: string;
+    orgSlug: string; jobId: string; title: string; message: string; review: boolean;
+  }) {
+    const content = transactionalMailLayout({
+      preheader: input.title, heading: input.title,
+      paragraphs: [`Hi ${input.recipientName},`, input.message, `Workspace: ${input.organizationName}`],
+      ctaLabel: input.review ? 'Review Job' : 'Open Job',
+      ctaUrl: `${this.appUrl()}/app/${input.orgSlug}/jobs/${input.jobId}`,
+    }, this.branding);
+    return this.dispatch({ to: input.to, content, logLabel: 'job-workflow' });
+  }
+
   async sendJobAssigned(input: {
     to: string;
     recipientName: string;

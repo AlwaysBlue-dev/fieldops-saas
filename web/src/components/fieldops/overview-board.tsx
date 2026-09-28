@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
 import { Button } from "@/components/ui/button";
 import { getMe, getMyOrganizations } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
@@ -75,6 +76,11 @@ export function OverviewBoard({ orgSlug }: { orgSlug: string }) {
       setState("error");
     }
   }, [applyBoard, orgSlug]);
+
+  useRefreshLoader(async () => {
+    const [{ user }, memberships] = await Promise.all([getMe(), getMyOrganizations()]);
+    applyBoard(user.fullName, memberships.find((item) => item.organization.slug === orgSlug)?.organization.name ?? "Organization");
+  });
 
   const firstName = userName.split(" ")[0] ?? userName;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
 import { ApiError } from "@/lib/api";
 import type { OrganizationMembership } from "@/lib/auth";
 import {
@@ -70,6 +71,8 @@ export function SubscriptionProvider({
       },
     };
   }, [organizationId, resolvedId, subscription]);
+
+  useRefreshLoader(value.refresh);
 
   return (
     <SubscriptionContext.Provider value={value}>

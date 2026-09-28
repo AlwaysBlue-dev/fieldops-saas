@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { FormField } from "@/components/fieldops/responsive-form";
@@ -69,6 +71,8 @@ export function TechnicianProfileWorkspace() {
     setSkills(catalog);
     setStatus("ready");
   }, [organizationId, params.userId]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId) return;

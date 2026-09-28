@@ -1,3 +1,4 @@
+import { JobNotificationHook } from './job-events.js';
 import {
   BadRequestException,
   ConflictException,
@@ -49,6 +50,7 @@ export class ClockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly jobEvents: JobNotificationHook,
     private readonly workflow: JobWorkflowService,
     private readonly teams: TeamsService,
     private readonly timesheetValidation: TimesheetValidationService,
@@ -115,6 +117,7 @@ export class ClockService {
           },
         });
         if (startedJob && jobId) {
+          const before = await this.jobEvents.snapshot(tx, ctx.organizationId, jobId, true);
           const progressed = await tx.job.updateMany({
             where: {
               id: jobId,
@@ -124,6 +127,9 @@ export class ClockService {
             data: { status: JobStatus.IN_PROGRESS },
           });
           if (progressed.count === 1) {
+            const after = await this.jobEvents.snapshot(tx, ctx.organizationId, jobId);
+            // Work-start is in-app only.
+            await this.jobEvents.changes(tx, ctx, actorUserId, before, after);
             await this.audit.record(
               {
                 action: AUDIT_JOB_STARTED,

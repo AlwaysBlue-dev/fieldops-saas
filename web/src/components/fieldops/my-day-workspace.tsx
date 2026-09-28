@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 /* Camera previews are local object URLs, not public Next image hosts. */
 /* eslint-disable @next/next/no-img-element */
 
@@ -124,6 +126,8 @@ export function MyDayWorkspace() {
     setDay(payload);
     setLoadState("ready");
   };
+
+  useRefreshLoader(refresh);
 
   const requireConnection = () => {
     if (!online) {

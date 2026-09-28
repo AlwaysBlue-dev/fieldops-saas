@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import { PaginationControls } from "@/components/fieldops/pagination-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,19 @@ export function StorageWorkspace({ orgSlug }: { orgSlug: string }) {
   useEffect(() => {
     void loadFiles();
   }, [loadFiles]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId) return;
+    const [nextUsage, result] = await Promise.all([
+      getStorageUsage(organizationId),
+      listStorageFiles(organizationId, { page, pageSize, search: search.trim() || undefined,
+        category: category || undefined, sort: "createdAt", order: "desc" }),
+    ]);
+    setUsage(nextUsage);
+    setFiles(result.items);
+    setTotal(result.total);
+    setError(null);
+  });
 
   if (error && !usage) {
     if (error === "Insufficient permission") {

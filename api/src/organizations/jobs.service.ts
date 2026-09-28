@@ -37,7 +37,7 @@ import {
   Prisma,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
-import { MailService } from '../mail/mail.service.js';
+import { JobNotificationHook } from './job-events.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CLOCK, type Clock } from '../subscription/clock.js';
 import { Inject } from '@nestjs/common';
@@ -54,7 +54,6 @@ import {
   TERMINAL_JOB_STATUSES,
 } from './job-visibility.js';
 import { assertNotSelfApproval } from './approval-access.js';
-import { ApprovalNotificationHook } from './approval-events.js';
 import { ApprovalRecordsService } from './approval-records.service.js';
 import { JobApprovalValidationService } from './approval-validation.service.js';
 import {
@@ -92,9 +91,8 @@ export class JobsService {
     private readonly workflow: JobWorkflowService,
     private readonly execution: JobExecutionService,
     private readonly approvals: ApprovalRecordsService,
-    private readonly approvalEvents: ApprovalNotificationHook,
     private readonly approvalValidation: JobApprovalValidationService,
-    private readonly mail: MailService,
+    private readonly jobEvents: JobNotificationHook,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -451,10 +449,12 @@ export class JobsService {
         },
         tx,
       );
-      return job.id;
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id);
+      const emails = await this.jobEvents.changes(tx, ctx, actorUserId, null, after);
+      return { id: job.id, emails };
     });
-
-    return this.get(ctx, actorUserId, created);
+    await this.jobEvents.deliver(created.emails);
+    return this.get(ctx, actorUserId, created.id);
   }
 
   async update(
@@ -512,7 +512,11 @@ export class JobsService {
       throw new BadRequestException('expectedFinish must be after scheduledStart');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, existing.id, true);
+      if (before.updatedAt.getTime() !== existing.updatedAt.getTime()) {
+        throw new ConflictException('Job changed concurrently. Refresh and try again.');
+      }
       await tx.job.update({
         where: { id: existing.id },
         data: {
@@ -590,7 +594,10 @@ export class JobsService {
         },
         tx,
       );
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, existing.id);
+      return this.jobEvents.changes(tx, ctx, actorUserId, before, after);
     });
+    await this.jobEvents.deliver(emails);
 
     return this.get(ctx, actorUserId, existing.id);
   }
@@ -651,7 +658,8 @@ export class JobsService {
     );
     await this.approvalValidation.assertApprovable(ctx.organizationId, job.id);
     const decidedAt = this.clock.now();
-    await this.prisma.$transaction(async (tx) => {
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id, true);
       const updated = await tx.job.updateMany({
         where: {
           id: job.id,
@@ -687,24 +695,10 @@ export class JobsService {
         },
         tx,
       );
-      await this.approvalEvents.emit(
-        {
-          type: 'JOB_APPROVED',
-          organizationId: ctx.organizationId,
-          subjectId: job.id,
-          actorUserId,
-          recipientUserIds: [
-            ...job.assignments.map((row) => row.userId),
-            job.supervisorUserId,
-          ].filter((id): id is string => Boolean(id)),
-          title: 'Job approved',
-          body: `${job.jobNumber} was approved and marked complete.`,
-          payload: { status: JobStatus.COMPLETED },
-        },
-        tx,
-      );
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id);
+      return this.jobEvents.changes(tx, ctx, actorUserId, before, after);
     });
-    await this.emailJobCrew(ctx, job, 'APPROVED');
+    await this.jobEvents.deliver(emails);
     return this.get(ctx, actorUserId, job.id);
   }
 
@@ -728,7 +722,8 @@ export class JobsService {
     );
     const decidedAt = this.clock.now();
     const reason = dto.reason.trim();
-    await this.prisma.$transaction(async (tx) => {
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id, true);
       const updated = await tx.job.updateMany({
         where: {
           id: job.id,
@@ -765,24 +760,10 @@ export class JobsService {
         },
         tx,
       );
-      await this.approvalEvents.emit(
-        {
-          type: 'JOB_RETURNED',
-          organizationId: ctx.organizationId,
-          subjectId: job.id,
-          actorUserId,
-          recipientUserIds: [
-            ...job.assignments.map((row) => row.userId),
-            job.supervisorUserId,
-          ].filter((id): id is string => Boolean(id)),
-          title: 'Job returned',
-          body: `${job.jobNumber} was returned: ${reason}`,
-          payload: { status: JobStatus.RETURNED, comment: reason },
-        },
-        tx,
-      );
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id);
+      return this.jobEvents.changes(tx, ctx, actorUserId, before, after, reason);
     });
-    await this.emailJobCrew(ctx, job, 'RETURNED', reason);
+    await this.jobEvents.deliver(emails);
     return this.get(ctx, actorUserId, job.id);
   }
 
@@ -854,7 +835,8 @@ export class JobsService {
     toStatus: JobStatus,
     action: string,
   ) {
-    await this.prisma.$transaction(async (tx) => {
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, jobId, true);
       const updated = await tx.job.updateMany({
         where: {
           id: jobId,
@@ -878,7 +860,10 @@ export class JobsService {
         },
         tx,
       );
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, jobId);
+      return this.jobEvents.changes(tx, ctx, actorUserId, before, after);
     });
+    await this.jobEvents.deliver(emails);
     return this.get(ctx, actorUserId, jobId);
   }
 
@@ -982,55 +967,6 @@ export class JobsService {
       throw new BadRequestException('Site does not belong to the selected client');
     }
     return site;
-  }
-
-  private async emailJobCrew(
-    ctx: OrganizationContext,
-    job: {
-      id: string;
-      jobNumber: string;
-      title: string;
-      assignments: Array<{ userId: string }>;
-      supervisorUserId: string | null;
-    },
-    decision: 'APPROVED' | 'RETURNED',
-    reason?: string,
-  ) {
-    const userIds = [
-      ...job.assignments.map((row) => row.userId),
-      job.supervisorUserId,
-    ].filter((id): id is string => Boolean(id));
-    if (userIds.length === 0) {
-      return;
-    }
-    const users = await this.prisma.user.findMany({
-      where: { id: { in: [...new Set(userIds)] } },
-      select: { id: true, email: true, fullName: true },
-    });
-    for (const user of users) {
-      if (decision === 'APPROVED') {
-        await this.mail.sendJobApproved({
-          to: user.email,
-          recipientName: user.fullName,
-          organizationName: ctx.name,
-          orgSlug: ctx.slug,
-          jobNumber: job.jobNumber,
-          jobTitle: job.title,
-          jobId: job.id,
-        });
-      } else {
-        await this.mail.sendJobReturned({
-          to: user.email,
-          recipientName: user.fullName,
-          organizationName: ctx.name,
-          orgSlug: ctx.slug,
-          jobNumber: job.jobNumber,
-          jobTitle: job.title,
-          jobId: job.id,
-          reason: reason ?? 'Updates required',
-        });
-      }
-    }
   }
 
   private async requireOrgTeam(organizationId: string, teamId: string) {

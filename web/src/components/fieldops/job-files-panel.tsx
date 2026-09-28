@@ -3,6 +3,7 @@
 /* Evidence previews use authorized blob or short-lived URLs, not Next image hosts. */
 /* eslint-disable @next/next/no-img-element */
 
+import { useRefreshLoader } from "./data-refresh-provider";
 import { SignaturePad, type SignaturePadHandle } from "@/components/fieldops/signature-pad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,10 @@ export function JobFilesPanel({
       revoked.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [files]);
+
+  useRefreshLoader(async () => {
+    setFiles(await listJobFiles(organizationId, job.id));
+  });
 
   const photos = files.filter((row) => row.type === "PHOTO");
   const documents = files.filter((row) => row.type === "DOCUMENT" || row.type === "OTHER");

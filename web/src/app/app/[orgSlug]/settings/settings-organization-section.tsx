@@ -1,5 +1,6 @@
 "use client";
 
+import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import {
   IndustrySelect,
   type IndustrySelection,
@@ -26,7 +27,7 @@ import {
   type WorkWeekDay,
 } from "@/lib/organizations";
 import { cn } from "cn";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const WEEK: { id: WorkWeekDay; label: string }[] = [
@@ -78,6 +79,29 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
       cancelled = true;
     };
   }, [orgSlug]);
+
+  const draftVersion = JSON.stringify([name, phone, timezone, workingWeek, industrySelection, industryCustom, pending]);
+  const latestDraft = useRef(draftVersion);
+  useEffect(() => { latestDraft.current = draftVersion; }, [draftVersion]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId || !org) return;
+    const parsed = parseIndustrySelection(org.industry);
+    const dirty = pending || name !== org.name || phone !== (org.phone ?? "") ||
+      timezone !== org.timezone || JSON.stringify(workingWeek) !== JSON.stringify(org.settings?.workingWeek ?? []) ||
+      industrySelection !== parsed.selection || industryCustom !== parsed.custom;
+    const detail = await getOrganization(organizationId);
+    // Never replace the draft's baseline while it contains local edits.
+    if (canManage && (dirty || latestDraft.current !== draftVersion)) return;
+    setOrg(detail);
+    setName(detail.name);
+    setPhone(detail.phone ?? "");
+    setTimezone(detail.timezone);
+    setWorkingWeek(detail.settings?.workingWeek ?? []);
+    const nextIndustry = parseIndustrySelection(detail.industry);
+    setIndustrySelection(nextIndustry.selection);
+    setIndustryCustom(nextIndustry.custom);
+  });
 
   if (!organizationId || !org) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;

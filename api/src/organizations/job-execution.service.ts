@@ -48,7 +48,7 @@ import { jobVisibilityWhere } from './job-visibility.js';
 import { JobWorkflowService } from './job-workflow.service.js';
 import { canEditSchedule } from './job-visibility.js';
 import { TeamsService } from './teams.service.js';
-import { ApprovalNotificationHook } from './approval-events.js';
+import { JobNotificationHook } from './job-events.js';
 import { ApprovalRecordsService } from './approval-records.service.js';
 
 type Db = PrismaService | Prisma.TransactionClient;
@@ -61,7 +61,7 @@ export class JobExecutionService {
     private readonly workflow: JobWorkflowService,
     private readonly teams: TeamsService,
     private readonly approvals: ApprovalRecordsService,
-    private readonly approvalEvents: ApprovalNotificationHook,
+    private readonly jobEvents: JobNotificationHook,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -401,7 +401,8 @@ export class JobExecutionService {
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id, true);
       const updated = await tx.job.updateMany({
         where: {
           id: job.id,
@@ -439,22 +440,10 @@ export class JobExecutionService {
         },
         tx,
       );
-      await this.approvalEvents.emit(
-        {
-          type: 'JOB_APPROVAL_REQUESTED',
-          organizationId: ctx.organizationId,
-          subjectId: job.id,
-          actorUserId,
-          recipientUserIds: [job.supervisorUserId].filter(
-            (id): id is string => Boolean(id),
-          ),
-          title: 'Job ready for approval',
-          body: `${job.jobNumber} was submitted for approval.`,
-          payload: { status: JobStatus.PENDING_APPROVAL },
-        },
-        tx,
-      );
+      const after = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id);
+      return this.jobEvents.changes(tx, ctx, actorUserId, before, after);
     });
+    await this.jobEvents.deliver(emails);
   }
 
   async listActivity(

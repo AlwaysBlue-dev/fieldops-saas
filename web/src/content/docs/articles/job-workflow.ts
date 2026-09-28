@@ -32,6 +32,16 @@ export const jobWorkflow: DocArticle = {
   ],
   sections: [
     {
+      id: "notifications",
+      heading: "Job notifications and emails",
+      paragraphs: [
+        "Newly assigned technicians and the assigned supervisor receive a notification and email, including when a draft job is still being prepared. Assign technicians explicitly: selecting a team alone does not grant technician access to a job.",
+        "Initial scheduling, schedule changes, and dispatch notify assigned technicians and the assigned supervisor. Technicians also receive email for these events. Starting work or clocking into a dispatched job notifies the assigned supervisor in the app.",
+        "Submitting for approval notifies and emails the assigned supervisor. If no supervisor is assigned, eligible Owner, Admin, and Operations Manager reviewers receive the request. Returning a job notifies and emails its technicians with review comments. Approval notifies technicians in the app only.",
+        "Alerts exclude the person performing the action. Saving unchanged assignments or editing unrelated details does not repeat assignment alerts. Notification links open the job within your existing access permissions.",
+      ],
+    },
+    {
       id: "business-flow",
       heading: "End-to-end business flow",
       paragraphs: [

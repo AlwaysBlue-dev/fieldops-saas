@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { MutationButton } from "@/components/fieldops/mutation-control";
@@ -102,6 +104,20 @@ export function ApprovalsWorkspace() {
     setLoadState("ready");
     setSelected([]);
   }, [organizationId, tab, canDecide]);
+
+  useRefreshLoader(async () => {
+    if (!organizationId) return;
+    const [next, detail] = await Promise.all([
+      listApprovals(organizationId, { type: tab, status: canDecide ? "PENDING" : undefined }),
+      expanded ? getApproval(organizationId, expanded.id) : Promise.resolve(null),
+    ]);
+    setItems(next.items);
+    setCounts(next.counts);
+    setCanDecide(next.canDecide);
+    setSelected((current) => current.filter((id) => next.items.some((item) => item.id === id)));
+    if (detail) setExpanded(detail);
+    setLoadState("ready");
+  });
 
   useEffect(() => {
     if (!organizationId) return;

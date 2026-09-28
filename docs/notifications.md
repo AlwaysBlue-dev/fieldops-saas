@@ -17,9 +17,9 @@ In-app notifications and selective transactional email for FieldKeel.
 
 `NotificationsService` owns creates and inbox reads. Domain modules emit through thin hooks:
 
-- `ApprovalNotificationHook` — job / timesheet approval lifecycle
+- `ApprovalNotificationHook` — timesheet approval lifecycle (legacy job event mappings remain available)
 - `OvertimeNotificationHook` — overtime request / decide
-- `JobNotificationHook` — assign / reschedule (+ job-assigned email after commit)
+- `JobNotificationHook` — persisted assignment, schedule, dispatch, work-start, and job approval transitions; notification rows in the job transaction, selective email after commit
 
 Do not insert notification rows from controllers.
 
@@ -38,7 +38,11 @@ Messages belong to the organization and remain visible to whoever is currently O
 
 | Type | Source |
 | --- | --- |
-| `JOB_ASSIGNED` | Schedule assignment |
+| `JOB_ASSIGNED` / `JOB_SUPERVISOR_ASSIGNED` | New technician / supervisor assignment from create, edit, or schedule |
+| `JOB_SCHEDULED` | Initial schedule |
+| `JOB_DISPATCHED` | Job released as DISPATCHED |
+| `JOB_STARTED` | Start or clock-in advances DISPATCHED to IN_PROGRESS |
+| `JOB_APPROVAL_REQUESTED` | Submission to the assigned supervisor or eligible organization reviewers |
 | `JOB_RESCHEDULED` | Schedule window change |
 | `JOB_RETURNED` / `JOB_APPROVED` | Job approval |
 | `TIMESHEET_SUBMITTED` / `TIMESHEET_APPROVED` / `TIMESHEET_RETURNED` | Timesheets |
@@ -47,7 +51,7 @@ Messages belong to the organization and remain visible to whoever is currently O
 | `TRIAL_EXPIRING` / `TRIAL_GRACE` / `TRIAL_EXPIRED` | Subscription reconciliation |
 | `ACTIVATION_REQUEST_ACK` | Activation request confirmation to requester |
 
-Unread dedupe is applied for pending-style events (`dedupeUnread` on same type + entity).
+Job events compare persisted before/after snapshots under the job row lock; unchanged assignments/schedules and failed transitions emit nothing. Actors are excluded, recipients are active organization members, and explicit technician assignments determine technician visibility. Other domain hooks retain their existing unread dedupe.
 
 ## API
 
@@ -56,6 +60,7 @@ All scoped to active org membership of the current user:
 - `GET /api/organizations/:organizationId/notifications`
 - `GET /api/organizations/:organizationId/notifications/unread-count`
 - `PATCH /api/organizations/:organizationId/notifications/:id/read`
+- `PATCH /api/organizations/:organizationId/notifications/:id/unread`
 - `PATCH /api/organizations/:organizationId/notifications/read-all`
 
 Cross-tenant ids → **404**. Email failures never roll back domain transactions (mail runs after commit / caught in `MailService`).
@@ -77,8 +82,12 @@ Emailed (not every operational ping):
 - Email verification (signup) — required before workspace creation
 - Password reset
 - Organization invitation
-- Job assigned
-- Job returned / approved
+- Technician and supervisor assignment
+- Technician initial schedule, reschedule, and dispatch
+- Supervisor/reviewer submission for approval
+- Technician returned for updates
+
+Job work-start and approval notifications are in-app only by default.
 - Overtime decision
 - Timesheet returned
 - Trial ending / grace / expired

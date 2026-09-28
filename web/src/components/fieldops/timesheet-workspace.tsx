@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { AddTimeSheet } from "@/components/fieldops/add-time-sheet";
 import { RequestOvertimeSheet } from "@/components/fieldops/request-overtime-sheet";
 import { EmptyState } from "@/components/fieldops/empty-state";
@@ -84,6 +86,8 @@ export function TimesheetWorkspace() {
     setError(null);
     setLoadState("ready");
   }, [organizationId, weekStart, userId]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId || !weekStart) return;

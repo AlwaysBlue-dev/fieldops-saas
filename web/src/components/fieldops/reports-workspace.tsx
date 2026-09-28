@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { MutationButton } from "@/components/fieldops/mutation-control";
@@ -173,6 +175,8 @@ export function ReportsWorkspace() {
     setLoadState("ready");
     setError(null);
   }, [organizationId, filters]);
+
+  useRefreshLoader(refresh);
 
   useEffect(() => {
     if (!organizationId || !filters.from || !filters.to) return;

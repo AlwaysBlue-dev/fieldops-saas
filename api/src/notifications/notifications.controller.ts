@@ -30,6 +30,8 @@ export class NotificationsController {
     return this.notifications.list(organization, user.id, {
       unreadOnly: query.unreadOnly,
       take: query.take,
+      page: query.page,
+      pageSize: query.pageSize,
     });
   }
 
@@ -48,6 +50,16 @@ export class NotificationsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.notifications.markAllRead(organization, user.id);
+  }
+
+  @Patch(':notificationId/unread')
+  @HttpCode(HttpStatus.OK)
+  markUnread(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('notificationId') notificationId: string,
+  ) {
+    return this.notifications.markUnread(organization, user.id, notificationId);
   }
 
   @Patch(':notificationId/read')

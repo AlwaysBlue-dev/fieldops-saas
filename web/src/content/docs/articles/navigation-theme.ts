@@ -22,6 +22,14 @@ export const navigationTheme: DocArticle = {
   ],
   sections: [
     {
+      id: "refresh-data",
+      heading: "Refresh workspace data",
+      paragraphs: [
+        "Use Refresh Data in the FieldKeel header to retrieve the latest workspace information without reloading the entire app. The circular-arrow icon spins while the current page and workspace badges refresh. On narrow screens, open the account menu to find Refresh data.",
+        "Your current page, filters, and editable input stay in place. Refresh is also available in read-only workspaces and the installed app. If some data cannot be refreshed, keep working with what is displayed and try again.",
+      ],
+    },
+    {
       id: "desktop",
       heading: "Desktop command center",
       paragraphs: [

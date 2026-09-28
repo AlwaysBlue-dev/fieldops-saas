@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { FilterBar } from "@/components/fieldops/filter-bar";
@@ -136,6 +138,8 @@ export function ScheduleWorkspace() {
     setClients(clientResult.items);
     setLoadState("ready");
   }, [organizationId, date, teamId, technicianId, clientId, status, priority]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId) return;

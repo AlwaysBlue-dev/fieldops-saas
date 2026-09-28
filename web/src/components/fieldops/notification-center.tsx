@@ -15,7 +15,7 @@ import { cn } from "cn";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { EmptyState } from "./empty-state";
-import { MutationButton } from "./mutation-control";
+import { useRefreshLoader } from "./data-refresh-provider";
 import { SkeletonBlock } from "./skeleton-block";
 
 export function NotificationCenter({
@@ -63,6 +63,19 @@ export function NotificationCenter({
     }
   }, [organizationId, onUnreadChange]);
 
+  useRefreshLoader(async () => {
+    if (!open) return;
+    const [pages, unread] = await Promise.all([
+      Promise.all(Array.from({ length: page }, (_, index) =>
+        listNotifications(organizationId, { page: index + 1, pageSize: 20 }))),
+      unreadNotificationCount(organizationId),
+    ]);
+    setItems(pages.flatMap((result) => result.items));
+    setTotal(pages[0]?.total ?? 0);
+    onUnreadChange?.(unread.count);
+    setLoadState("ready");
+  });
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -91,13 +104,8 @@ export function NotificationCenter({
               : row,
           ),
         );
-        onUnreadChange?.(
-          Math.max(
-            0,
-            items.filter((row) => row.status === "UNREAD" && row.id !== item.id)
-              .length,
-          ),
-        );
+        const unread = await unreadNotificationCount(organizationId);
+        onUnreadChange?.(unread.count);
       } catch {
         /* navigation still allowed */
       }
@@ -132,7 +140,7 @@ export function NotificationCenter({
         <p className="text-sm text-muted-foreground">
           Recent alerts for this organization
         </p>
-        <MutationButton
+        <Button
           type="button"
           variant="outline"
           className="h-11 shrink-0 md:h-8"
@@ -140,7 +148,7 @@ export function NotificationCenter({
           onClick={() => void onMarkAll()}
         >
           Mark all read
-        </MutationButton>
+        </Button>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {items.length === 0 ? (

@@ -1,5 +1,12 @@
 import { apiRequest } from "./api";
 
+export const NOTIFICATIONS_CHANGED = "fieldkeel:notifications-changed";
+async function notifyReadChange<T>(organizationId: string, request: Promise<T>) {
+  const result = await request;
+  window.dispatchEvent(new CustomEvent(NOTIFICATIONS_CHANGED, { detail: { organizationId } }));
+  return result;
+}
+
 export type AppNotification = {
   id: string;
   organizationId: string | null;
@@ -49,17 +56,24 @@ export function markNotificationRead(
   organizationId: string,
   notificationId: string,
 ) {
-  return apiRequest<AppNotification>(
+  return notifyReadChange(organizationId, apiRequest<AppNotification>(
     `/organizations/${organizationId}/notifications/${notificationId}/read`,
     { method: "PATCH" },
-  );
+  ));
+}
+
+export function markNotificationUnread(organizationId: string, notificationId: string) {
+  return notifyReadChange(organizationId, apiRequest<AppNotification>(
+    `/organizations/${organizationId}/notifications/${notificationId}/unread`,
+    { method: "PATCH" },
+  ));
 }
 
 export function markAllNotificationsRead(organizationId: string) {
-  return apiRequest<{ updated: number }>(
+  return notifyReadChange(organizationId, apiRequest<{ updated: number }>(
     `/organizations/${organizationId}/notifications/read-all`,
     { method: "PATCH" },
-  );
+  ));
 }
 
 export function notificationHref(
@@ -74,6 +88,10 @@ export function notificationHref(
         ? payload.jobId
         : null;
   switch (item.type) {
+    case "JOB_SCHEDULED":
+    case "JOB_DISPATCHED":
+    case "JOB_STARTED":
+    case "JOB_SUPERVISOR_ASSIGNED":
     case "JOB_ASSIGNED":
     case "JOB_RESCHEDULED":
     case "JOB_APPROVED":

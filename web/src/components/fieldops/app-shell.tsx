@@ -1,5 +1,6 @@
 "use client";
 
+import { DataRefreshProvider, useRefreshLoader } from "./data-refresh-provider";
 import { BrandMark } from "./brand-mark";
 
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
 } from "@/lib/auth";
 import { canManageCustomers, canManageSubscription } from "@/lib/current-org";
 import { desktopPrimaryNav } from "@/lib/navigation";
-import { unreadNotificationCount } from "@/lib/notifications";
+import { NOTIFICATIONS_CHANGED, unreadNotificationCount } from "@/lib/notifications";
 import { OWNER_INBOX_CHANGED, ownerInboxUnreadCount } from "@/lib/owner-inbox";
 import {
   clearPreferredOrgSlug,
@@ -63,7 +64,11 @@ function getRailCollapsed() {
   return window.matchMedia("(max-width: 1023px)").matches;
 }
 
-export function AppShell({
+export function AppShell(props: { orgSlug: string; children: ReactNode }) {
+  return <DataRefreshProvider key={props.orgSlug}><AppShellContent {...props} /></DataRefreshProvider>;
+}
+
+function AppShellContent({
   orgSlug,
   children,
 }: {
@@ -179,26 +184,34 @@ export function AppShell({
   }, [status, orgSlug]);
 
   const previewOrgId = membershipOrganizationId(memberships, orgSlug);
+  const canReadOwnerInbox = canManageSubscription(memberships.find((item) => item.organization.slug === orgSlug) ?? null);
 
   useEffect(() => {
     if (!previewOrgId) return;
     let cancelled = false;
-    unreadNotificationCount(previewOrgId)
-      .then((result) => {
-        if (!cancelled) setUnreadCount(result.count);
-      })
-      .catch(() => undefined);
+    let version = 0;
+    const refreshCount = () => {
+      const current = ++version;
+      void unreadNotificationCount(previewOrgId).then((result) => {
+        if (!cancelled && current === version) setUnreadCount(result.count);
+      }).catch(() => undefined);
+    };
+    const onChange = (event: Event) => {
+      if ((event as CustomEvent<{ organizationId: string }>).detail.organizationId === previewOrgId) refreshCount();
+    };
+    refreshCount();
+    window.addEventListener(NOTIFICATIONS_CHANGED, onChange);
+    const timer = window.setInterval(() => { if (!document.hidden) refreshCount(); }, 60_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener(NOTIFICATIONS_CHANGED, onChange);
     };
   }, [previewOrgId, notifyOpen]);
 
   useEffect(() => {
     if (!previewOrgId) return;
-    const membership = memberships.find(
-      (item) => item.organization.slug === orgSlug,
-    );
-    if (!canManageSubscription(membership ?? null)) {
+    if (!canReadOwnerInbox) {
       setOwnerInboxUnread(0);
       return;
     }
@@ -224,7 +237,21 @@ export function AppShell({
       cancelled = true;
       window.removeEventListener(OWNER_INBOX_CHANGED, onInboxChanged);
     };
-  }, [previewOrgId, orgSlug, memberships]);
+  }, [previewOrgId, canReadOwnerInbox]);
+
+  useRefreshLoader(async () => {
+    const [{ user: nextUser }, orgs, notifications, inbox] = await Promise.all([
+      getMe(),
+      getMyOrganizations(),
+      previewOrgId ? unreadNotificationCount(previewOrgId) : Promise.resolve({ count: 0 }),
+      previewOrgId && canManageSubscription(memberships.find((m) => m.organization.id === previewOrgId) ?? null)
+        ? ownerInboxUnreadCount(previewOrgId) : Promise.resolve({ count: 0 }),
+    ]);
+    setUser(nextUser);
+    setMemberships(orgs);
+    setUnreadCount(notifications.count);
+    setOwnerInboxUnread(inbox.count);
+  });
 
   const toggleRail = () => {
     const next = !collapsed;

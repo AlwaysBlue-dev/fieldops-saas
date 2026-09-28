@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
 import { PageHeader } from "@/components/fieldops/page-header";
@@ -53,6 +55,8 @@ function OwnerInboxContent({ orgSlug }: { orgSlug: string }) {
         : null,
     );
   }, [organizationId]);
+
+  useRefreshLoader(refresh);
 
   useEffect(() => {
     let cancelled = false;

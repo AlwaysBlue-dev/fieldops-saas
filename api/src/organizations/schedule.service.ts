@@ -289,6 +289,10 @@ export class ScheduleService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, existing.id, true);
+      if (before.updatedAt.getTime() !== existing.updatedAt.getTime()) {
+        throw new ConflictException('Job changed concurrently. Refresh and try again.');
+      }
       const cas = await tx.job.updateMany({
         where: {
           id: existing.id,
@@ -381,53 +385,10 @@ export class ScheduleService {
         );
       }
 
-      const newlyAssignedUserIds = nextTechIds.filter(
-        (userId) => !currentTechIds.includes(userId),
-      );
-      const rescheduleUserIds =
-        timesChanged && hadStart
-          ? [...new Set([...nextTechIds, nextSupervisorId].filter(Boolean))]
-          : [];
-      await this.jobEvents.emitScheduleChanges(
-        {
-          organizationId: ctx.organizationId,
-          organizationName: ctx.name,
-          orgSlug: ctx.slug,
-          jobId: existing.id,
-          jobNumber: fresh.jobNumber,
-          jobTitle: fresh.title,
-          actorUserId,
-          newlyAssignedUserIds,
-          rescheduleUserIds: rescheduleUserIds as string[],
-          scheduledStart: nextStart,
-          expectedFinish: nextFinish,
-          timezone: ctx.timezone,
-        },
-        tx,
-      );
-
-      return {
-        job: fresh,
-        newlyAssignedUserIds,
-        scheduledStart: nextStart,
-        expectedFinish: nextFinish,
-      };
+      const emails = await this.jobEvents.changes(tx, ctx, actorUserId, before, fresh);
+      return { job: fresh, emails };
     });
-
-    await this.jobEvents.emailJobAssigned({
-      organizationId: ctx.organizationId,
-      organizationName: ctx.name,
-      orgSlug: ctx.slug,
-      jobId: updated.job.id,
-      jobNumber: updated.job.jobNumber,
-      jobTitle: updated.job.title,
-      actorUserId,
-      newlyAssignedUserIds: updated.newlyAssignedUserIds,
-      rescheduleUserIds: [],
-      scheduledStart: updated.scheduledStart,
-      expectedFinish: updated.expectedFinish,
-      timezone: ctx.timezone,
-    });
+    await this.jobEvents.deliver(updated.emails);
 
     return serializeScheduleJob(updated.job);
   }

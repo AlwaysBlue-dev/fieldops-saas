@@ -1,5 +1,7 @@
 "use client";
 
+import { useRefreshLoader } from "./data-refresh-provider";
+
 import { DataGrid } from "@/components/fieldops/data-grid";
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
@@ -130,6 +132,8 @@ export function JobsWorkspace() {
     preset,
     timezone,
   ]);
+
+  useRefreshLoader(load);
 
   useEffect(() => {
     if (!organizationId) return;
