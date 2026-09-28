@@ -18,30 +18,58 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://fieldkeel.com"),
+
   title: {
     default: APP_NAME,
     template: `%s · ${APP_NAME}`,
   },
+
   description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+
   applicationName: APP_NAME,
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+
   appleWebApp: {
     capable: true,
     title: APP_NAME,
     statusBarStyle: "default",
   },
+
   icons: {
     icon: [
-      { url: "/icons/favicon.ico", type: "image/x-icon" },
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: "/icons/favicon.ico",
+        type: "image/x-icon",
+      },
+      {
+        url: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
     apple: [
-      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
     ],
   },
+
   formatDetection: {
     telephone: false,
   },
+
   other: {
     "mobile-web-app-capable": "yes",
   },
@@ -52,10 +80,18 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
+
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#1c2233" },
-    { media: "(prefers-color-scheme: dark)", color: "#141821" },
+    {
+      media: "(prefers-color-scheme: light)",
+      color: "#1c2233",
+    },
+    {
+      media: "(prefers-color-scheme: dark)",
+      color: "#141821",
+    },
   ],
+
   colorScheme: "light dark",
 };
 
@@ -69,12 +105,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground">
         <ThemeProvider>
           {children}
+
           <PwaThemeMeta />
           <PwaRegister />
+
           <Toaster
             richColors
             position="top-center"
-            toastOptions={{ className: "font-sans" }}
+            toastOptions={{
+              className: "font-sans",
+            }}
           />
         </ThemeProvider>
       </body>

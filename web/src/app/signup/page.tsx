@@ -3,7 +3,15 @@ import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = {
-  title: "Create account",
+  title: "Signup",
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default async function SignupPage() {
