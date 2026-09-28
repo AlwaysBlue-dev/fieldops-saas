@@ -5,6 +5,7 @@ export const CSRF_HEADER_VALUE = 'web';
 export const DEFAULT_PLAN_CODE = 'starter';
 export const TRIAL_PLAN_CODE = 'professional';
 export const BUSINESS_PLAN_CODE = 'business';
+export const MAX_PENDING_WORKSPACES = 3;
 export const TRIAL_DAYS = 14;
 export const TRIAL_GRACE_DAYS = 3;
 export const TRIAL_ENDING_SOON_DAYS = 3;

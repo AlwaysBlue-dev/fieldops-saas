@@ -15,16 +15,19 @@ import {
   AUDIT_TRIAL_STARTED,
   AUDIT_USER_FIRST_TRIAL_CONSUMED,
   DEFAULT_PLAN_CODE,
+  MAX_PENDING_WORKSPACES,
   EMAIL_VERIFICATION_TTL_HOURS,
   PASSWORD_RESET_TTL_MINUTES,
   TRIAL_DAYS,
   TRIAL_GRACE_DAYS,
   TRIAL_PLAN_CODE,
 } from '../common/constants.js';
+import { hasCommercialActivation } from '../subscription/commercial-history.js';
 import { trialWindow } from '../subscription/clock.js';
 import {
   planSnapshot,
   resolveEntitlement,
+  resolveEffectiveStatus,
 } from '../subscription/entitlement.js';
 import { generateUrlToken, hashToken, tokenMatches } from '../common/crypto-token.js';
 import { durationToMs } from '../common/duration.js';
@@ -76,6 +79,55 @@ export class AuthService {
     private readonly mail: MailService,
     private readonly legal: LegalService,
   ) {}
+
+  private async countPendingWorkspaces(
+    tx: Pick<Prisma.TransactionClient, 'organization' | 'subscription' | 'invoice' | 'auditLog'>,
+    userId: string,
+  ) {
+    const organizations = await tx.organization.findMany({
+      where: {
+        deletedAt: null,
+        // Creation audit is stable across changes to Owner memberships.
+        OR: [
+          { auditLogs: { some: { action: 'organization.created', actorUserId: userId } } },
+          {
+            auditLogs: { none: { action: 'organization.created' } },
+            members: { some: { userId, role: OrganizationRole.OWNER, status: MembershipStatus.ACTIVE } },
+          },
+        ],
+      },
+      select: { id: true, subscription: true },
+    });
+    const now = new Date();
+    let count = 0;
+    for (const organization of organizations) {
+      const subscription = organization.subscription;
+      if (!subscription || resolveEffectiveStatus({
+        storedStatus: subscription.status,
+        trialEndsAt: subscription.trialEndsAt,
+        graceEndsAt: subscription.graceEndsAt,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        activatedAt: subscription.activatedAt,
+      }, now) !== 'PENDING_ACTIVATION') continue;
+      if (!(await hasCommercialActivation(tx, organization.id))) count++;
+    }
+    return count;
+  }
+
+  async workspaceCreationStatus(userId: string) {
+    const [pendingCount, user] = await Promise.all([
+      this.countPendingWorkspaces(this.prisma, userId),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { trialUsedAt: true },
+      }),
+    ]);
+    return {
+      pendingCount,
+      limit: MAX_PENDING_WORKSPACES,
+      canCreate: user.trialUsedAt == null || pendingCount < MAX_PENDING_WORKSPACES,
+    };
+  }
 
   async signup(dto: SignupDto, request: Request) {
     const email = normalizeEmail(dto.email);
@@ -238,6 +290,15 @@ export class AuthService {
         }
 
         const trialEligible = lockedRow.trialUsedAt == null;
+        // The User row lock above serializes the count and insert for this creator.
+        if (!trialEligible && (await this.countPendingWorkspaces(tx, userId)) >= MAX_PENDING_WORKSPACES) {
+          throw new ConflictException({
+            statusCode: 409,
+            error: 'Workspace limit reached',
+            code: 'PENDING_WORKSPACE_LIMIT_REACHED',
+            message: 'You can have up to 3 workspaces awaiting activation at a time. Activate or delete one of your pending workspaces before creating another.',
+          });
+        }
         let planCode: string;
         let subscriptionStatus: typeof SubscriptionStatus.TRIALING | typeof SubscriptionStatus.NONE;
         let trialStartedAt: Date | null = null;

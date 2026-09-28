@@ -10,6 +10,7 @@ import { ApiError } from "@/lib/api";
 import { friendlyErrorMessage } from "@/lib/friendly-message";
 import {
   createWorkspace,
+  getWorkspaceCreationStatus,
   getMe,
   getMyOrganizations,
   logout,
@@ -27,6 +28,8 @@ import { getPublicCatalog, type PublicPlan } from "@/lib/pricing";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+
+const WORKSPACE_LIMIT_MESSAGE = "You can have up to 3 workspaces awaiting activation at a time. Activate or delete one of your pending workspaces before creating another.";
 
 const DRAFT_KEY = "fieldops.draft.create-workspace-name";
 
@@ -96,6 +99,7 @@ export function CreateWorkspaceForm() {
   const [error, setError] = useState<string | null>(null);
   const [duplicateSlug, setDuplicateSlug] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -107,10 +111,11 @@ export function CreateWorkspaceForm() {
     let cancelled = false;
     (async () => {
       try {
-        const [{ user }, memberships, catalog] = await Promise.all([
+        const [{ user }, memberships, catalog, creationStatus] = await Promise.all([
           getMe(),
           getMyOrganizations(),
           getPublicCatalog(),
+          getWorkspaceCreationStatus(),
         ]);
         if (cancelled) return;
         if (!user.emailVerifiedAt) {
@@ -122,6 +127,7 @@ export function CreateWorkspaceForm() {
           memberships.filter((membership) => membership.role === "OWNER"),
         );
         setPlans(catalog?.plans ?? []);
+        setLimitReached(!creationStatus.canCreate);
         setChecking(false);
         router.prefetch("/onboarding");
       } catch {
@@ -164,6 +170,8 @@ export function CreateWorkspaceForm() {
       return;
     }
 
+    if (limitReached) return;
+
     setPending(true);
     writeDraft(validated.displayName);
     setOrganizationName(validated.displayName);
@@ -180,6 +188,10 @@ export function CreateWorkspaceForm() {
         router.replace(`/app/${result.organization.slug}/overview`);
       }
     } catch (err) {
+      if (err instanceof ApiError && err.code === "PENDING_WORKSPACE_LIMIT_REACHED") {
+        setLimitReached(true);
+        return;
+      }
       if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
         router.replace("/verify-email");
         return;
@@ -244,7 +256,23 @@ export function CreateWorkspaceForm() {
         <p className="text-sm text-muted-foreground">Preparing your workspace…</p>
       ) : (
         <>
-          {!trialEligible ? (
+          {limitReached ? (
+            <div role="alert" className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+              <p className="font-medium">Workspace limit reached</p>
+              <p>{WORKSPACE_LIMIT_MESSAGE}</p>
+              <Link href="/app" className="font-medium text-primary">
+                Open your workspaces
+              </Link>
+              <button
+                type="button"
+                className="ml-3 font-medium text-primary"
+                onClick={() => window.location.reload()}
+              >
+                Refresh availability
+              </button>
+            </div>
+          ) : null}
+          {!trialEligible && !limitReached ? (
             <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
               Your account has already used its free trial. You can still create
               this workspace. It will remain read-only until a subscription is
@@ -358,7 +386,7 @@ export function CreateWorkspaceForm() {
             <Button
               type="submit"
               className="h-11 w-full"
-              disabled={pending || Boolean(clientDuplicate)}
+              disabled={pending || limitReached || Boolean(clientDuplicate)}
             >
               {pending
                 ? "Creating workspace…"

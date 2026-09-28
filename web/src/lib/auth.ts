@@ -96,6 +96,12 @@ export function resendVerification() {
   );
 }
 
+export function getWorkspaceCreationStatus() {
+  return apiRequest<{ pendingCount: number; limit: number; canCreate: boolean }>(
+    "/auth/workspace-creation-status",
+  );
+}
+
 export function createWorkspace(input: {
   organizationName: string;
   timezone?: string;

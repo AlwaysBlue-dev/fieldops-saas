@@ -112,6 +112,12 @@ export class AuthController {
     return this.auth.resendVerification(user.id);
   }
 
+  @Get('workspace-creation-status')
+  @UseGuards(JwtAuthGuard)
+  workspaceCreationStatus(@CurrentUser() user: AuthUser) {
+    return this.auth.workspaceCreationStatus(user.id);
+  }
+
   @Post('create-workspace')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, EmailVerifiedGuard)
