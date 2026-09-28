@@ -1065,6 +1065,7 @@ export class InvoiceService {
       where: {
         status: InvoiceStatus.ISSUED,
         dueAt: { lt: now },
+        organization: { deletedAt: null },
       },
       include: this.include(),
     });

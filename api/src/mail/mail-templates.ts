@@ -1,3 +1,8 @@
+export type MailBranding = {
+  webUrl: string;
+  supportEmail: string;
+};
+
 export type MailContent = {
   subject: string;
   text: string;
@@ -12,25 +17,31 @@ function escapeHtml(value: string) {
     .replaceAll('"', '&quot;');
 }
 
-function layout(input: {
+export function transactionalMailLayout(input: {
   preheader: string;
   heading: string;
   paragraphs: string[];
   ctaLabel?: string;
   ctaUrl?: string;
   footerNote?: string;
-}): MailContent {
+  /** Preserve the original body of existing text-based billing notifications. */
+  textBody?: string;
+}, branding: MailBranding): MailContent {
+  const logoUrl = `${branding.webUrl.replace(/\/+$/, '')}/icons/logo.png`;
   const textParts = [
-    input.heading,
+    ...(input.textBody !== undefined ? [input.textBody] : [
+      input.heading,
+      '',
+      ...input.paragraphs,
+      ...(input.ctaUrl ? ['', input.ctaLabel ? `${input.ctaLabel}:` : 'Open:', input.ctaUrl] : []),
+    ]),
     '',
-    ...input.paragraphs,
-    ...(input.ctaUrl ? ['', input.ctaLabel ? `${input.ctaLabel}:` : 'Open:', input.ctaUrl] : []),
-    '',
-    input.footerNote ??
-      'FieldKeel\nThe backbone of your field operations.',
+    ...(input.footerNote ? [input.footerNote, ''] : []),
+    'FieldKeel\nThe backbone of your field operations.',
+    `Support: ${branding.supportEmail}`,
   ];
   const paras = input.paragraphs
-    .map((p) => `<p style="margin:0 0 14px;color:#1f2937;font-size:15px;line-height:1.55;">${escapeHtml(p)}</p>`)
+    .map((p) => `<p style="margin:0 0 14px;color:#1f2937;font-size:15px;line-height:1.55;">${escapeHtml(p).replaceAll('\n', '<br />')}</p>`)
     .join('');
   const cta =
     input.ctaUrl && input.ctaLabel
@@ -46,9 +57,8 @@ function layout(input: {
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-        <tr><td style="background:#0f172a;padding:18px 24px;">
-          <p style="margin:0;color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.02em;">FieldKeel</p>
-          <p style="margin:6px 0 0;color:#94a3b8;font-size:12px;line-height:1.4;">The backbone of your field operations.</p>
+        <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:18px 24px;border-bottom:1px solid #e5e7eb;">
+          <img src="${escapeHtml(logoUrl)}" alt="FieldKeel" width="180" style="display:block;width:180px;max-width:100%;height:auto;border:0;background:#ffffff;" />
         </td></tr>
         <tr><td style="padding:28px 24px 8px;">
           <h1 style="margin:0 0 16px;color:#0f172a;font-size:22px;line-height:1.3;">${escapeHtml(input.heading)}</h1>
@@ -56,7 +66,9 @@ function layout(input: {
           ${cta}
         </td></tr>
         <tr><td style="padding:8px 24px 24px;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.5;">${escapeHtml(input.footerNote ?? 'FieldKeel — The backbone of your field operations.')}</p>
+          ${input.footerNote ? `<p style="margin:0 0 12px;color:#6b7280;font-size:12px;line-height:1.5;">${escapeHtml(input.footerNote)}</p>` : ''}
+          <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5;">FieldKeel<br />The backbone of your field operations.</p>
+          <p style="margin:12px 0 0;color:#6b7280;font-size:12px;line-height:1.5;">Need help? <a href="mailto:${escapeHtml(branding.supportEmail)}" style="color:#1d4ed8;text-decoration:underline;">${escapeHtml(branding.supportEmail)}</a></p>
         </td></tr>
       </table>
     </td></tr>
@@ -74,9 +86,9 @@ export function invitationMail(input: {
   organizationName: string;
   role: string;
   inviteUrl: string;
-}): MailContent {
+}, branding: MailBranding): MailContent {
   const roleLabel = input.role.replaceAll('_', ' ').toLowerCase();
-  const content = layout({
+  const content = transactionalMailLayout({
     preheader: `Join ${input.organizationName} on FieldKeel`,
     heading: `Join ${input.organizationName}`,
     paragraphs: [
@@ -85,7 +97,7 @@ export function invitationMail(input: {
     ],
     ctaLabel: 'Accept invitation',
     ctaUrl: input.inviteUrl,
-  });
+  }, branding);
   return { ...content, subject: `Join ${input.organizationName} on FieldKeel` };
 }
 
@@ -96,7 +108,7 @@ export function jobAssignedMail(input: {
   jobTitle: string;
   jobUrl: string;
   windowLabel: string | null;
-}): MailContent {
+}, branding: MailBranding): MailContent {
   const paragraphs = [
     `Hi ${input.recipientName},`,
     `${input.jobNumber} · ${input.jobTitle} was assigned to you in ${input.organizationName}.`,
@@ -105,13 +117,13 @@ export function jobAssignedMail(input: {
     paragraphs.push(`Scheduled window: ${input.windowLabel}.`);
   }
   paragraphs.push('Open the job in FieldKeel for site details and instructions.');
-  const content = layout({
+  const content = transactionalMailLayout({
     preheader: `${input.jobNumber} assigned to you`,
     heading: 'Job assigned',
     paragraphs,
     ctaLabel: 'Open job',
     ctaUrl: input.jobUrl,
-  });
+  }, branding);
   return { ...content, subject: `${input.jobNumber} assigned — ${input.organizationName}` };
 }
 
@@ -122,8 +134,8 @@ export function jobReturnedMail(input: {
   jobTitle: string;
   jobUrl: string;
   reason: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: `${input.jobNumber} was returned`,
     heading: 'Job returned for updates',
     paragraphs: [
@@ -134,7 +146,7 @@ export function jobReturnedMail(input: {
     ],
     ctaLabel: 'Open job',
     ctaUrl: input.jobUrl,
-  });
+  }, branding);
   return { ...content, subject: `${input.jobNumber} returned — ${input.organizationName}` };
 }
 
@@ -144,8 +156,8 @@ export function jobApprovedMail(input: {
   jobNumber: string;
   jobTitle: string;
   jobUrl: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: `${input.jobNumber} approved`,
     heading: 'Job approved',
     paragraphs: [
@@ -154,7 +166,7 @@ export function jobApprovedMail(input: {
     ],
     ctaLabel: 'View job',
     ctaUrl: input.jobUrl,
-  });
+  }, branding);
   return { ...content, subject: `${input.jobNumber} approved — ${input.organizationName}` };
 }
 
@@ -165,9 +177,9 @@ export function overtimeDecisionMail(input: {
   jobNumber: string | null;
   timeUrl: string;
   comment?: string | null;
-}): MailContent {
+}, branding: MailBranding): MailContent {
   const approved = input.decision === 'APPROVED';
-  const content = layout({
+  const content = transactionalMailLayout({
     preheader: approved ? 'Overtime approved' : 'Overtime rejected',
     heading: approved ? 'Overtime approved' : 'Overtime rejected',
     paragraphs: [
@@ -179,7 +191,7 @@ export function overtimeDecisionMail(input: {
     ],
     ctaLabel: 'Open time',
     ctaUrl: input.timeUrl,
-  });
+  }, branding);
   return {
     ...content,
     subject: `${approved ? 'Overtime approved' : 'Overtime rejected'} — ${input.organizationName}`,
@@ -192,8 +204,8 @@ export function timesheetReturnedMail(input: {
   workDate: string;
   timeUrl: string;
   reason: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Timesheet returned',
     heading: 'Timesheet returned',
     paragraphs: [
@@ -204,7 +216,7 @@ export function timesheetReturnedMail(input: {
     ],
     ctaLabel: 'Open time',
     ctaUrl: input.timeUrl,
-  });
+  }, branding);
   return { ...content, subject: `Timesheet returned — ${input.organizationName}` };
 }
 
@@ -212,8 +224,8 @@ export function trialEndingMail(input: {
   organizationName: string;
   daysRemaining: number;
   billingUrl: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Trial ending soon',
     heading: 'Your trial is ending soon',
     paragraphs: [
@@ -222,7 +234,7 @@ export function trialEndingMail(input: {
     ],
     ctaLabel: 'Open plan & subscription',
     ctaUrl: input.billingUrl,
-  });
+  }, branding);
   return { ...content, subject: 'Your FieldKeel trial is ending soon' };
 }
 
@@ -230,8 +242,8 @@ export function trialGraceMail(input: {
   organizationName: string;
   graceDaysRemaining: number;
   billingUrl: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Trial grace period',
     heading: 'Your trial grace period is active',
     paragraphs: [
@@ -240,15 +252,15 @@ export function trialGraceMail(input: {
     ],
     ctaLabel: 'Request activation',
     ctaUrl: input.billingUrl,
-  });
+  }, branding);
   return { ...content, subject: 'Your FieldKeel trial grace period is active' };
 }
 
 export function trialExpiredMail(input: {
   organizationName: string;
   billingUrl: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Trial expired',
     heading: 'Your trial has ended',
     paragraphs: [
@@ -257,7 +269,7 @@ export function trialExpiredMail(input: {
     ],
     ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
-  });
+  }, branding);
   return { ...content, subject: 'Your FieldKeel trial has ended' };
 }
 
@@ -265,8 +277,8 @@ export function activationAckMail(input: {
   recipientName: string;
   organizationName: string;
   billingUrl: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Activation request received',
     heading: 'We received your activation request',
     paragraphs: [
@@ -276,15 +288,15 @@ export function activationAckMail(input: {
     ],
     ctaLabel: 'Open plan & subscription',
     ctaUrl: input.billingUrl,
-  });
+  }, branding);
   return { ...content, subject: `Activation request received — ${input.organizationName}` };
 }
 
 export function emailVerificationMail(input: {
   verifyUrl: string;
   email: string;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Verify your FieldKeel email',
     heading: 'Verify your FieldKeel email',
     paragraphs: [
@@ -294,15 +306,15 @@ export function emailVerificationMail(input: {
     ],
     ctaLabel: 'Verify email',
     ctaUrl: input.verifyUrl,
-  });
+  }, branding);
   return { ...content, subject: 'Verify your FieldKeel email' };
 }
 
 export function passwordResetMail(input: {
   resetUrl: string;
   expiresInMinutes: number;
-}): MailContent {
-  const content = layout({
+}, branding: MailBranding): MailContent {
+  const content = transactionalMailLayout({
     preheader: 'Reset your FieldKeel password',
     heading: 'Reset your FieldKeel password',
     paragraphs: [
@@ -313,8 +325,8 @@ export function passwordResetMail(input: {
     ctaLabel: 'Reset password',
     ctaUrl: input.resetUrl,
     footerNote:
-      'FieldKeel — The backbone of your field operations. Never share this link with anyone.',
-  });
+      'Never share this link with anyone.',
+  }, branding);
   return { ...content, subject: 'Reset your FieldKeel password' };
 }
 

@@ -5,6 +5,7 @@ import { ApiError, SessionExpiredError } from "@/lib/api";
 import { getMe, getMyOrganizations } from "@/lib/auth";
 import { APP_NAME } from "@/lib/brand";
 import {
+  clearPreferredOrgSlug,
   readPreferredOrgSlug,
   rememberPreferredOrgSlug,
   resolveActiveMembership,
@@ -37,6 +38,10 @@ export function AppBootstrap() {
           return;
         }
 
+        const preferred = readPreferredOrgSlug();
+        if (preferred && !memberships.some((item) => item.organization.slug === preferred)) {
+          clearPreferredOrgSlug(preferred);
+        }
         if (memberships.length === 0) {
           router.replace(
             user.platformRole === "SUPER_ADMIN"

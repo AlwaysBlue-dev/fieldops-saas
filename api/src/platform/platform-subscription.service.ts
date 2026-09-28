@@ -859,7 +859,7 @@ export class PlatformSubscriptionService {
 
   private async requireSubscription(organizationId: string) {
     const subscription = await this.prisma.subscription.findFirst({
-      where: { organizationId },
+      where: { organizationId, organization: { deletedAt: null } },
     });
     if (!subscription) {
       throw new NotFoundException();

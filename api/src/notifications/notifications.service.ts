@@ -187,8 +187,9 @@ export class NotificationsService {
    * Owner Inbox — organization-scoped platform messages.
    * Visible to the current Owner; usable while the workspace is read-only.
    */
-  async createOwnerMessage(input: CreateOwnerMessageInput) {
-    const organization = await this.prisma.organization.findFirst({
+  async createOwnerMessage(input: CreateOwnerMessageInput, transaction?: Prisma.TransactionClient) {
+    const db = transaction ?? this.prisma;
+    const organization = await db.organization.findFirst({
       where: { id: input.organizationId },
       select: { id: true, name: true, slug: true },
     });
@@ -196,7 +197,7 @@ export class NotificationsService {
       throw new NotFoundException('Organization not found.');
     }
 
-    const owners = await this.prisma.organizationMember.findMany({
+    const owners = await db.organizationMember.findMany({
       where: {
         organizationId: organization.id,
         role: OrganizationRole.OWNER,
@@ -216,7 +217,7 @@ export class NotificationsService {
       throw new BadRequestException('CTA label is required when a path is set.');
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const writeMessage = async (tx: Prisma.TransactionClient) => {
       const message = await tx.ownerMessage.create({
         data: {
           organizationId: organization.id,
@@ -246,7 +247,8 @@ export class NotificationsService {
       );
 
       return message;
-    });
+    };
+    const created = transaction ? await writeMessage(transaction) : await this.prisma.$transaction(writeMessage);
 
     return {
       id: created.id,

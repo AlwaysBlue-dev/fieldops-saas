@@ -37,6 +37,7 @@ export class SubscriptionReconciliationService {
 
   async reconcileAll() {
     const subscriptions = await this.prisma.subscription.findMany({
+      where: { organization: { deletedAt: null } },
       select: {
         id: true,
         organizationId: true,

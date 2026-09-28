@@ -239,6 +239,8 @@ model User {
   createdAt        DateTime     @default(now()) @db.Timestamptz
   updatedAt        DateTime     @updatedAt @db.Timestamptz
 
+  deletionRequests        WorkspaceDeletionRequest[] @relation("DeletionRequester")
+  deletionReviews         WorkspaceDeletionRequest[] @relation("DeletionReviewer")
   refreshSessions         RefreshSession[]
   memberships             OrganizationMember[]
   invitationsSent         OrganizationInvitation[] @relation("InvitationInviter")
@@ -343,6 +345,9 @@ model Organization {
   onboardingStep         Int                @default(1)
   onboardingCompletedAt  DateTime?          @db.Timestamptz
   status                 OrganizationStatus @default(ACTIVE)
+  /// Soft deletion tombstone. Billing/audit/storage records remain retained.
+  deletedAt              DateTime?          @db.Timestamptz
+  deletionRequests       WorkspaceDeletionRequest[]
   createdAt              DateTime           @default(now()) @db.Timestamptz
   updatedAt              DateTime           @updatedAt @db.Timestamptz
 
@@ -540,6 +545,35 @@ model SubscriptionNotification {
 
   @@unique([organizationId, kind, periodKey])
   @@index([organizationId, kind])
+}
+
+enum WorkspaceDeletionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// Retained after soft deletion. A SQL partial unique index permits only one PENDING request per organization.
+model WorkspaceDeletionRequest {
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @db.Uuid
+  workspaceName     String
+  requestedByUserId String                  @db.Uuid
+  requestedAt       DateTime                @default(now()) @db.Timestamptz
+  status            WorkspaceDeletionStatus @default(PENDING)
+  reviewedByUserId  String?                 @db.Uuid
+  reviewedAt        DateTime?               @db.Timestamptz
+  note              String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy User @relation("DeletionRequester", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  reviewedBy User? @relation("DeletionReviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([status, requestedAt])
+  @@index([organizationId, requestedAt])
+  @@index([requestedByUserId])
+  @@index([reviewedByUserId])
 }
 
 model PlatformCounter {

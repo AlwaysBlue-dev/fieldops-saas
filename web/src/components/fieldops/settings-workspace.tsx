@@ -1,6 +1,7 @@
 "use client";
 
 import { MembersPanel } from "@/components/fieldops/members-panel";
+import { WorkspaceDangerZone } from "@/components/fieldops/workspace-danger-zone";
 import { PageHeader } from "@/components/fieldops/page-header";
 import { SkeletonBlock } from "@/components/fieldops/skeleton-block";
 import { SubscriptionSettings } from "@/app/app/[orgSlug]/settings/subscription-settings";
@@ -230,6 +231,7 @@ export function SettingsWorkspace({
               </p>
               <div className="mt-4">
                 <SettingsOrganizationSection orgSlug={orgSlug} />
+                {membership?.role === "OWNER" ? <WorkspaceDangerZone organizationId={membership.organization.id} /> : null}
               </div>
             </section>
           </TabsContent>

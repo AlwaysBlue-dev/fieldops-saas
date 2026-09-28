@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { WorkspaceDeletionService } from './workspace-deletion.service.js';
+import { WorkspaceDeletionController, PlatformWorkspaceDeletionController } from './workspace-deletion.controller.js';
+import { SuperAdminGuard } from '../platform/super-admin.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { SubscriptionModule } from '../subscription/subscription.module.js';
 import { ApprovalNotificationHook } from './approval-events.js';
@@ -52,6 +55,8 @@ import { ReportsService } from './reports.service.js';
 @Module({
   imports: [AuthModule, SubscriptionModule],
   controllers: [
+    WorkspaceDeletionController,
+    PlatformWorkspaceDeletionController,
     OrganizationsController,
     OrganizationStorageController,
     MembersController,
@@ -72,6 +77,8 @@ import { ReportsService } from './reports.service.js';
     ReportsController,
   ],
   providers: [
+    WorkspaceDeletionService,
+    SuperAdminGuard,
     OrganizationsService,
     OrganizationBrandingService,
     OrganizationStorageService,

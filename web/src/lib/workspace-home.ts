@@ -24,6 +24,15 @@ export function readPreferredOrgSlug(): string | null {
   }
 }
 
+export function clearPreferredOrgSlug(slug: string) {
+  if (typeof window === "undefined") return;
+  try {
+    if (readPreferredOrgSlug() === slug) window.localStorage.removeItem(LAST_ORG_SLUG_KEY);
+  } catch {
+    // Ignore unavailable browser storage.
+  }
+}
+
 export function rememberPreferredOrgSlug(slug: string) {
   if (typeof window === "undefined") return;
   const trimmed = slug.trim();

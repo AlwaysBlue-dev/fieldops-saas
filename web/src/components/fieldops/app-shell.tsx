@@ -17,6 +17,7 @@ import { desktopPrimaryNav } from "@/lib/navigation";
 import { unreadNotificationCount } from "@/lib/notifications";
 import { ownerInboxUnreadCount } from "@/lib/owner-inbox";
 import {
+  clearPreferredOrgSlug,
   rememberPreferredOrgSlug,
   workspaceHomePath,
 } from "@/lib/workspace-home";
@@ -105,7 +106,8 @@ export function AppShell({
       setUser(nextUser);
       setMemberships(orgs);
       if (orgs.length === 0) {
-        router.replace("/create-workspace");
+        clearPreferredOrgSlug(orgSlug);
+        router.replace("/app");
         return;
       }
       setStatus("ready");
@@ -119,7 +121,7 @@ export function AppShell({
       }
       setStatus("error");
     }
-  }, [router]);
+  }, [router, orgSlug]);
 
   useEffect(() => {
     void loadSession();
@@ -131,6 +133,7 @@ export function AppShell({
       (item) => item.organization.slug === orgSlug,
     );
     if (!current) {
+      clearPreferredOrgSlug(orgSlug);
       const fallback = memberships[0];
       rememberPreferredOrgSlug(fallback.organization.slug);
       router.replace(
@@ -144,6 +147,36 @@ export function AppShell({
       router.replace(`/onboarding?org=${current.organization.slug}`);
     }
   }, [status, memberships, orgSlug, router]);
+
+  // Detect deletion/revoked membership in already-open sessions without caching tenant data.
+  useEffect(() => {
+    if (status !== "ready") return;
+    let cancelled = false;
+    let checking = false;
+    const check = async () => {
+      if (checking || document.visibilityState !== "visible") return;
+      checking = true;
+      try {
+        const current = await getMyOrganizations();
+        if (!cancelled && !current.some((item) => item.organization.slug === orgSlug)) {
+          clearPreferredOrgSlug(orgSlug);
+          window.location.replace("/app");
+        }
+      } catch {
+        // A failed request is not proof that membership was removed.
+      } finally { checking = false; }
+    };
+    const onFocus = () => { void check(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    const interval = window.setInterval(onFocus, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [status, orgSlug]);
 
   const previewOrgId = membershipOrganizationId(memberships, orgSlug);
 

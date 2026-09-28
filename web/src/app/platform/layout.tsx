@@ -15,6 +15,7 @@ const NAV: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/platform/activation-requests", label: "Activation requests" },
   { href: "/platform/invoices", label: "Invoices" },
   { href: "/platform/owner-messages", label: "Owner messages" },
+  { href: "/platform/workspace-deletion-requests", label: "Workspace deletion requests" },
 ];
 
 export default function PlatformLayout({ children }: { children: ReactNode }) {

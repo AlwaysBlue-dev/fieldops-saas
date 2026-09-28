@@ -23,6 +23,15 @@ export const organizationSettings: DocArticle = {
   ],
   sections: [
     {
+      id: "workspace-deletion",
+      heading: "Workspace deletion",
+      paragraphs: [
+        "Owners can delete or request deletion under Settings → Organization → Danger Zone, even when the workspace is read-only. A workspace that has never been commercially activated, including a free-trial-only workspace, can be deleted directly after confirmation.",
+        "Previously activated workspaces require FieldKeel review. Submitting a request does not delete the workspace. Owners can see pending, rejected, or cancelled status and cancel a pending request. Approval removes access for all members.",
+        "Deletion removes workspace access and cannot be undone in FieldKeel. Billing, audit, workspace records, and stored files are retained; deletion does not physically erase that data. Deleting a workspace does not reset your account's lifetime trial.",
+      ],
+    },
+    {
       id: "ops",
       heading: "Operating basics",
       paragraphs: [

@@ -14,18 +14,21 @@ import {
   trialEndingMail,
   trialExpiredMail,
   trialGraceMail,
+  transactionalMailLayout,
+  type MailBranding,
   type MailContent,
 } from './mail-templates.js';
 import type { MailTransport } from './mail-transport.js';
 import { ResendMailTransport } from './resend-mail.transport.js';
 import { SmtpMailTransport } from './smtp-mail.transport.js';
-import { PASSWORD_RESET_TTL_MINUTES, DEFAULT_EMAIL_FROM, DEFAULT_EMAIL_REPLY_TO } from '../common/constants.js';
+import { PASSWORD_RESET_TTL_MINUTES, DEFAULT_EMAIL_FROM, DEFAULT_EMAIL_REPLY_TO, DEFAULT_SUPPORT_EMAIL } from '../common/constants.js';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transport: MailTransport;
   private readonly fromAddress: string;
+  private readonly branding: MailBranding;
   private readonly replyTo: string | undefined;
 
   constructor(private readonly config: ConfigService<EnvironmentVariables, true>) {
@@ -33,6 +36,10 @@ export class MailService {
       this.config.get('EMAIL_FROM', { infer: true }) ?? DEFAULT_EMAIL_FROM;
     this.replyTo =
       this.config.get('EMAIL_REPLY_TO', { infer: true }) ?? DEFAULT_EMAIL_REPLY_TO;
+    this.branding = {
+      webUrl: this.config.get('WEB_URL', { infer: true }),
+      supportEmail: this.config.get('PLATFORM_SUPPORT_EMAIL', { infer: true }) ?? DEFAULT_SUPPORT_EMAIL,
+    };
     this.transport = this.createTransport();
     this.logger.log(`Mail transport: ${this.transport.name}`);
   }
@@ -71,7 +78,7 @@ export class MailService {
 
   async sendEmailVerification(to: string, rawToken: string) {
     const verifyUrl = `${this.appUrl()}/verify-email?token=${encodeURIComponent(rawToken)}`;
-    const content = emailVerificationMail({ verifyUrl, email: to });
+    const content = emailVerificationMail({ verifyUrl, email: to }, this.branding);
     await this.dispatch({ to, content, logLabel: 'verification' });
   }
 
@@ -80,7 +87,7 @@ export class MailService {
     const content = passwordResetMail({
       resetUrl,
       expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
-    });
+    }, this.branding);
     await this.dispatch({ to, content, logLabel: 'password-reset' });
   }
 
@@ -95,7 +102,7 @@ export class MailService {
       organizationName: input.organizationName,
       role: input.role,
       inviteUrl,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'invitation' });
   }
 
@@ -123,7 +130,7 @@ export class MailService {
       jobTitle: input.jobTitle,
       jobUrl,
       windowLabel,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'job-assigned' });
   }
 
@@ -144,7 +151,7 @@ export class MailService {
       jobTitle: input.jobTitle,
       jobUrl: `${this.appUrl()}/app/${input.orgSlug}/jobs/${input.jobId}`,
       reason: input.reason,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'job-returned' });
   }
 
@@ -163,7 +170,7 @@ export class MailService {
       jobNumber: input.jobNumber,
       jobTitle: input.jobTitle,
       jobUrl: `${this.appUrl()}/app/${input.orgSlug}/jobs/${input.jobId}`,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'job-approved' });
   }
 
@@ -183,7 +190,7 @@ export class MailService {
       jobNumber: input.jobNumber,
       timeUrl: `${this.appUrl()}/app/${input.orgSlug}/time`,
       comment: input.comment,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'overtime-decision' });
   }
 
@@ -201,7 +208,7 @@ export class MailService {
       workDate: input.workDate,
       timeUrl: `${this.appUrl()}/app/${input.orgSlug}/time`,
       reason: input.reason,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'timesheet-returned' });
   }
 
@@ -215,7 +222,7 @@ export class MailService {
       organizationName: input.organizationName,
       daysRemaining: input.daysRemaining,
       billingUrl: `${this.appUrl()}/app/${input.orgSlug}/settings/billing`,
-    });
+    }, this.branding);
     return this.dispatch({ to: input.to, content, logLabel: 'trial-ending' });
   }
 
@@ -229,7 +236,7 @@ export class MailService {
       organizationName: input.organizationName,
       graceDaysRemaining: input.graceDaysRemaining,
       billingUrl: `${this.appUrl()}/app/${input.orgSlug}/settings/billing`,
-    });
+    }, this.branding);
     return this.dispatch({ to: input.to, content, logLabel: 'trial-grace' });
   }
 
@@ -241,7 +248,7 @@ export class MailService {
     const content = trialExpiredMail({
       organizationName: input.organizationName,
       billingUrl: `${this.appUrl()}/app/${input.orgSlug}/settings/billing`,
-    });
+    }, this.branding);
     return this.dispatch({ to: input.to, content, logLabel: 'trial-expired' });
   }
 
@@ -255,7 +262,7 @@ export class MailService {
       recipientName: input.recipientName,
       organizationName: input.organizationName,
       billingUrl: `${this.appUrl()}/app/${input.orgSlug}/settings/billing`,
-    });
+    }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'activation-ack' });
   }
 
@@ -264,11 +271,12 @@ export class MailService {
   > {
     return this.dispatch({
       to: input.to,
-      content: {
-        subject: input.subject,
-        text: input.text,
-        html: `<pre style="font-family:inherit;white-space:pre-wrap;">${escapeBasic(input.text)}</pre>`,
-      },
+      content: transactionalMailLayout({
+        preheader: input.subject,
+        heading: input.subject,
+        paragraphs: [input.text],
+        textBody: input.text,
+      }, this.branding),
       logLabel: 'text',
     });
   }
@@ -313,9 +321,3 @@ function formatWindow(
   }
 }
 
-function escapeBasic(value: string) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
