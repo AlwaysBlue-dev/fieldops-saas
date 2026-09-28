@@ -207,6 +207,25 @@ describe('resolveEntitlement', () => {
     expect(result.readOnly).toBe(true);
   });
 
+  it('treats never-activated NONE subscriptions as PENDING_ACTIVATION read-only', () => {
+    const result = resolveEntitlement({
+      storedStatus: SubscriptionStatus.NONE,
+      trialStartedAt: null,
+      trialEndsAt: null,
+      graceEndsAt: null,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      activatedAt: null,
+      cancelAtPeriodEnd: false,
+      assignedPlan: starter,
+      trialPlan: professional,
+      now,
+    });
+    expect(result.effectiveStatus).toBe('PENDING_ACTIVATION');
+    expect(result.canMutate).toBe(false);
+    expect(result.readOnly).toBe(true);
+  });
+
   it('blocks mutations for SUSPENDED even when trial dates are still open', () => {
     const result = entitlement(SubscriptionStatus.SUSPENDED, now, {
       trialStartedAt: now,

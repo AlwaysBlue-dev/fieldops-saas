@@ -22,6 +22,10 @@ import {
   TRIAL_PLAN_CODE,
 } from '../common/constants.js';
 import { trialWindow } from '../subscription/clock.js';
+import {
+  planSnapshot,
+  resolveEntitlement,
+} from '../subscription/entitlement.js';
 import { generateUrlToken, hashToken, tokenMatches } from '../common/crypto-token.js';
 import { durationToMs } from '../common/duration.js';
 import { slugifyName } from '../common/slug.js';
@@ -618,25 +622,72 @@ export class AuthService {
       orderBy: { joinedAt: 'asc' },
     });
 
-    return memberships.map((membership) => ({
-      membershipId: membership.id,
-      role: membership.role,
-      joinedAt: membership.joinedAt,
-      organization: {
-        id: membership.organization.id,
-        name: membership.organization.name,
-        slug: membership.organization.slug,
-        timezone: membership.organization.timezone,
-        status: membership.organization.status,
-        industry: membership.organization.industry,
-        onboardingStep: membership.organization.onboardingStep,
-        onboardingCompletedAt: membership.organization.onboardingCompletedAt,
-        hasLogo: Boolean(
-          membership.organization.logoObjectKey ||
-            membership.organization.logoUrl,
-        ),
-      },
-    }));
+    const orgIds = memberships.map((row) => row.organization.id);
+    const [subscriptions, trialPlanRow] = await Promise.all([
+      orgIds.length === 0
+        ? Promise.resolve([])
+        : this.prisma.subscription.findMany({
+            where: { organizationId: { in: orgIds } },
+            include: { plan: true },
+          }),
+      this.prisma.plan.findFirst({
+        where: { code: TRIAL_PLAN_CODE, status: PlanStatus.ACTIVE },
+      }),
+    ]);
+    const subscriptionByOrg = new Map(
+      subscriptions.map((row) => [row.organizationId, row]),
+    );
+    const now = new Date();
+
+    return memberships.map((membership) => {
+      const subscription = subscriptionByOrg.get(membership.organization.id);
+      let subscriptionSummary: {
+        effectiveStatus: string;
+        readOnly: boolean;
+        status: string;
+      } | null = null;
+      if (subscription) {
+        const entitlement = resolveEntitlement({
+          storedStatus: subscription.status,
+          trialStartedAt: subscription.trialStartedAt,
+          trialEndsAt: subscription.trialEndsAt,
+          graceEndsAt: subscription.graceEndsAt,
+          currentPeriodStart: subscription.currentPeriodStart,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          activatedAt: subscription.activatedAt,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          assignedPlan: planSnapshot(subscription.plan),
+          trialPlan: planSnapshot(trialPlanRow ?? subscription.plan),
+          now,
+        });
+        subscriptionSummary = {
+          effectiveStatus: entitlement.effectiveStatus,
+          readOnly: entitlement.readOnly,
+          status: subscription.status,
+        };
+      }
+
+      return {
+        membershipId: membership.id,
+        role: membership.role,
+        joinedAt: membership.joinedAt,
+        organization: {
+          id: membership.organization.id,
+          name: membership.organization.name,
+          slug: membership.organization.slug,
+          timezone: membership.organization.timezone,
+          status: membership.organization.status,
+          industry: membership.organization.industry,
+          onboardingStep: membership.organization.onboardingStep,
+          onboardingCompletedAt: membership.organization.onboardingCompletedAt,
+          hasLogo: Boolean(
+            membership.organization.logoObjectKey ||
+              membership.organization.logoUrl,
+          ),
+        },
+        subscription: subscriptionSummary,
+      };
+    });
   }
 
   async verifyEmail(rawToken: string) {

@@ -125,6 +125,9 @@ export class PlatformSubscriptionService {
           case 'TRIAL_EXPIRED':
             counts.expiredTrials += 1;
             break;
+          case 'PENDING_ACTIVATION':
+            // Never-activated additional workspaces — not expired trials.
+            break;
           case 'SUSPENDED':
             counts.suspendedOrganizations += 1;
             break;

@@ -95,6 +95,7 @@ export class SubscriptionService {
     const canRequestActivationStatus =
       entitlement.effectiveStatus === 'TRIALING' ||
       entitlement.effectiveStatus === 'GRACE' ||
+      entitlement.effectiveStatus === 'PENDING_ACTIVATION' ||
       entitlement.effectiveStatus === 'TRIAL_EXPIRED';
     const canRequestRenewalStatus =
       entitlement.effectiveStatus === 'ACTIVE' ||

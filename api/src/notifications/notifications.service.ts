@@ -1,13 +1,21 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AUDIT_OWNER_MESSAGE_SENT,
+  NOTIFICATION_OWNER_MESSAGE,
+  type OwnerMessageCategory,
+} from '../common/constants.js';
+import {
   MembershipStatus,
   NotificationStatus,
+  OrganizationRole,
   Prisma,
 } from '../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
 
@@ -26,11 +34,24 @@ export type NotifyRecipientInput = {
   actorUserId?: string | null;
 };
 
+export type CreateOwnerMessageInput = {
+  organizationId: string;
+  subject: string;
+  message: string;
+  category: OwnerMessageCategory;
+  ctaLabel?: string | null;
+  ctaPath?: string | null;
+  actorUserId: string;
+};
+
 type Db = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async notify(input: NotifyRecipientInput, db: Db = this.prisma) {
     const excludeActor = input.actorUserId ?? null;
@@ -162,6 +183,262 @@ export class NotificationsService {
     return { updated: result.count };
   }
 
+  /**
+   * Owner Inbox — organization-scoped platform messages.
+   * Visible to the current Owner; usable while the workspace is read-only.
+   */
+  async createOwnerMessage(input: CreateOwnerMessageInput) {
+    const organization = await this.prisma.organization.findFirst({
+      where: { id: input.organizationId },
+      select: { id: true, name: true, slug: true },
+    });
+    if (!organization) {
+      throw new NotFoundException('Organization not found.');
+    }
+
+    const owners = await this.prisma.organizationMember.findMany({
+      where: {
+        organizationId: organization.id,
+        role: OrganizationRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      },
+      select: { userId: true },
+    });
+    if (owners.length === 0) {
+      throw new BadRequestException(
+        'This organization has no active owner to receive the message.',
+      );
+    }
+
+    const ctaPath = this.normalizeOwnerCtaPath(input.ctaPath);
+    const ctaLabel = input.ctaLabel?.trim() || null;
+    if (ctaPath && !ctaLabel) {
+      throw new BadRequestException('CTA label is required when a path is set.');
+    }
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const message = await tx.ownerMessage.create({
+        data: {
+          organizationId: organization.id,
+          subject: input.subject.trim(),
+          body: input.message.trim(),
+          category: input.category,
+          ctaLabel,
+          ctaPath,
+          createdByUserId: input.actorUserId,
+        },
+      });
+
+      await this.audit.record(
+        {
+          action: AUDIT_OWNER_MESSAGE_SENT,
+          entityType: 'OwnerMessage',
+          entityId: message.id,
+          actorUserId: input.actorUserId,
+          organizationId: organization.id,
+          newValues: {
+            subject: message.subject,
+            category: message.category,
+            recipientOwnerCount: owners.length,
+          },
+        },
+        tx,
+      );
+
+      return message;
+    });
+
+    return {
+      id: created.id,
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+      },
+      subject: created.subject,
+      category: created.category,
+      recipientCount: owners.length,
+      createdAt: created.createdAt.toISOString(),
+    };
+  }
+
+  async listOwnerInbox(
+    ctx: OrganizationContext,
+    actorUserId: string,
+    query: {
+      unreadOnly?: boolean;
+      take?: number;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) {
+    await this.assertActiveOwner(ctx.organizationId, actorUserId);
+    const page = query.page ?? 1;
+    const pageSize = Math.min(
+      Math.max(query.pageSize ?? query.take ?? 40, 1),
+      100,
+    );
+
+    const messages = await this.prisma.ownerMessage.findMany({
+      where: { organizationId: ctx.organizationId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        receipts: {
+          where: { userId: actorUserId },
+          take: 1,
+        },
+      },
+    });
+
+    const items = messages
+      .map((row) => this.serializeOwnerMessage(row, row.receipts[0] ?? null))
+      .filter((row) => (query.unreadOnly ? row.status === 'UNREAD' : true));
+
+    const total = items.length;
+    const slice = items.slice((page - 1) * pageSize, page * pageSize);
+    return {
+      items: slice,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
+  async ownerInboxUnreadCount(ctx: OrganizationContext, actorUserId: string) {
+    await this.assertActiveOwner(ctx.organizationId, actorUserId);
+    const messages = await this.prisma.ownerMessage.findMany({
+      where: { organizationId: ctx.organizationId },
+      select: {
+        id: true,
+        receipts: {
+          where: { userId: actorUserId, status: NotificationStatus.READ },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+    const count = messages.filter((row) => row.receipts.length === 0).length;
+    return { count };
+  }
+
+  async markOwnerInboxRead(
+    ctx: OrganizationContext,
+    actorUserId: string,
+    messageId: string,
+  ) {
+    await this.assertActiveOwner(ctx.organizationId, actorUserId);
+    const message = await this.requireOwnerMessage(
+      ctx.organizationId,
+      messageId,
+    );
+    const receipt = await this.prisma.ownerMessageReceipt.upsert({
+      where: {
+        messageId_userId: { messageId: message.id, userId: actorUserId },
+      },
+      create: {
+        messageId: message.id,
+        userId: actorUserId,
+        status: NotificationStatus.READ,
+        readAt: new Date(),
+      },
+      update: {
+        status: NotificationStatus.READ,
+        readAt: new Date(),
+      },
+    });
+    return this.serializeOwnerMessage(message, receipt);
+  }
+
+  async markOwnerInboxUnread(
+    ctx: OrganizationContext,
+    actorUserId: string,
+    messageId: string,
+  ) {
+    await this.assertActiveOwner(ctx.organizationId, actorUserId);
+    const message = await this.requireOwnerMessage(
+      ctx.organizationId,
+      messageId,
+    );
+    const receipt = await this.prisma.ownerMessageReceipt.upsert({
+      where: {
+        messageId_userId: { messageId: message.id, userId: actorUserId },
+      },
+      create: {
+        messageId: message.id,
+        userId: actorUserId,
+        status: NotificationStatus.UNREAD,
+        readAt: null,
+      },
+      update: {
+        status: NotificationStatus.UNREAD,
+        readAt: null,
+      },
+    });
+    return this.serializeOwnerMessage(message, receipt);
+  }
+
+  async markOwnerInboxAllRead(ctx: OrganizationContext, actorUserId: string) {
+    await this.assertActiveOwner(ctx.organizationId, actorUserId);
+    const messages = await this.prisma.ownerMessage.findMany({
+      where: { organizationId: ctx.organizationId },
+      select: { id: true },
+    });
+    const now = new Date();
+    let updated = 0;
+    for (const message of messages) {
+      const existing = await this.prisma.ownerMessageReceipt.findUnique({
+        where: {
+          messageId_userId: { messageId: message.id, userId: actorUserId },
+        },
+      });
+      if (existing?.status === NotificationStatus.READ) continue;
+      await this.prisma.ownerMessageReceipt.upsert({
+        where: {
+          messageId_userId: { messageId: message.id, userId: actorUserId },
+        },
+        create: {
+          messageId: message.id,
+          userId: actorUserId,
+          status: NotificationStatus.READ,
+          readAt: now,
+        },
+        update: {
+          status: NotificationStatus.READ,
+          readAt: now,
+        },
+      });
+      updated += 1;
+    }
+    return { updated };
+  }
+
+  private normalizeOwnerCtaPath(raw: string | null | undefined): string | null {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    if (
+      /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ||
+      trimmed.startsWith('//') ||
+      trimmed.includes('..')
+    ) {
+      throw new BadRequestException(
+        'CTA path must be a safe internal FieldKeel path (for example /settings/billing).',
+      );
+    }
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  }
+
+  private async requireOwnerMessage(organizationId: string, messageId: string) {
+    const row = await this.prisma.ownerMessage.findFirst({
+      where: { id: messageId, organizationId },
+    });
+    if (!row) {
+      throw new NotFoundException();
+    }
+    return row;
+  }
+
   private async requireOwn(
     organizationId: string,
     userId: string,
@@ -188,6 +465,61 @@ export class NotificationsService {
     if (!membership) {
       throw new ForbiddenException('Insufficient organization role');
     }
+  }
+
+  private async assertActiveOwner(organizationId: string, userId: string) {
+    const membership = await this.prisma.organizationMember.findFirst({
+      where: {
+        organizationId,
+        userId,
+        role: OrganizationRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+    if (!membership) {
+      throw new ForbiddenException('Insufficient organization role');
+    }
+  }
+
+  private serializeOwnerMessage(
+    row: {
+      id: string;
+      organizationId: string;
+      subject: string;
+      body: string;
+      category: string;
+      ctaLabel: string | null;
+      ctaPath: string | null;
+      createdAt: Date;
+    },
+    receipt: {
+      status: NotificationStatus;
+      readAt: Date | null;
+    } | null,
+  ) {
+    const status = receipt?.status ?? NotificationStatus.UNREAD;
+    return {
+      id: row.id,
+      organizationId: row.organizationId,
+      recipientUserId: null as string | null,
+      type: NOTIFICATION_OWNER_MESSAGE,
+      title: row.subject,
+      message: row.body,
+      category: row.category,
+      ctaLabel: row.ctaLabel,
+      ctaPath: row.ctaPath,
+      relatedEntityType: 'OwnerMessage',
+      relatedEntityId: row.id,
+      payload: {
+        category: row.category,
+        ctaLabel: row.ctaLabel,
+        ctaPath: row.ctaPath,
+      },
+      status,
+      readAt: receipt?.readAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString(),
+    };
   }
 
   private serialize(

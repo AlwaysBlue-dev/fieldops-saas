@@ -263,6 +263,8 @@ model User {
   approvalsDecided        Approval[]               @relation("ApprovalDecider")
   approvalsAssigned       Approval[]               @relation("ApprovalAssignee")
   notifications             Notification[]
+  ownerMessageReceipts      OwnerMessageReceipt[]
+  ownerMessagesCreated      OwnerMessage[]           @relation("OwnerMessageAuthor")
   auditLogs                 AuditLog[]
   emailVerificationTokens   EmailVerificationToken[]
   passwordResetTokens       PasswordResetToken[]
@@ -374,6 +376,7 @@ model Organization {
   overtimeAuthorizations OvertimeAuthorization[]
   approvals              Approval[]
   notifications          Notification[]
+  ownerMessages          OwnerMessage[]
   auditLogs              AuditLog[]
 
   @@index([status])
@@ -1165,6 +1168,42 @@ model Notification {
   @@index([userId, status, createdAt])
   @@index([organizationId, userId, createdAt])
   @@index([organizationId, type, relatedEntityId])
+}
+
+/// Platform → organization Owner Inbox. Org-scoped; visible to the current Owner.
+model OwnerMessage {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @db.Uuid
+  subject         String
+  body            String
+  category        String
+  ctaLabel        String?
+  ctaPath         String?
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?                @relation("OwnerMessageAuthor", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  receipts     OwnerMessageReceipt[]
+
+  @@index([organizationId, createdAt])
+  @@index([createdByUserId])
+}
+
+/// Per-user read state for an organization OwnerMessage.
+model OwnerMessageReceipt {
+  id        String             @id @default(uuid()) @db.Uuid
+  messageId String             @db.Uuid
+  userId    String             @db.Uuid
+  status    NotificationStatus @default(UNREAD)
+  readAt    DateTime?          @db.Timestamptz
+  createdAt DateTime           @default(now()) @db.Timestamptz
+
+  message OwnerMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([messageId, userId])
+  @@index([userId, status, createdAt])
 }
 
 /// Append-only. organizationId is null for platform actions. actorUserId is null for system events.

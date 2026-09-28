@@ -17,12 +17,14 @@ import {
 } from '../generated/prisma/client.js';
 import { CurrentUser } from '../tenancy/current-user.decorator.js';
 import type { AuthUser } from '../tenancy/request-context.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CatalogService } from '../subscription/catalog.service.js';
 import { ActivateSubscriptionDto } from '../subscription/dto/activate-subscription.dto.js';
 import { ChangePlanDto } from '../subscription/dto/change-plan.dto.js';
 import { ExtendTrialDto } from '../subscription/dto/extend-trial.dto.js';
 import { RenewSubscriptionDto } from '../subscription/dto/renew-subscription.dto.js';
 import { UpdateCommercialRequestDto } from '../subscription/dto/update-commercial-request.dto.js';
+import { CreateOwnerMessageDto } from './dto/create-owner-message.dto.js';
 import {
   ListPlatformOrganizationsQueryDto,
   SetSubscriptionPeriodDto,
@@ -37,6 +39,7 @@ export class PlatformSubscriptionController {
   constructor(
     private readonly platform: PlatformSubscriptionService,
     private readonly catalog: CatalogService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get('dashboard')
@@ -172,5 +175,22 @@ export class PlatformSubscriptionController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.platform.cancel(organizationId, user.id);
+  }
+
+  @Post('owner-messages')
+  @HttpCode(HttpStatus.CREATED)
+  sendOwnerMessage(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateOwnerMessageDto,
+  ) {
+    return this.notifications.createOwnerMessage({
+      organizationId: dto.organizationId,
+      subject: dto.subject,
+      message: dto.message,
+      category: dto.category,
+      ctaLabel: dto.ctaLabel,
+      ctaPath: dto.ctaPath,
+      actorUserId: user.id,
+    });
   }
 }

@@ -8,6 +8,7 @@ export const EFFECTIVE_SUBSCRIPTION_STATUSES = [
   'GRACE',
   'ACTIVE',
   'PAID_GRACE',
+  'PENDING_ACTIVATION',
   'TRIAL_EXPIRED',
   'EXPIRED',
   'SUSPENDED',
@@ -237,8 +238,8 @@ export function resolveEffectiveStatus(
   if (input.storedStatus === SubscriptionStatus.PAST_DUE) {
     return 'TRIAL_EXPIRED';
   }
-  // NONE (or any non-paid row without trial dates) — awaiting activation.
-  return 'TRIAL_EXPIRED';
+  // NONE (or any non-paid row without trial dates) — never activated.
+  return 'PENDING_ACTIVATION';
 }
 
 export function readOnlyMessage(status: EffectiveSubscriptionStatus): string {
@@ -250,6 +251,9 @@ export function readOnlyMessage(status: EffectiveSubscriptionStatus): string {
   }
   if (status === 'EXPIRED') {
     return 'Your workspace is read-only until the subscription is renewed.';
+  }
+  if (status === 'PENDING_ACTIVATION') {
+    return 'This workspace needs activation before field operations can start.';
   }
   return 'Your workspace is read-only until the subscription is activated.';
 }
@@ -322,6 +326,7 @@ export function toSubscriptionDto(
       requestActivation:
         entitlement.effectiveStatus === 'TRIALING' ||
         entitlement.effectiveStatus === 'GRACE' ||
+        entitlement.effectiveStatus === 'PENDING_ACTIVATION' ||
         entitlement.effectiveStatus === 'TRIAL_EXPIRED',
       requestRenewal:
         entitlement.effectiveStatus === 'ACTIVE' ||
