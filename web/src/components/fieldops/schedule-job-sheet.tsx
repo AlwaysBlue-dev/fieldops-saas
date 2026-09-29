@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { OutsideWorkingDayDialog } from "@/components/fieldops/outside-working-day-dialog";
 import { StatusPill } from "@/components/fieldops/status-pill";
@@ -296,10 +298,10 @@ export function ScheduleJobSheet({
                 className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
               >
                 <option value="">Select…</option>
-                {job.supervisor && !supervisors.some((person) => person.userId === job.supervisor?.userId) ? <option value={job.supervisor.userId}>{job.supervisor.fullName} (existing; review eligibility)</option> : null}
+                {job.supervisor && !supervisors.some((person) => person.userId === job.supervisor?.userId) ? <option value={job.supervisor.userId}>{personOptionLabel(job.supervisor)} (existing; review eligibility)</option> : null}
                 {supervisors.map((person) => (
                   <option key={person.userId} value={person.userId}>
-                    {person.fullName}
+                    {personOptionLabel(person)}
                   </option>
                 ))}
               </select>
@@ -321,7 +323,7 @@ export function ScheduleJobSheet({
                       (item) => item.userId === person.userId,
                     )}
                   />
-                  {person.fullName}
+                  {personOptionLabel(person)}
                 </label>
               ))}
             </fieldset>
@@ -331,7 +333,7 @@ export function ScheduleJobSheet({
                 <legend className="font-medium">Existing assignments needing review</legend>
                 <p className="text-muted-foreground">These people are outside the current eligible technician selection. Existing assignments remain unless you explicitly remove them. Ineligible organization roles cannot be saved as technicians.</p>
                 {unavailableAssignments.map((person) => <label key={person.userId} className="flex items-center gap-2">
-                  <input type="checkbox" name="removeUnavailable" value={person.userId} disabled={!canEdit} /> Remove assignment: {person.fullName}
+                  <input type="checkbox" name="removeUnavailable" value={person.userId} disabled={!canEdit} /> Remove assignment: {personOptionLabel(person)}
                 </label>)}
               </fieldset>
             ) : null}

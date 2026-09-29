@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { AddTimeSheet } from "@/components/fieldops/add-time-sheet";
@@ -231,7 +233,7 @@ export function TimesheetWorkspace() {
             >
               {sheet.technicians.map((person) => (
                 <option key={person.userId} value={person.userId}>
-                  {person.fullName}
+                  {personOptionLabel(person)}
                 </option>
               ))}
             </select>

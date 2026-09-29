@@ -1,3 +1,4 @@
+import { organizationPersonSelect } from './member-person.js';
 import {
   BadRequestException,
   ConflictException,
@@ -96,7 +97,7 @@ export class TeamsService {
       this.prisma.team.findMany({
         where,
         include: {
-          supervisor: { select: { id: true, fullName: true } },
+          supervisor: { select: organizationPersonSelect(ctx.organizationId) },
           members: {
             include: {
               user: {
@@ -277,7 +278,7 @@ export class TeamsService {
             supervisorUserId: dto.supervisorUserId ?? null,
           },
           include: {
-            supervisor: { select: { id: true, fullName: true } },
+            supervisor: { select: organizationPersonSelect(ctx.organizationId) },
             members: {
               include: { user: { select: { id: true, fullName: true } } },
             },
@@ -344,7 +345,7 @@ export class TeamsService {
             status: dto.status,
           },
           include: {
-            supervisor: { select: { id: true, fullName: true } },
+            supervisor: { select: organizationPersonSelect(ctx.organizationId) },
             members: {
               include: { user: { select: { id: true, fullName: true } } },
             },
@@ -531,7 +532,7 @@ export class TeamsService {
         id: teamId,
       },
       include: {
-        supervisor: { select: { id: true, fullName: true } },
+        supervisor: { select: organizationPersonSelect(ctx.organizationId) },
         members: {
           include: { user: { select: { id: true, fullName: true } } },
           orderBy: { joinedAt: 'asc' },

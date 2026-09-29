@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberRoleBadge } from "./member-role-badge";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 import { EmptyState } from "@/components/fieldops/empty-state";
 import { ErrorState } from "@/components/fieldops/error-state";
@@ -28,7 +30,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MutationButton, useCanMutate } from "./mutation-control";
 import { PaginationControls } from "./pagination-controls";
 import { RequestPlanChangeButton } from "./subscription-banners";
-import { personDisplayName } from "@/lib/person-label";
+import { personDisplayName, organizationRoleLabel } from "@/lib/person-label";
 
 const ROLES: OrgMember["role"][] = [
   "OWNER",
@@ -230,7 +232,7 @@ export function MembersPanel() {
             >
               {ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role.replaceAll("_", " ")}
+                  {organizationRoleLabel(role)}
                 </option>
               ))}
             </select>
@@ -285,7 +287,7 @@ export function MembersPanel() {
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
-                  {personDisplayName(member.user)}
+                  {personDisplayName(member.user)} <MemberRoleBadge role={member.role} />
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {member.user.email}
@@ -297,7 +299,7 @@ export function MembersPanel() {
                   tone={member.status === "ACTIVE" ? "emerald" : "muted"}
                 />
                 <select
-                  aria-label={`Role for ${personDisplayName(member.user)}`}
+                  aria-label={`Role for ${personDisplayName(member.user)} <MemberRoleBadge role={member.role} />`}
                   className="h-11 rounded-md border border-input bg-transparent px-2 text-sm md:h-8"
                   value={member.role}
                   disabled={!canMutate}
@@ -315,7 +317,7 @@ export function MembersPanel() {
                 >
                   {ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {role.replaceAll("_", " ")}
+                      {organizationRoleLabel(role)}
                     </option>
                   ))}
                 </select>
@@ -374,7 +376,7 @@ export function MembersPanel() {
                 <div>
                   <p className="text-sm font-medium">{invite.email}</p>
                   <p className="text-xs text-muted-foreground">
-                    {invite.role.replaceAll("_", " ")} · expires{" "}
+                    {organizationRoleLabel(invite.role)} · expires{" "}
                     {new Date(invite.expiresAt).toLocaleDateString()}
                   </p>
                 </div>

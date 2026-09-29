@@ -29,7 +29,7 @@ import { InviteTechnicianSheet } from "./invite-technician-sheet";
 import { MutationButton } from "./mutation-control";
 import { PaginationControls } from "./pagination-controls";
 import { TeamFormSheet } from "./team-form-sheet";
-import { personDisplayName, personSecondaryLine } from "@/lib/person-label";
+import { personDisplayName, personSecondaryLine, personOptionLabel, organizationRoleLabel } from "@/lib/person-label";
 
 export function TeamsWorkspace() {
   const params = useParams<{ orgSlug: string }>();
@@ -242,7 +242,7 @@ export function TeamsWorkspace() {
               </div>
               <p className="mt-3 text-sm">
                 {team.supervisor
-                  ? `Supervisor · ${team.supervisor.fullName}`
+                  ? `Supervisor · ${personOptionLabel(team.supervisor)}`
                   : "No supervisor assigned"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -250,7 +250,7 @@ export function TeamsWorkspace() {
                   ? "No members yet"
                   : team.members
                       .slice(0, 3)
-                      .map((member) => member.fullName)
+                      .map(personOptionLabel)
                       .join(", ")}
                 {team.memberCount > 3 ? ` +${team.memberCount - 3}` : ""}
               </p>
@@ -291,7 +291,7 @@ export function TeamsWorkspace() {
           >
             <MobileListItem
               title={team.name}
-              meta={`${team.supervisor?.fullName ?? "No supervisor"} · ${team.memberCount} members`}
+              meta={`${team.supervisor ? personOptionLabel(team.supervisor) : "No supervisor"} · ${team.memberCount} members`}
               trailing={
                 <StatusPill
                   label={team.status === "ACTIVE" ? "Active" : "Inactive"}
@@ -336,7 +336,7 @@ export function TeamsWorkspace() {
                         : ""}
                     </span>
                   </span>
-                  <StatusPill label={person.role.replaceAll("_", " ")} tone="cobalt" />
+                  <StatusPill label={organizationRoleLabel(person.role) ?? "Role unavailable"} tone="cobalt" />
                 </button>
               </li>
             ))}

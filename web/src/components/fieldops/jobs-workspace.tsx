@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { JobActionsDrawer } from "./job-actions-drawer";
 import { useRefreshLoader } from "./data-refresh-provider";
 
@@ -301,7 +303,7 @@ export function JobsWorkspace() {
           <option value="">All technicians</option>
           {technicians.map((person) => (
             <option key={person.userId} value={person.userId}>
-              {person.fullName}
+              {personOptionLabel(person)}
             </option>
           ))}
         </select>
@@ -370,7 +372,7 @@ export function JobsWorkspace() {
             cell: (job) => (
               <span>
                 {job.team?.name ??
-                  (job.technicians[0]?.fullName ?? "Unassigned")}
+                  (job.technicians[0] ? personOptionLabel(job.technicians[0]) : "Unassigned")}
               </span>
             ),
           },

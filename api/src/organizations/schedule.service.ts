@@ -1,3 +1,4 @@
+import { organizationPersonSelect } from './member-person.js';
 import { requireJobAssignee, eligibleTechnicianWhere } from './job-assignment.js';
 import {
   BadRequestException,
@@ -49,16 +50,16 @@ import { JobWorkflowService } from './job-workflow.service.js';
 import { serializeScheduleJob } from './schedule-serializer.js';
 import { TeamsService } from './teams.service.js';
 
-const JOB_INCLUDE = {
+const JOB_INCLUDE = (organizationId: string) => ({
   client: { select: { id: true, name: true } },
   site: { select: { id: true, name: true } },
   team: { select: { id: true, name: true } },
-  supervisor: { select: { id: true, fullName: true } },
+  supervisor: { select: organizationPersonSelect(organizationId) },
   assignments: {
-    include: { user: { select: { id: true, fullName: true } } },
+    include: { user: { select: organizationPersonSelect(organizationId) } },
     orderBy: { assignedAt: 'asc' as const },
   },
-} satisfies Prisma.JobInclude;
+} satisfies Prisma.JobInclude);
 
 /**
  * Overlap rules (MVP):
@@ -110,7 +111,7 @@ export class ScheduleService {
 
     const jobs = await this.prisma.job.findMany({
       where,
-      include: JOB_INCLUDE,
+      include: JOB_INCLUDE(ctx.organizationId),
       orderBy: [{ scheduledStart: 'asc' }, { jobNumber: 'asc' }],
     });
 
@@ -158,7 +159,7 @@ export class ScheduleService {
         ],
       },
       include: {
-        ...JOB_INCLUDE,
+        ...JOB_INCLUDE(ctx.organizationId),
         client: { select: { id: true, name: true, accountCode: true } },
         site: {
           select: {
@@ -315,7 +316,7 @@ export class ScheduleService {
       }
       const job = await tx.job.findFirstOrThrow({
         where: { id: existing.id, organizationId: ctx.organizationId },
-        include: JOB_INCLUDE,
+        include: JOB_INCLUDE(ctx.organizationId),
       });
 
       if (dto.technicianUserIds !== undefined) {
@@ -342,7 +343,7 @@ export class ScheduleService {
 
       const fresh = await tx.job.findFirstOrThrow({
         where: { id: existing.id },
-        include: JOB_INCLUDE,
+        include: JOB_INCLUDE(ctx.organizationId),
       });
 
       if (timesChanged) {
@@ -400,7 +401,7 @@ export class ScheduleService {
     ctx: OrganizationContext,
     actorUserId: string,
     visibleTeamIds: string[],
-    jobs: Array<Prisma.JobGetPayload<{ include: typeof JOB_INCLUDE }>>,
+    jobs: Array<Prisma.JobGetPayload<{ include: ReturnType<typeof JOB_INCLUDE> }>>,
     query: ScheduleQueryDto,
   ) {
     const technicianWhere: Prisma.OrganizationMemberWhereInput = {
@@ -440,6 +441,7 @@ export class ScheduleService {
       id: `tech:${member.userId}`,
       kind: 'TECHNICIAN' as const,
       label: member.user.fullName,
+      role: member.role,
       userId: member.userId,
       teamId: null as string | null,
       jobs: jobs

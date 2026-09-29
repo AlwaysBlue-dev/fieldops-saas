@@ -23,7 +23,7 @@ export const JOB_TYPES = [
 
 export type JobType = (typeof JOB_TYPES)[number];
 
-export type JobPerson = { userId: string; fullName: string };
+export type JobPerson = { userId: string; fullName: string; role?: string | null };
 
 export type JobSummary = {
   id: string;

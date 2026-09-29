@@ -1,3 +1,4 @@
+import { organizationPersonSelect } from './member-person.js';
 import { ClockService } from './clock.service.js';
 import type { GpsEvidenceDto } from './dto/clock-action.dto.js';
 import { workTimeBlockers } from './job-work-time.js';
@@ -75,16 +76,16 @@ import {
 } from './my-day-actions.js';
 import { TeamsService } from './teams.service.js';
 
-const LIST_INCLUDE = {
+const LIST_INCLUDE = (organizationId: string) => ({
   client: { select: { id: true, name: true } },
   site: { select: { id: true, name: true, city: true } },
   team: { select: { id: true, name: true } },
-  supervisor: { select: { id: true, fullName: true } },
+  supervisor: { select: organizationPersonSelect(organizationId) },
   assignments: {
-    include: { user: { select: { id: true, fullName: true } } },
+    include: { user: { select: organizationPersonSelect(organizationId) } },
     orderBy: { assignedAt: 'asc' as const },
   },
-} satisfies Prisma.JobInclude;
+} satisfies Prisma.JobInclude);
 
 @Injectable()
 export class JobsService {
@@ -167,7 +168,7 @@ export class JobsService {
       this.prisma.job.count({ where }),
       this.prisma.job.findMany({
         where,
-        include: LIST_INCLUDE,
+        include: LIST_INCLUDE(ctx.organizationId),
         orderBy: { [sort]: order },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -902,7 +903,7 @@ export class JobsService {
         AND: [jobVisibilityWhere(ctx, actorUserId, visibleTeamIds), { id: jobId }],
       },
       include: {
-        ...LIST_INCLUDE,
+        ...LIST_INCLUDE(ctx.organizationId),
         client: {
           select: {
             id: true,

@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { EmptyState } from "@/components/fieldops/empty-state";
@@ -329,7 +331,7 @@ export function ScheduleWorkspace() {
               <option value="">All technicians</option>
               {technicians.map((person) => (
                 <option key={person.userId} value={person.userId}>
-                  {person.fullName}
+                  {personOptionLabel(person)}
                 </option>
               ))}
             </select>

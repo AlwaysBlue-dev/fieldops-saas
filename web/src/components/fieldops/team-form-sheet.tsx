@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
 import {
-  personDisplayName,
+  personOptionLabel,
   personSecondaryLine,
 } from "@/lib/person-label";
 import {
@@ -63,7 +63,7 @@ export function TeamFormSheet({
       return {
         items: result.items.map((person) => ({
           value: person.userId,
-          label: personDisplayName(person),
+          label: personOptionLabel(person),
           description: personSecondaryLine(person),
         })),
         page: result.page,
@@ -147,7 +147,7 @@ export function TeamFormSheet({
               emptyLabel="No eligible supervisors found."
               selectedLabel={
                 team?.supervisor
-                  ? personDisplayName(team.supervisor)
+                  ? personOptionLabel(team.supervisor)
                   : undefined
               }
               ariaLabel="Supervisor"

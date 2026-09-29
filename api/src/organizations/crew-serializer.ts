@@ -1,3 +1,4 @@
+import { serializeOrganizationPerson, type OrganizationPerson } from './member-person.js';
 import { CERTIFICATION_EXPIRING_SOON_DAYS } from '../common/constants.js';
 import type {
   EntityStatus,
@@ -95,7 +96,7 @@ export function serializeTeamSummary(team: {
   status: EntityStatus;
   createdAt: Date;
   updatedAt: Date;
-  supervisor?: { id: string; fullName: string } | null;
+  supervisor?: OrganizationPerson | null;
   memberCount?: number;
   members?: Array<{
     userId: string;
@@ -114,7 +115,7 @@ export function serializeTeamSummary(team: {
     createdAt: team.createdAt.toISOString(),
     updatedAt: team.updatedAt.toISOString(),
     supervisor: team.supervisor
-      ? { userId: team.supervisor.id, fullName: team.supervisor.fullName }
+      ? serializeOrganizationPerson(team.supervisor, team.organizationId)
       : null,
     memberCount: team.memberCount ?? team.members?.length ?? 0,
     members: team.members ?? [],

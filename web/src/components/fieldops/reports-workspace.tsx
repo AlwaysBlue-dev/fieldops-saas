@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { EmptyState } from "@/components/fieldops/empty-state";
@@ -421,7 +423,7 @@ export function ReportsWorkspace() {
               <option value="ALL">All technicians</option>
               {technicians.map((tech) => (
                 <option key={tech.userId} value={tech.userId}>
-                  {tech.fullName}
+                  {personOptionLabel(tech)}
                 </option>
               ))}
             </select>

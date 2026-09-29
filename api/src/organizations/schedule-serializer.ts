@@ -1,3 +1,4 @@
+import { serializeOrganizationPerson, type OrganizationPerson } from './member-person.js';
 import type {
   JobPriority,
   JobStatus,
@@ -15,8 +16,8 @@ export type ScheduleJobView = {
   client: { id: string; name: string };
   site: { id: string; name: string };
   team: { id: string; name: string } | null;
-  supervisor: { userId: string; fullName: string } | null;
-  technicians: Array<{ userId: string; fullName: string }>;
+  supervisor: ReturnType<typeof serializeOrganizationPerson> | null;
+  technicians: Array<ReturnType<typeof serializeOrganizationPerson>>;
 };
 
 export function serializeScheduleJob(job: {
@@ -31,8 +32,8 @@ export function serializeScheduleJob(job: {
   client: { id: string; name: string };
   site: { id: string; name: string };
   team: { id: string; name: string } | null;
-  supervisor: { id: string; fullName: string } | null;
-  assignments: Array<{ user: { id: string; fullName: string } }>;
+  supervisor: OrganizationPerson | null;
+  assignments: Array<{ user: OrganizationPerson }>;
 }): ScheduleJobView {
   return {
     id: job.id,
@@ -47,11 +48,8 @@ export function serializeScheduleJob(job: {
     site: job.site,
     team: job.team,
     supervisor: job.supervisor
-      ? { userId: job.supervisor.id, fullName: job.supervisor.fullName }
+      ? serializeOrganizationPerson(job.supervisor, job.organizationId)
       : null,
-    technicians: job.assignments.map((assignment) => ({
-      userId: assignment.user.id,
-      fullName: assignment.user.fullName,
-    })),
+    technicians: job.assignments.map((row) => serializeOrganizationPerson(row.user, job.organizationId)),
   };
 }

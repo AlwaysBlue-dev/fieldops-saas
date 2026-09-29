@@ -1,5 +1,7 @@
 "use client";
 
+import { MemberRoleBadge } from "./member-role-badge";
+
 import { StatusPill } from "@/components/fieldops/status-pill";
 import { cn } from "cn";
 import type { DragEvent } from "react";
@@ -153,7 +155,7 @@ export function ScheduleBoard({
                 <th className="sticky left-0 bg-card px-3 py-2 text-left font-medium">
                   {lane.label}
                   <p className="text-[11px] font-normal text-muted-foreground">
-                    {lane.kind === "TEAM" ? "Team" : "Technician"}
+                    {lane.kind === "TEAM" ? "Team" : <MemberRoleBadge role={lane.role} />}
                   </p>
                 </th>
                 {weekDays.map((day) => (
@@ -232,7 +234,7 @@ export function ScheduleBoard({
             <div className="px-3 py-3">
               <p className="text-sm font-medium">{lane.label}</p>
               <p className="text-[11px] text-muted-foreground">
-                {lane.kind === "TEAM" ? "Team lane" : "Technician"}
+                {lane.kind === "TEAM" ? "Team lane" : <MemberRoleBadge role={lane.role} />}
               </p>
             </div>
             <div

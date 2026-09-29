@@ -1,9 +1,10 @@
+import { serializeOrganizationPerson, type OrganizationPerson } from './member-person.js';
 import type {
   JobPriority,
   JobStatus,
 } from '../generated/prisma/client.js';
 
-export type JobPerson = { userId: string; fullName: string };
+export type JobPerson = ReturnType<typeof serializeOrganizationPerson>;
 
 export type JobSummaryView = {
   id: string;
@@ -39,8 +40,8 @@ export function serializeJobSummary(job: {
   client: { id: string; name: string };
   site: { id: string; name: string; city?: string | null };
   team: { id: string; name: string } | null;
-  supervisor: { id: string; fullName: string } | null;
-  assignments: Array<{ user: { id: string; fullName: string } }>;
+  supervisor: OrganizationPerson | null;
+  assignments: Array<{ user: OrganizationPerson }>;
 }): JobSummaryView {
   return {
     id: job.id,
@@ -57,12 +58,9 @@ export function serializeJobSummary(job: {
     site: { id: job.site.id, name: job.site.name, city: job.site.city ?? null },
     team: job.team,
     supervisor: job.supervisor
-      ? { userId: job.supervisor.id, fullName: job.supervisor.fullName }
+      ? serializeOrganizationPerson(job.supervisor, job.organizationId)
       : null,
-    technicians: job.assignments.map((row) => ({
-      userId: row.user.id,
-      fullName: row.user.fullName,
-    })),
+    technicians: job.assignments.map((row) => serializeOrganizationPerson(row.user, job.organizationId)),
     updatedAt: job.updatedAt.toISOString(),
   };
 }

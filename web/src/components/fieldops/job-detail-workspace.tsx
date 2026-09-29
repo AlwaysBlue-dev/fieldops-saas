@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { clockJob } from "@/lib/job-clock";
 import { JobScheduleAction } from "./job-schedule-action";
 import { useRefreshLoader } from "./data-refresh-provider";
@@ -383,12 +385,12 @@ function OverviewFacts({
           }
         />
         <Row label="Team" value={job.team?.name ?? "Unassigned"} />
-        <Row label="Supervisor" value={job.supervisor?.fullName ?? "Unassigned"} />
+        <Row label="Supervisor" value={job.supervisor ? personOptionLabel(job.supervisor) : "Unassigned"} />
         <Row
           label="Assigned"
           value={
             job.technicians.length > 0
-              ? job.technicians.map((item) => item.fullName).join(", ")
+              ? job.technicians.map(personOptionLabel).join(", ")
               : "Unassigned"
           }
         />

@@ -58,7 +58,7 @@ export type TimesheetWeek = {
   weekEnd: string;
   timezone: string;
   technician: { userId: string; fullName: string };
-  technicians: Array<{ userId: string; fullName: string }>;
+  technicians: Array<{ userId: string; fullName: string; role?: string | null }>;
   days: TimesheetDay[];
   totals: {
     weekMinutes: number;

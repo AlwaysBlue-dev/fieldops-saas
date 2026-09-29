@@ -229,6 +229,7 @@ export class TimesheetsService {
         ? { userId: technician.id, fullName: technician.fullName }
         : { userId: requested, fullName: 'Technician' },
       technicians: technicians.map((row) => ({
+        role: row.role,
         userId: row.user.id,
         fullName: row.user.fullName,
       })),

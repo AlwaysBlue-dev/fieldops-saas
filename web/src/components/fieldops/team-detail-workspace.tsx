@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel, organizationRoleLabel } from "@/lib/person-label";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { EmptyState } from "@/components/fieldops/empty-state";
@@ -208,7 +210,7 @@ export function TeamDetailWorkspace() {
           <p className="mt-1 text-sm text-muted-foreground">
             {team.code ? `${team.code} · ` : ""}
             {team.supervisor
-              ? `Supervisor ${team.supervisor.fullName}`
+              ? `Supervisor ${personOptionLabel(team.supervisor)}`
               : "No supervisor assigned"}
           </p>
         </div>
@@ -253,7 +255,7 @@ export function TeamDetailWorkspace() {
                 <Row label="Code" value={team.code ?? "—"} />
                 <Row
                   label="Supervisor"
-                  value={team.supervisor?.fullName ?? "Unassigned"}
+                  value={team.supervisor ? personOptionLabel(team.supervisor) : "Unassigned"}
                 />
                 <Row label="Status" value={team.status === "ACTIVE" ? "Active" : "Inactive"} />
                 <Row label="Active members" value={String(team.memberCount)} />
@@ -301,7 +303,7 @@ export function TeamDetailWorkspace() {
                   <option value="">Select a person</option>
                   {assignable.map((person) => (
                     <option key={person.userId} value={person.userId}>
-                      {person.fullName}
+                      {personOptionLabel(person)}
                     </option>
                   ))}
                 </select>
@@ -335,7 +337,7 @@ export function TeamDetailWorkspace() {
                   <option value="">Unassigned</option>
                   {technicians.map((person) => (
                     <option key={person.userId} value={person.userId}>
-                      {person.fullName}
+                      {personOptionLabel(person)}
                     </option>
                   ))}
                 </select>
@@ -364,7 +366,7 @@ export function TeamDetailWorkspace() {
                   >
                     <p className="truncate text-sm font-medium">{member.fullName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {member.role?.replaceAll("_", " ") ?? "Member"}
+                      {organizationRoleLabel(member.role) ?? "Role unavailable"}
                       {member.skills && member.skills.length > 0
                         ? ` · ${member.skills.map((skill) => skill.name).join(", ")}`
                         : ""}
@@ -847,7 +849,7 @@ function AssignSkillDrawer({
                       );
                     }}
                   />
-                  {member.fullName}
+                  {personOptionLabel(member)}
                 </label>
               );
             })
@@ -949,7 +951,7 @@ function CertificationDrawer({
             <option value="">Select a member</option>
             {members.map((member) => (
               <option key={member.userId} value={member.userId}>
-                {member.fullName}
+                {personOptionLabel(member)}
               </option>
             ))}
           </select>

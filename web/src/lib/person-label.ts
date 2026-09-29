@@ -1,3 +1,19 @@
+/** Format only a role supplied by the current organization membership. */
+export function organizationRoleLabel(role?: string | null): string | null {
+  if (!role) return null;
+  return role.toLowerCase().split("_").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+/** Native select options and compact assignment summaries cannot contain badges. */
+export function personOptionLabel(input: {
+  fullName?: string | null;
+  email?: string | null;
+  role?: string | null;
+}): string {
+  const role = organizationRoleLabel(input.role);
+  return `${personDisplayName(input)}${role ? ` · ${role}` : ""}`;
+}
+
 /** Display label for people in selectors and lists. Never invent "Existing User". */
 export function personDisplayName(input: {
   fullName?: string | null;

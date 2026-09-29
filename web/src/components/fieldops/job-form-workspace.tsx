@@ -13,7 +13,7 @@ import { listClientSites, listClients } from "@/lib/clients";
 import { canCreateJobs, resolveCurrentMembership } from "@/lib/current-org";
 import { createJob, JOB_TYPES, jobTypeLabel, type JobWriteBody } from "@/lib/jobs";
 import { getOrganization } from "@/lib/organizations";
-import { personDisplayName, personSecondaryLine } from "@/lib/person-label";
+import { personOptionLabel, personSecondaryLine } from "@/lib/person-label";
 import { listTeams, listTechnicians } from "@/lib/teams";
 import {
   isOutsideWorkingWeek,
@@ -204,7 +204,7 @@ export function JobFormWorkspace() {
       return {
         items: result.items.map((person) => ({
           value: person.userId,
-          label: personDisplayName(person),
+          label: personOptionLabel(person),
           description: personSecondaryLine(person),
         })),
         page: result.page,
@@ -231,7 +231,7 @@ export function JobFormWorkspace() {
           setTechOptions(
             result.items.map((person) => ({
               userId: person.userId,
-              label: personDisplayName(person),
+              label: personOptionLabel(person),
               description: personSecondaryLine(person),
             })),
           );
@@ -507,7 +507,7 @@ export function JobFormWorkspace() {
                         .filter((person) => !seen.has(person.userId))
                         .map((person) => ({
                           userId: person.userId,
-                          label: personDisplayName(person),
+                          label: personOptionLabel(person),
                           description: personSecondaryLine(person),
                         })),
                     ];

@@ -1,5 +1,7 @@
 "use client";
 
+import { personOptionLabel } from "@/lib/person-label";
+
 import { FormField, ResponsiveForm } from "@/components/fieldops/responsive-form";
 import { MutationButton } from "@/components/fieldops/mutation-control";
 import { ResponsiveDrawer } from "@/components/fieldops/responsive-drawer";
@@ -25,7 +27,7 @@ export function RequestOvertimeSheet({
   onOpenChange: (open: boolean) => void;
   organizationId: string;
   technicianUserId?: string;
-  technicians?: Array<{ userId: string; fullName: string }>;
+  technicians?: Array<{ userId: string; fullName: string; role?: string | null }>;
   defaultDate: string;
   onCreated: () => void;
 }) {
@@ -97,7 +99,7 @@ export function RequestOvertimeSheet({
             >
               {technicians.map((person) => (
                 <option key={person.userId} value={person.userId}>
-                  {person.fullName}
+                  {personOptionLabel(person)}
                 </option>
               ))}
             </select>

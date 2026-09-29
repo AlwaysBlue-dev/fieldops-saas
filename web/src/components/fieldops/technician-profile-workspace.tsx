@@ -1,5 +1,7 @@
 "use client";
 
+import { organizationRoleLabel } from "@/lib/person-label";
+
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { EmptyState } from "@/components/fieldops/empty-state";
@@ -118,7 +120,7 @@ export function TechnicianProfileWorkspace() {
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <h1 className="text-lg font-semibold md:text-xl">{profile.fullName}</h1>
-          <StatusPill label={profile.role.replaceAll("_", " ")} tone="cobalt" />
+          <StatusPill label={organizationRoleLabel(profile.role) ?? "Role unavailable"} tone="cobalt" />
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {profile.email ?? "Email hidden"}

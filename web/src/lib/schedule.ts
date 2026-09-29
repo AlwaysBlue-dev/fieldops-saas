@@ -30,8 +30,8 @@ export type ScheduleJob = {
     addressLine1?: string | null;
   };
   team: { id: string; name: string } | null;
-  supervisor: { userId: string; fullName: string } | null;
-  technicians: Array<{ userId: string; fullName: string }>;
+  supervisor: { userId: string; fullName: string; role?: string | null } | null;
+  technicians: Array<{ userId: string; fullName: string; role?: string | null }>;
   scope?: string | null;
   jobType?: string;
   updatedAt?: string;
@@ -41,6 +41,7 @@ export type ScheduleLane = {
   id: string;
   kind: "TECHNICIAN" | "TEAM";
   label: string;
+  role?: string | null;
   userId: string | null;
   teamId: string | null;
   jobs: ScheduleJob[];

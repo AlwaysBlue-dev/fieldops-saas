@@ -24,7 +24,7 @@ export type TeamSummary = {
   code: string | null;
   description: string | null;
   status: TeamStatus;
-  supervisor: { userId: string; fullName: string } | null;
+  supervisor: { userId: string; fullName: string; role?: string | null } | null;
   memberCount: number;
   members: TeamMemberSummary[];
   skillSummary: string[];
