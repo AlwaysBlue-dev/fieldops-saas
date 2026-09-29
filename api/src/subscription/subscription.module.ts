@@ -10,14 +10,14 @@ import { EntitlementService } from './entitlement.service.js';
 import { SubscriptionAccessGuard } from './subscription-access.guard.js';
 import { SubscriptionAccessService } from './subscription-access.service.js';
 import { SubscriptionController } from './subscription.controller.js';
-import { SubscriptionNotificationService } from './subscription-notification.service.js';
+import { SubscriptionNotificationsModule } from './subscription-notifications.module.js';
 import { SubscriptionReconciliationService } from './subscription-reconciliation.service.js';
 import { SubscriptionService } from './subscription.service.js';
 import { UsageService } from './usage.service.js';
 import { StorageQuotaService } from '../storage/storage-quota.service.js';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, SubscriptionNotificationsModule],
   controllers: [
     CatalogController,
     SubscriptionController,
@@ -31,7 +31,6 @@ import { StorageQuotaService } from '../storage/storage-quota.service.js';
     UsageService,
     SubscriptionAccessService,
     SubscriptionAccessGuard,
-    SubscriptionNotificationService,
     SubscriptionReconciliationService,
     SubscriptionService,
     PlatformSubscriptionService,
@@ -44,7 +43,7 @@ import { StorageQuotaService } from '../storage/storage-quota.service.js';
     UsageService,
     SubscriptionAccessService,
     SubscriptionAccessGuard,
-    SubscriptionNotificationService,
+    SubscriptionNotificationsModule,
     SubscriptionReconciliationService,
     CLOCK,
   ],

@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import { CLOCK, type Clock } from './clock.js';
+import { SubscriptionDeliveryService } from './subscription-delivery.service.js';
 import {
   AUDIT_SUBSCRIPTION_EXPIRED,
 } from '../common/constants.js';
@@ -28,7 +30,14 @@ export class SubscriptionReconciliationService {
     private readonly access: SubscriptionAccessService,
     private readonly notifications: SubscriptionNotificationService,
     private readonly audit: AuditService,
+    private readonly delivery: SubscriptionDeliveryService,
+    @Inject(CLOCK) private readonly clock: Clock,
   ) {}
+
+  @Cron('*/5 * * * *', { name: 'subscription-email-delivery', timeZone: 'UTC' })
+  async deliverPending() {
+    await this.delivery.drain();
+  }
 
   @Cron('15 6 * * *', { name: 'subscription-reconciliation', timeZone: 'UTC' })
   async handleDaily() {
@@ -69,51 +78,34 @@ export class SubscriptionReconciliationService {
   }
 
   async reconcileOne(
-    subscriptionId: string,
+    _subscriptionId: string,
     organizationId: string,
     organizationName: string,
     organizationSlug: string,
-    storedStatus: SubscriptionStatus,
+    _storedStatus: SubscriptionStatus,
   ) {
-    const entitlement = await this.access.evaluate(organizationId);
-    const nextStatus = PERSISTABLE[entitlement.effectiveStatus];
-    if (
-      nextStatus &&
-      nextStatus !== storedStatus &&
-      storedStatus !== SubscriptionStatus.SUSPENDED &&
-      storedStatus !== SubscriptionStatus.CANCELLED &&
-      storedStatus !== SubscriptionStatus.CANCELED
-    ) {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.subscription.update({
-          where: { id: subscriptionId },
-          data: { status: nextStatus },
-        });
-        if (
-          nextStatus === SubscriptionStatus.EXPIRED ||
-          nextStatus === SubscriptionStatus.TRIAL_EXPIRED
-        ) {
-          await this.audit.record(
-            {
-              action: AUDIT_SUBSCRIPTION_EXPIRED,
-              entityType: 'Subscription',
-              entityId: subscriptionId,
-              organizationId,
-              oldValues: { status: storedStatus },
-              newValues: { status: nextStatus },
-            },
-            tx,
-          );
+    return this.prisma.$transaction(async (tx) => {
+      const current = await this.notifications.lockSubscription(tx, organizationId);
+      const now = this.clock.now();
+      const entitlement = await this.access.evaluate(organizationId, now, tx);
+      const nextStatus = PERSISTABLE[entitlement.effectiveStatus];
+      const transitioned = Boolean(nextStatus && nextStatus !== current.status &&
+        current.status !== SubscriptionStatus.SUSPENDED &&
+        current.status !== SubscriptionStatus.CANCELLED &&
+        current.status !== SubscriptionStatus.CANCELED);
+      if (transitioned && nextStatus) {
+        await tx.subscription.update({ where: { id: current.id }, data: { status: nextStatus } });
+        if (nextStatus === SubscriptionStatus.EXPIRED || nextStatus === SubscriptionStatus.TRIAL_EXPIRED) {
+          await this.audit.record({
+            action: AUDIT_SUBSCRIPTION_EXPIRED, entityType: 'Subscription', entityId: current.id,
+            organizationId, oldValues: { status: current.status }, newValues: { status: nextStatus },
+          }, tx);
         }
-      });
-    }
-
-    await this.notifications.reconcileEntitlement(
-      organizationId,
-      organizationName,
-      organizationSlug,
-      entitlement,
-    );
-    return true;
+      }
+      await this.notifications.reconcileEntitlement(
+        organizationId, organizationName, organizationSlug, entitlement, tx, transitioned, now,
+      );
+      return true;
+    });
   }
 }

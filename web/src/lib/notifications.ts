@@ -112,6 +112,12 @@ export function notificationHref(
         : `/app/${orgSlug}/time`;
     case "INVITATION":
       return `/app/${orgSlug}/settings/members`;
+    case "WORKSPACE_REACTIVATED":
+    case "SUBSCRIPTION_PLAN_CHANGED":
+    case "PLAN_CHANGE_REQUEST_ACK":
+      return `/app/${orgSlug}/settings/plan-usage`;
+    case "TRIAL_ENDING_SOON":
+    case "TRIAL_GRACE_ENDING":
     case "TRIAL_EXPIRING":
     case "TRIAL_GRACE":
     case "TRIAL_EXPIRED":
@@ -122,7 +128,9 @@ export function notificationHref(
     case "SUBSCRIPTION_RENEWED":
       return `/app/${orgSlug}/settings/billing`;
     default:
-      return null;
+      return /^RENEWAL_\d+$/.test(item.type)
+        ? `/app/${orgSlug}/settings/billing`
+        : null;
   }
 }
 

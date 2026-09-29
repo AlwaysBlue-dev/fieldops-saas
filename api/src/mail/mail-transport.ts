@@ -5,6 +5,7 @@ export type MailPayload = {
   subject: string;
   text: string;
   html: string;
+  idempotencyKey?: string;
 };
 
 export type MailSendResult = 'sent' | 'skipped' | 'failed';

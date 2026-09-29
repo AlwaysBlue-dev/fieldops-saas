@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '../generated/prisma/client.js';
 import { EntitlementService } from './entitlement.service.js';
 import type { Entitlement } from './entitlement.js';
 import { UsageService } from './usage.service.js';
@@ -14,8 +15,8 @@ export class SubscriptionAccessService {
     private readonly usageService: UsageService,
   ) {}
 
-  evaluate(organizationId: string, now?: Date): Promise<Entitlement> {
-    return this.entitlements.evaluate(organizationId, now);
+  evaluate(organizationId: string, now?: Date, db?: Prisma.TransactionClient): Promise<Entitlement> {
+    return this.entitlements.evaluate(organizationId, now, db);
   }
 
   usageForSubscription(organizationId: string) {

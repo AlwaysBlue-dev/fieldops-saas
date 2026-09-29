@@ -353,6 +353,7 @@ export class PlatformSubscriptionService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -426,16 +427,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
-    });
-
-    const organization = await this.prisma.organization.findFirstOrThrow({
-      where: { id: organizationId },
-    });
-    await this.notifications.sendActivated({
-      organizationId,
-      organizationName: organization.name,
-      planName: plan.name,
-      currentPeriodEnd,
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'activation');
     });
 
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));
@@ -463,6 +455,7 @@ export class PlatformSubscriptionService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -500,16 +493,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
-    });
-
-    const organization = await this.prisma.organization.findFirstOrThrow({
-      where: { id: organizationId },
-    });
-    await this.notifications.sendRenewed({
-      organizationId,
-      organizationName: organization.name,
-      planName: plan.name,
-      currentPeriodEnd,
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'renewal');
     });
 
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));
@@ -524,6 +508,7 @@ export class PlatformSubscriptionService {
     const plan = await this.resolvePlan(dto.planId, dto.planCode);
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: { planId: plan.id },
@@ -540,6 +525,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'plan');
     });
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));
   }
@@ -560,6 +546,7 @@ export class PlatformSubscriptionService {
     }
     const now = this.clock.now();
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -592,6 +579,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'period');
     });
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));
   }
@@ -627,6 +615,7 @@ export class PlatformSubscriptionService {
     const trialStartedAt = subscription.trialStartedAt ?? now;
 
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -660,6 +649,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'trial-extension');
     });
 
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));
@@ -716,6 +706,7 @@ export class PlatformSubscriptionService {
       : SubscriptionStatus.TRIALING;
 
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.notifications.lockSubscription(tx, organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
         data: {
@@ -739,6 +730,7 @@ export class PlatformSubscriptionService {
         },
         tx,
       );
+      await this.notifications.queueSubscriptionChange(tx, organizationId, notificationBefore, now, 'reactivation');
     });
 
     return toSubscriptionDto(await this.access.evaluate(organizationId, now));

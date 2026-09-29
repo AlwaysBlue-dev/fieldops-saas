@@ -533,18 +533,25 @@ model ActivationRequest {
   @@index([status, createdAt])
 }
 
-/// Idempotent ledger for trial/renewal emails. One send per org + kind + period.
+/// Durable subscription email delivery ledger. Recipient identity is included in periodKey.
 model SubscriptionNotification {
   id             String   @id @default(uuid()) @db.Uuid
   organizationId String   @db.Uuid
   kind           String
   periodKey      String
-  sentAt         DateTime @default(now()) @db.Timestamptz
+  sentAt         DateTime? @default(now()) @db.Timestamptz
+  deliveryState  String    @default("SENT")
+  payload        Json?
+  firstAttemptAt DateTime? @db.Timestamptz
+  leaseUntil     DateTime? @db.Timestamptz
+  nextAttemptAt  DateTime  @default(now()) @db.Timestamptz
+  lastError      String?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, kind, periodKey])
   @@index([organizationId, kind])
+  @@index([deliveryState, nextAttemptAt])
 }
 
 enum WorkspaceDeletionStatus {

@@ -18,7 +18,7 @@ import {
   type MailBranding,
   type MailContent,
 } from './mail-templates.js';
-import type { MailTransport } from './mail-transport.js';
+import type { MailPayload, MailTransport } from './mail-transport.js';
 import { ResendMailTransport } from './resend-mail.transport.js';
 import { SmtpMailTransport } from './smtp-mail.transport.js';
 import { PASSWORD_RESET_TTL_MINUTES, DEFAULT_EMAIL_FROM, DEFAULT_EMAIL_REPLY_TO, DEFAULT_SUPPORT_EMAIL } from '../common/constants.js';
@@ -277,6 +277,29 @@ export class MailService {
       billingUrl: `${this.appUrl()}/app/${input.orgSlug}/settings/billing`,
     }, this.branding);
     await this.dispatch({ to: input.to, content, logLabel: 'activation-ack' });
+  }
+
+  prepareText(input: {
+    to: string; subject: string; text: string; ctaLabel?: string; ctaUrl?: string;
+  }): MailPayload {
+    const content = transactionalMailLayout({
+      preheader: input.subject,
+      heading: input.subject,
+      paragraphs: [input.text],
+      ctaLabel: input.ctaLabel,
+      ctaUrl: input.ctaUrl,
+    }, this.branding);
+    return {
+      to: input.to, from: this.fromAddress,
+      ...(this.replyTo ? { replyTo: this.replyTo } : {}),
+      subject: content.subject, text: content.text, html: content.html,
+    };
+  }
+
+  async sendPrepared(payload: MailPayload) {
+    const result = await this.transport.send(payload);
+    if (result === 'failed') this.logger.error('Failed to send subscription lifecycle email');
+    return result;
   }
 
   async sendText(input: { to: string; subject: string; text: string }): Promise<

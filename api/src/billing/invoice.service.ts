@@ -38,6 +38,7 @@ import { LegalService } from '../legal/legal.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { SubscriptionNotificationService } from '../subscription/subscription-notification.service.js';
 import { CLOCK, addUtcDays, type Clock } from '../subscription/clock.js';
 import {
   resolveActivationPeriod,
@@ -78,6 +79,7 @@ export class InvoiceService {
     private readonly settings: BillingSettingsService,
     private readonly pdf: InvoicePdfService,
     private readonly notifications: NotificationsService,
+    private readonly subscriptionNotifications: SubscriptionNotificationService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -750,6 +752,7 @@ export class InvoiceService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      const notificationBefore = await this.subscriptionNotifications.lockSubscription(tx, invoice.organizationId);
       if (!alreadyPaid) {
         const claimed = await tx.invoice.updateMany({
           where: {
@@ -836,32 +839,13 @@ export class InvoiceService {
         },
         tx,
       );
+      await this.subscriptionNotifications.queueSubscriptionChange(
+        tx, invoice.organizationId, notificationBefore, now, isRenewal ? 'renewal' : 'activation',
+        { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, billingEmail: invoice.customerBillingEmail },
+      );
     });
 
     const refreshed = await this.requireInvoice(invoiceId);
-    const through = period.currentPeriodEnd.toISOString().slice(0, 10);
-    await this.mail.sendText({
-      to: refreshed.customerBillingEmail,
-      subject: isRenewal
-        ? 'Your FieldKeel subscription was renewed'
-        : 'Your FieldKeel subscription is active',
-      text: [
-        `Payment for invoice ${refreshed.invoiceNumber} has been confirmed.`,
-        '',
-        `${refreshed.plan.name}`,
-        `Active through ${through}`,
-        '',
-        this.billingLink(refreshed.organization.slug),
-      ].join('\n'),
-    });
-
-    await this.notifyOwners(refreshed.organizationId, {
-      type: isRenewal ? 'SUBSCRIPTION_RENEWED' : 'SUBSCRIPTION_ACTIVATED',
-      title: isRenewal ? 'Subscription renewed' : 'Subscription activated',
-      message: `${refreshed.plan.name} is active through ${through}.`,
-      organizationSlug: refreshed.organization.slug,
-    });
-
     return this.present(refreshed, {
       includeInstructions: true,
       includeInternal: true,

@@ -23,6 +23,7 @@ import {
   TRIAL_PLAN_CODE,
 } from '../common/constants.js';
 import { hasCommercialActivation } from '../subscription/commercial-history.js';
+import { SubscriptionNotificationService } from '../subscription/subscription-notification.service.js';
 import { trialWindow } from '../subscription/clock.js';
 import {
   planSnapshot,
@@ -78,6 +79,7 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
     private readonly legal: LegalService,
+    private readonly subscriptionNotifications: SubscriptionNotificationService,
   ) {}
 
   private async countPendingWorkspaces(
@@ -446,6 +448,8 @@ export class AuthService {
             tx,
           );
         }
+
+        await this.subscriptionNotifications.queueWorkspaceCreated(tx, created.id, trialEligible);
 
         return {
           created,

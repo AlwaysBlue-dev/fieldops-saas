@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TRIAL_PLAN_CODE } from '../common/constants.js';
-import { PlanStatus } from '../generated/prisma/client.js';
+import { PlanStatus, type Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CLOCK, type Clock } from './clock.js';
 import {
@@ -26,8 +26,9 @@ export class EntitlementService {
   async evaluate(
     organizationId: string,
     now = this.clock.now(),
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
   ): Promise<Entitlement> {
-    const subscription = await this.prisma.subscription.findFirst({
+    const subscription = await db.subscription.findFirst({
       where: { organizationId },
       include: { plan: true },
     });
@@ -35,7 +36,7 @@ export class EntitlementService {
       throw new NotFoundException();
     }
 
-    const trialPlanRow = await this.prisma.plan.findFirst({
+    const trialPlanRow = await db.plan.findFirst({
       where: { code: TRIAL_PLAN_CODE, status: PlanStatus.ACTIVE },
     });
     const trialPlan = planSnapshot(trialPlanRow ?? subscription.plan);

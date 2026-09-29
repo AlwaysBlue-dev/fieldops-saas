@@ -22,9 +22,11 @@ export class ResendMailTransport implements MailTransport {
     try {
       const response = await fetch(this.endpoint, {
         method: 'POST',
+        signal: AbortSignal.timeout(20_000),
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
+          ...(payload.idempotencyKey ? { 'Idempotency-Key': payload.idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: payload.from,
