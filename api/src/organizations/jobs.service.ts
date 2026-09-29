@@ -32,7 +32,6 @@ import {
 import {
   ApprovalStatus,
   ApprovalType,
-  ClockSessionStatus,
   EntityStatus,
   JobAssignmentRole,
   JobStatus,
@@ -214,11 +213,7 @@ export class JobsService {
       addressLabel: addressLabel ?? job.site.name,
     });
     const activeClock = await this.clocks.currentSession(ctx.organizationId, actorUserId);
-    const clockedInOnJob = job.clockSessions.some(
-      (row) =>
-        row.status === ClockSessionStatus.OPEN &&
-        row.technician.id === actorUserId,
-    );
+    const clockedInOnJob = activeClock?.jobId === job.id;
     const recordsLocked = executionRecordsLocked(job.status);
     const safetySatisfied = requiredSafetySatisfied(job.safetyControls);
     const canExecute = this.workflow.canFieldCapture(
@@ -656,14 +651,11 @@ export class JobsService {
   async start(ctx: OrganizationContext, actorUserId: string, jobId: string, gps: GpsEvidenceDto = {}) {
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     const assigned = job.assignments.some((row) => row.userId === actorUserId);
-    if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
-      throw new ForbiddenException('Insufficient organization role');
+    if (!this.workflow.canClockAgainst(ctx.role, assigned, job.status)) {
+      throw new ForbiddenException('This job is not available to clock');
     }
     this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-    const session = await this.clocks.currentSession(ctx.organizationId, actorUserId);
-    if (!(session?.jobId === jobId && job.status === JobStatus.IN_PROGRESS)) {
-      await this.clocks.clockIn(ctx, actorUserId, { ...gps, jobId });
-    }
+    await this.clocks.clockIn(ctx, actorUserId, { ...gps, jobId });
     return this.get(ctx, actorUserId, jobId);
   }
 

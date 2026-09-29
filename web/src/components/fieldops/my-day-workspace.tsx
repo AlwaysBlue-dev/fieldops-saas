@@ -304,6 +304,7 @@ export function MyDayWorkspace() {
             </a>
           </Button>
         ) : null}
+        {(clockedIn ? day.actions.canClockOut : day.actions.canClockIn) ? (
         <MutationButton
           className="mt-4 h-14 w-full text-base font-semibold md:h-12"
           disabled={
@@ -325,8 +326,9 @@ export function MyDayWorkspace() {
               ? "Saving…"
               : clockedIn
                 ? "Clock out"
-                : "Clock in"}
+                : "Start work"}
         </MutationButton>
+        ) : null}
       </section>
 
       {actionError ? (
@@ -502,9 +504,9 @@ function JobCard({
         <Button asChild variant="secondary" className="h-11 min-w-11 flex-1">
           <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
         </Button>
-        {job.actions.canClockIn ? (
+        {!job.actions.canClockOut && job.actions.canClockIn ? (
           <MutationButton className="h-11 flex-1" disabled={blocked} onClick={onClockIn}>
-            Clock in
+            Start work
           </MutationButton>
         ) : null}
         {job.actions.canClockOut ? (

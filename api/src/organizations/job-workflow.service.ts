@@ -38,6 +38,14 @@ export const FIELD_CAPTURE_STATUSES: JobStatus[] = [
 
 export const CLOCKABLE_STATUSES: JobStatus[] = FIELD_CAPTURE_STATUSES;
 
+export function canStartJobWork(
+  role: OrganizationRole | undefined,
+  assigned: boolean,
+  status: JobStatus,
+) {
+  return role === OrganizationRole.TECHNICIAN && assigned && CLOCKABLE_STATUSES.includes(status);
+}
+
 export const SIGN_OFF_STATUSES: JobStatus[] = [
   JobStatus.IN_PROGRESS,
   JobStatus.PENDING_APPROVAL,
@@ -115,8 +123,7 @@ export class JobWorkflowService {
   }
 
   canClockAgainst(role: OrganizationRole, assigned: boolean, status: JobStatus) {
-    if (!this.canFieldAdvance(role, assigned)) return false;
-    return CLOCKABLE_STATUSES.includes(status);
+    return canStartJobWork(role, assigned, status);
   }
 
   canSignOff(role: OrganizationRole, assigned: boolean, status: JobStatus) {

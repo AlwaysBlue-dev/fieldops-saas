@@ -1,6 +1,6 @@
-import { JobStatus } from '../generated/prisma/client.js';
+import { JobStatus, OrganizationRole } from '../generated/prisma/client.js';
 import {
-  CLOCKABLE_STATUSES,
+  canStartJobWork,
   FIELD_CAPTURE_STATUSES,
   SIGN_OFF_STATUSES,
 } from './job-workflow.service.js';
@@ -17,6 +17,7 @@ export type MyDayJobActions = {
 
 export function myDayJobActions(input: {
   jobId: string;
+  role?: OrganizationRole;
   status: JobStatus;
   assigned: boolean;
   clockedIn: boolean;
@@ -25,7 +26,7 @@ export function myDayJobActions(input: {
   requireClientSignOff: boolean;
 }): MyDayJobActions {
   const field = input.assigned && FIELD_CAPTURE_STATUSES.includes(input.status);
-  const clockable = input.assigned && CLOCKABLE_STATUSES.includes(input.status);
+  const clockable = canStartJobWork(input.role, input.assigned, input.status);
   const signable =
     input.assigned &&
     input.requireClientSignOff &&
@@ -33,7 +34,7 @@ export function myDayJobActions(input: {
     SIGN_OFF_STATUSES.includes(input.status);
   const clockMatchesJob =
     input.clockedIn &&
-    (input.clockJobId == null || input.clockJobId === input.jobId);
+    input.clockJobId === input.jobId;
 
   return {
     canClockIn: !input.clockedIn && clockable,

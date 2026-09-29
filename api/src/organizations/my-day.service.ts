@@ -118,7 +118,7 @@ export class MyDayService {
     const currentId = pickCurrentJobId(sorted, session?.jobId ?? null);
     const cards = sorted
       .filter((job) => job.status !== JobStatus.COMPLETED)
-      .map((job) => this.serializeJob(job, actorUserId, session));
+      .map((job) => this.serializeJob(job, actorUserId, session, ctx.role));
     const currentJob = cards.find((job) => job.id === currentId) ?? null;
     const upcomingJobs = cards.filter((job) => job.id !== currentJob?.id);
     const sessionJob = sorted.find((job) => job.id === session?.jobId);
@@ -151,7 +151,7 @@ export class MyDayService {
       currentJob,
       upcomingJobs,
       actions: {
-        canClockIn: !session,
+        canClockIn: Boolean(currentJob?.actions.canClockIn),
         canClockOut: Boolean(session),
       },
       settings: {
@@ -168,6 +168,7 @@ export class MyDayService {
     job: Prisma.JobGetPayload<{ include: typeof MY_DAY_INCLUDE }>,
     actorUserId: string,
     session: { jobId: string | null } | null,
+    role: OrganizationContext['role'],
   ) {
     const assigned = job.assignments.some((row) => row.userId === actorUserId);
     const primaryContact = job.site.contacts[0];
@@ -220,6 +221,7 @@ export class MyDayService {
       }),
       actions: myDayJobActions({
         jobId: job.id,
+        role,
         status: job.status,
         assigned,
         clockedIn: Boolean(session),

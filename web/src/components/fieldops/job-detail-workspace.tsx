@@ -39,7 +39,6 @@ import {
   outcomeLabel,
   priorityTone,
   removeJobMaterialRecord,
-  resumeJob,
   returnJob,
   safetyStatusLabel,
   startJob,
@@ -528,10 +527,10 @@ export function PrimaryActions({
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
       {job.permissions.canEdit ? <JobScheduleAction job={job} organizationId={organizationId} pending={pending} onSaved={() => onAction(async () => undefined)} /> : null}
-      {job.permissions.canFieldAdvance && job.execution?.clockedInOnThisJob ? (
+      {job.execution?.clockedInOnThisJob ? (
         <MutationButton className={width} disabled={pending} onClick={() => onAction(() => clockJob(organizationId, job.id, "out"))}>Clock out</MutationButton>
-      ) : job.permissions.canClockIn && job.status === "IN_PROGRESS" ? (
-        <MutationButton className={width} disabled={pending} onClick={() => onAction(() => clockJob(organizationId, job.id, "in"))}>Clock in</MutationButton>
+      ) : job.permissions.canClockIn ? (
+        <MutationButton className={width} disabled={pending} onClick={() => onAction(() => startJob(organizationId, job.id))}>Start work</MutationButton>
       ) : null}
       {job.status === "SCHEDULED" && job.permissions.canDispatch ? (
         <MutationButton
@@ -540,15 +539,6 @@ export function PrimaryActions({
           onClick={() => onAction(() => dispatchJob(organizationId, job.id))}
         >
           Dispatch
-        </MutationButton>
-      ) : null}
-      {job.status === "DISPATCHED" && job.permissions.canClockIn ? (
-        <MutationButton
-          className={width}
-          disabled={pending}
-          onClick={() => onAction(() => startJob(organizationId, job.id))}
-        >
-          Start work
         </MutationButton>
       ) : null}
       {job.status === "IN_PROGRESS" && job.permissions.canFieldAdvance ? (
@@ -613,15 +603,6 @@ export function PrimaryActions({
             </div>
           ) : null}
         </>
-      ) : null}
-      {job.status === "RETURNED" && job.permissions.canClockIn ? (
-        <MutationButton
-          className={width}
-          disabled={pending}
-          onClick={() => onAction(() => resumeJob(organizationId, job.id))}
-        >
-          Resume
-        </MutationButton>
       ) : null}
       {job.permissions.canCancel &&
       ["DRAFT", "SCHEDULED", "DISPATCHED", "IN_PROGRESS", "RETURNED"].includes(
