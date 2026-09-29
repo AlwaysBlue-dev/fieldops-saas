@@ -1,5 +1,6 @@
 "use client";
 
+import { JobActionsDrawer } from "./job-actions-drawer";
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { DataGrid } from "@/components/fieldops/data-grid";
@@ -17,7 +18,6 @@ import { ApiError } from "@/lib/api";
 import { listClients, type ClientSummary } from "@/lib/clients";
 import { canCreateJobs, resolveCurrentMembership } from "@/lib/current-org";
 import {
-  dispatchJob,
   listJobs,
   priorityTone,
   statusLabel,
@@ -44,6 +44,7 @@ export function JobsWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [actionJobId, setActionJobId] = useState<string | null>(null);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
   const [canCreate, setCanCreate] = useState(false);
@@ -112,7 +113,7 @@ export function JobsWorkspace() {
         order: "asc",
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
       listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
     ]);
     setJobs(result.items);
@@ -155,7 +156,7 @@ export function JobsWorkspace() {
         order: "asc",
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
       listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
     ])
       .then(([result, teamResult, techResult, clientResult]) => {
@@ -199,16 +200,6 @@ export function JobsWorkspace() {
     [jobs],
   );
 
-  async function quickDispatch(job: JobSummary) {
-    if (!organizationId) return;
-    try {
-      await dispatchJob(organizationId, job.id);
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not dispatch job.");
-    }
-  }
-
   if (loadState === "loading" && !organizationId) {
     return <SkeletonBlock rows={8} />;
   }
@@ -218,6 +209,7 @@ export function JobsWorkspace() {
 
   return (
     <div className="mx-auto flex max-w-[1500px] flex-col gap-4">
+      <JobActionsDrawer jobId={actionJobId} organizationId={organizationId} orgSlug={params.orgSlug} onClose={() => setActionJobId(null)} onChanged={load} />
       <PageHeader
         title="Jobs"
         description="Operational job cards for this organization. Times use the organization timezone."
@@ -291,7 +283,7 @@ export function JobsWorkspace() {
           aria-label="Filter by team"
           className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
           value={teamId}
-          onChange={(event) => setTeamId(event.target.value)}
+          onChange={(event) => { setTeamId(event.target.value); setTechnicianId(""); }}
         >
           <option value="">All teams</option>
           {teams.map((team) => (
@@ -402,16 +394,7 @@ export function JobsWorkspace() {
             className: "w-40 text-right",
             cell: (job) => (
               <div className="flex justify-end gap-1">
-                {canCreate && job.status === "SCHEDULED" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8"
-                    onClick={() => void quickDispatch(job)}
-                  >
-                    Dispatch
-                  </Button>
-                ) : null}
+                <Button type="button" variant="outline" className="h-8" aria-label={`Actions for ${job.jobNumber}`} onClick={() => setActionJobId(job.id)}>Actions</Button>
                 <Button asChild variant="ghost" className="h-8">
                   <Link href={`/app/${params.orgSlug}/jobs/${job.id}`}>Open</Link>
                 </Button>
@@ -430,8 +413,8 @@ export function JobsWorkspace() {
         }
       >
         {jobs.map((job) => (
+          <div key={job.id} className="space-y-1">
           <button
-            key={job.id}
             type="button"
             className="w-full text-left"
             onClick={() => router.push(`/app/${params.orgSlug}/jobs/${job.id}`)}
@@ -447,6 +430,8 @@ export function JobsWorkspace() {
               }
             />
           </button>
+          <Button variant="outline" className="h-11 w-full" onClick={() => setActionJobId(job.id)}>Actions</Button>
+          </div>
         ))}
       </MobileList>
 

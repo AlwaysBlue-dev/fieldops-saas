@@ -129,7 +129,7 @@ export function ScheduleWorkspace() {
         priority,
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
       listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
     ]);
     setBoard(next);
@@ -155,7 +155,7 @@ export function ScheduleWorkspace() {
         priority,
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100 }),
+      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
       listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
     ])
       .then(([next, teamResult, techResult, clientResult]) => {
@@ -311,7 +311,7 @@ export function ScheduleWorkspace() {
               aria-label="Filter by team"
               className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
               value={teamId}
-              onChange={(event) => setTeamId(event.target.value)}
+              onChange={(event) => { setTeamId(event.target.value); setTechnicianId(""); }}
             >
               <option value="">All teams</option>
               {teams.map((team) => (

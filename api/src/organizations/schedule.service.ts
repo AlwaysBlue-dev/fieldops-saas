@@ -1,3 +1,4 @@
+import { requireJobAssignee, eligibleTechnicianWhere } from './job-assignment.js';
 import {
   BadRequestException,
   ConflictException,
@@ -27,7 +28,6 @@ import {
   EntityStatus,
   JobAssignmentRole,
   JobStatus,
-  MembershipStatus,
   OrganizationRole,
   Prisma,
 } from '../generated/prisma/client.js';
@@ -204,6 +204,9 @@ export class ScheduleService {
       throw new ForbiddenException('Insufficient organization role');
     }
     const existing = await this.requireVisibleJob(ctx, actorUserId, jobId);
+    if (!this.workflow.canEditFields(ctx.role, existing.status)) {
+      throw new BadRequestException('This job can no longer be scheduled or reassigned');
+    }
     const nextStart =
       dto.scheduledStart === undefined
         ? existing.scheduledStart
@@ -230,7 +233,7 @@ export class ScheduleService {
       await this.requireOrgTeam(ctx.organizationId, nextTeamId);
     }
     if (nextSupervisorId) {
-      await this.requireActiveMember(ctx.organizationId, nextSupervisorId);
+      await requireJobAssignee(this.prisma, ctx.organizationId, nextSupervisorId, 'supervisor');
     }
 
     const currentTechIds = existing.assignments.map((row) => row.userId);
@@ -239,7 +242,7 @@ export class ScheduleService {
         ? currentTechIds
         : [...new Set(dto.technicianUserIds)];
     for (const userId of nextTechIds) {
-      await this.requireActiveMember(ctx.organizationId, userId);
+      await requireJobAssignee(this.prisma, ctx.organizationId, userId, 'technician');
       if (ctx.role === OrganizationRole.SUPERVISOR) {
         await this.assertSupervisorMayAssign(ctx, actorUserId, userId);
       }
@@ -400,42 +403,12 @@ export class ScheduleService {
     jobs: Array<Prisma.JobGetPayload<{ include: typeof JOB_INCLUDE }>>,
     query: ScheduleQueryDto,
   ) {
-    const assignedUserIds = [
-      ...new Set(
-        jobs.flatMap((job) => job.assignments.map((assignment) => assignment.userId)),
-      ),
-    ];
     const technicianWhere: Prisma.OrganizationMemberWhereInput = {
-      organizationId: ctx.organizationId,
-      status: MembershipStatus.ACTIVE,
+      ...eligibleTechnicianWhere(ctx.organizationId, query.teamId),
       AND: [
-        canManageSchedule(ctx.role)
-          ? {
-              OR: [
-                {
-                  role: {
-                    in: [OrganizationRole.TECHNICIAN, OrganizationRole.SUPERVISOR],
-                  },
-                },
-                assignedUserIds.length ? { userId: { in: assignedUserIds } } : { userId: actorUserId },
-              ],
-            }
-          : ctx.role === OrganizationRole.SUPERVISOR
-            ? {
-                OR: [
-                  { userId: actorUserId },
-                  visibleTeamIds.length
-                    ? {
-                        user: {
-                          teamMemberships: {
-                            some: { teamId: { in: visibleTeamIds } },
-                          },
-                        },
-                      }
-                    : { userId: actorUserId },
-                ],
-              }
-            : { userId: actorUserId },
+        canManageSchedule(ctx.role) ? {} : ctx.role === OrganizationRole.SUPERVISOR
+          ? { user: { teamMemberships: { some: { organizationId: ctx.organizationId, teamId: { in: visibleTeamIds } } } } }
+          : { userId: actorUserId },
         query.technicianId ? { userId: query.technicianId } : {},
       ],
     };
@@ -567,21 +540,10 @@ export class ScheduleService {
     if (!team) {
       throw new NotFoundException();
     }
-    return team;
-  }
-
-  private async requireActiveMember(organizationId: string, userId: string) {
-    const member = await this.prisma.organizationMember.findFirst({
-      where: {
-        organizationId,
-        userId,
-        status: MembershipStatus.ACTIVE,
-      },
-    });
-    if (!member) {
-      throw new BadRequestException('Assignee must be an active organization member');
+    if (team.status !== EntityStatus.ACTIVE) {
+      throw new BadRequestException('Inactive teams cannot be selected for new job assignments');
     }
-    return member;
+    return team;
   }
 
   private async assertSupervisorMayAssign(

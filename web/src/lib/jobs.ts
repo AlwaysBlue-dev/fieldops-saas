@@ -1,3 +1,4 @@
+import { readJobClockGps } from "./job-clock";
 import { apiRequest } from "./api";
 import type { LocationEvidence } from "./location";
 import {
@@ -126,6 +127,7 @@ export type JobDetail = JobSummary & {
     canCancel: boolean;
     canApprove: boolean;
     canFieldAdvance: boolean;
+    canClockIn?: boolean;
     canExecute?: boolean;
     canSubmit?: boolean;
     canEditExecutionRecords?: boolean;
@@ -300,10 +302,10 @@ export function dispatchJob(organizationId: string, jobId: string) {
   });
 }
 
-export function startJob(organizationId: string, jobId: string) {
+export async function startJob(organizationId: string, jobId: string) {
   return apiRequest<JobDetail>(`/organizations/${organizationId}/jobs/${jobId}/start`, {
     method: "POST",
-    body: {},
+    body: await readJobClockGps(organizationId),
   });
 }
 
@@ -328,10 +330,10 @@ export function returnJob(organizationId: string, jobId: string, reason?: string
   });
 }
 
-export function resumeJob(organizationId: string, jobId: string) {
+export async function resumeJob(organizationId: string, jobId: string) {
   return apiRequest<JobDetail>(`/organizations/${organizationId}/jobs/${jobId}/resume`, {
     method: "POST",
-    body: {},
+    body: await readJobClockGps(organizationId),
   });
 }
 

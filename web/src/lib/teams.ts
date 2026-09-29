@@ -204,6 +204,7 @@ export function listTechnicians(
     page?: number;
     pageSize?: number;
     roles?: string;
+    teamId?: string;
     status?: string;
   } = {},
 ) {
@@ -211,6 +212,7 @@ export function listTechnicians(
   if (query.search) params.set("search", query.search);
   if (query.page) params.set("page", String(query.page));
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  if (query.teamId) params.set("teamId", query.teamId);
   if (query.roles) params.set("roles", query.roles);
   if (query.status) params.set("status", query.status);
   const suffix = params.toString();

@@ -47,6 +47,9 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [timezone, setTimezone] = useState("");
+  const [requireSignature, setRequireSignature] = useState(true);
+  const [requireGps, setRequireGps] = useState(true);
+  const [dailyHours, setDailyHours] = useState(8);
   const [workingWeek, setWorkingWeek] = useState<WorkWeekDay[]>([]);
   const [industrySelection, setIndustrySelection] =
     useState<IndustrySelection>("");
@@ -70,6 +73,9 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
         setPhone(detail.phone ?? "");
         setTimezone(detail.timezone);
         setWorkingWeek(detail.settings?.workingWeek ?? []);
+        setRequireSignature(detail.settings?.requireClientSignature ?? true);
+        setRequireGps(detail.settings?.requireGps ?? true);
+        setDailyHours(detail.settings?.defaultDailyHoursLimit ?? 8);
         const parsed = parseIndustrySelection(detail.industry);
         setIndustrySelection(parsed.selection);
         setIndustryCustom(parsed.custom);
@@ -80,14 +86,14 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
     };
   }, [orgSlug]);
 
-  const draftVersion = JSON.stringify([name, phone, timezone, workingWeek, industrySelection, industryCustom, pending]);
+  const draftVersion = JSON.stringify([requireSignature, requireGps, dailyHours, name, phone, timezone, workingWeek, industrySelection, industryCustom, pending]);
   const latestDraft = useRef(draftVersion);
   useEffect(() => { latestDraft.current = draftVersion; }, [draftVersion]);
 
   useRefreshLoader(async () => {
     if (!organizationId || !org) return;
     const parsed = parseIndustrySelection(org.industry);
-    const dirty = pending || name !== org.name || phone !== (org.phone ?? "") ||
+    const dirty = requireSignature !== org.settings?.requireClientSignature || requireGps !== org.settings?.requireGps || dailyHours !== org.settings?.defaultDailyHoursLimit || pending || name !== org.name || phone !== (org.phone ?? "") ||
       timezone !== org.timezone || JSON.stringify(workingWeek) !== JSON.stringify(org.settings?.workingWeek ?? []) ||
       industrySelection !== parsed.selection || industryCustom !== parsed.custom;
     const detail = await getOrganization(organizationId);
@@ -98,6 +104,9 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
     setPhone(detail.phone ?? "");
     setTimezone(detail.timezone);
     setWorkingWeek(detail.settings?.workingWeek ?? []);
+    setRequireSignature(detail.settings?.requireClientSignature ?? true);
+    setRequireGps(detail.settings?.requireGps ?? true);
+    setDailyHours(detail.settings?.defaultDailyHoursLimit ?? 8);
     const nextIndustry = parseIndustrySelection(detail.industry);
     setIndustrySelection(nextIndustry.selection);
     setIndustryCustom(nextIndustry.custom);
@@ -126,6 +135,9 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
           <dt className="text-muted-foreground">Phone</dt>
           <dd className="font-medium">{org.phone?.trim() || "—"}</dd>
         </div>
+        <div><dt className="text-muted-foreground">Required client signature</dt><dd>{org.settings?.requireClientSignature ? "On" : "Off"}</dd></div>
+        <div><dt className="text-muted-foreground">Required GPS on clock events</dt><dd>{org.settings?.requireGps ? "On" : "Off"}</dd></div>
+        <div><dt className="text-muted-foreground">Normal Day Hours</dt><dd>{org.settings?.defaultDailyHoursLimit}</dd></div>
         <div className="sm:col-span-2">
           <dt className="text-muted-foreground">Normal working week</dt>
           <dd className="font-medium">
@@ -166,6 +178,10 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
           return;
         }
 
+        if (!Number.isFinite(dailyHours) || dailyHours < 1 || dailyHours > 24) {
+          toast.error("Normal Day Hours must be between 1 and 24.");
+          return;
+        }
         setPending(true);
         try {
           const updated = await updateOrganization(organizationId, {
@@ -176,9 +192,15 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
           });
           const withSettings = await updateOrganizationSettings(organizationId, {
             workingWeek,
+            requireClientSignature: requireSignature,
+            requireGps,
+            defaultDailyHoursLimit: dailyHours,
           });
           setOrg({ ...updated, settings: withSettings.settings ?? updated.settings });
           setWorkingWeek(withSettings.settings?.workingWeek ?? workingWeek);
+          setRequireSignature(withSettings.settings?.requireClientSignature ?? requireSignature);
+          setRequireGps(withSettings.settings?.requireGps ?? requireGps);
+          setDailyHours(withSettings.settings?.defaultDailyHoursLimit ?? dailyHours);
           toast.success("Organization profile saved.");
         } catch (error) {
           toast.error(
@@ -238,6 +260,19 @@ export function SettingsOrganizationSection({ orgSlug }: { orgSlug: string }) {
             Used for schedules, timesheets, overtime, and “today” boundaries.
           </p>
         )}
+      </div>
+      <label className="flex items-start gap-3 text-sm">
+        <input type="checkbox" role="switch" className="mt-1 size-4 accent-primary" checked={requireSignature} onChange={(event) => setRequireSignature(event.target.checked)} />
+        <span><span className="font-medium">Required client signature</span><span className="block text-muted-foreground">Require a client signature before applicable work can be submitted/completed.</span></span>
+      </label>
+      <label className="flex items-start gap-3 text-sm">
+        <input type="checkbox" role="switch" className="mt-1 size-4 accent-primary" checked={requireGps} onChange={(event) => setRequireGps(event.target.checked)} />
+        <span><span className="font-medium">Required GPS on clock events</span><span className="block text-muted-foreground">Require location when users clock in or clock out.</span></span>
+      </label>
+      <div className="space-y-1.5">
+        <Label htmlFor="normal-day-hours">Normal Day Hours</Label>
+        <Input id="normal-day-hours" type="number" min={1} max={24} step="0.01" required value={Number.isFinite(dailyHours) ? dailyHours : ""} onChange={(event) => setDailyHours(event.target.valueAsNumber)} />
+        <p className="text-xs text-muted-foreground">Standard number of working hours in a normal workday.</p>
       </div>
       <fieldset>
         <legend className="mb-2 text-sm font-medium">Normal Working Week</legend>

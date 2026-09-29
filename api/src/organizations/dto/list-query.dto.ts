@@ -29,6 +29,10 @@ export class ListQueryDto {
   roles?: string;
 
   @IsOptional()
+  @IsString()
+  teamId?: string;
+
+  @IsOptional()
   @IsIn(['name', 'createdAt', 'updatedAt', 'status'])
   sort?: 'name' | 'createdAt' | 'updatedAt' | 'status';
 

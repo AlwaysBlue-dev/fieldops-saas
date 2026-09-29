@@ -1,5 +1,7 @@
 "use client";
 
+import { clockJob } from "@/lib/job-clock";
+import { JobScheduleAction } from "./job-schedule-action";
 import { useRefreshLoader } from "./data-refresh-provider";
 
 import { ActivityTimeline } from "@/components/fieldops/activity-timeline";
@@ -152,7 +154,7 @@ export function JobDetailWorkspace() {
         await load();
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not update job.");
+      setError(err instanceof Error ? err.message : "Could not update job.");
     } finally {
       setPending(false);
     }
@@ -474,7 +476,7 @@ function Sidebar({
   );
 }
 
-function PrimaryActions({
+export function PrimaryActions({
   job,
   organizationId,
   pending,
@@ -523,6 +525,12 @@ function PrimaryActions({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
+      {job.permissions.canEdit ? <JobScheduleAction job={job} organizationId={organizationId} pending={pending} onSaved={() => onAction(async () => undefined)} /> : null}
+      {job.permissions.canFieldAdvance && job.execution?.clockedInOnThisJob ? (
+        <MutationButton className={width} disabled={pending} onClick={() => onAction(() => clockJob(organizationId, job.id, "out"))}>Clock out</MutationButton>
+      ) : job.permissions.canClockIn && job.status === "IN_PROGRESS" ? (
+        <MutationButton className={width} disabled={pending} onClick={() => onAction(() => clockJob(organizationId, job.id, "in"))}>Clock in</MutationButton>
+      ) : null}
       {job.status === "SCHEDULED" && job.permissions.canDispatch ? (
         <MutationButton
           className={width}
@@ -532,7 +540,7 @@ function PrimaryActions({
           Dispatch
         </MutationButton>
       ) : null}
-      {job.status === "DISPATCHED" && job.permissions.canFieldAdvance ? (
+      {job.status === "DISPATCHED" && job.permissions.canClockIn ? (
         <MutationButton
           className={width}
           disabled={pending}
@@ -604,7 +612,7 @@ function PrimaryActions({
           ) : null}
         </>
       ) : null}
-      {job.status === "RETURNED" && job.permissions.canFieldAdvance ? (
+      {job.status === "RETURNED" && job.permissions.canClockIn ? (
         <MutationButton
           className={width}
           disabled={pending}

@@ -1,3 +1,4 @@
+import { eligibleTechnicianWhere } from './job-assignment.js';
 import { Injectable } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import {
@@ -83,7 +84,7 @@ export class MyDayService {
       this.prisma.job.findMany({
         where: {
           organizationId: ctx.organizationId,
-          assignments: { some: { userId: actorUserId } },
+          assignments: { some: { userId: actorUserId, user: { memberships: { some: eligibleTechnicianWhere(ctx.organizationId) } } } },
           status: {
             notIn: [JobStatus.DRAFT, JobStatus.CANCELLED],
           },

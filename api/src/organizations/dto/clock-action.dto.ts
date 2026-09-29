@@ -43,6 +43,10 @@ export class ClockInDto extends GpsEvidenceDto {
 
 export class ClockOutDto extends GpsEvidenceDto {
   @IsOptional()
+  @IsUUID()
+  jobId?: string;
+
+  @IsOptional()
   @IsDateString()
   clientOccurredAt?: string;
 }

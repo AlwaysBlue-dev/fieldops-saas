@@ -223,7 +223,8 @@ export function JobFormWorkspace() {
         search: techSearch.trim() || undefined,
         page: 1,
         pageSize: 20,
-        roles: "TECHNICIAN,SUPERVISOR",
+        roles: "TECHNICIAN",
+        teamId: teamId || undefined,
       })
         .then((result) => {
           if (cancelled) return;
@@ -243,7 +244,7 @@ export function JobFormWorkspace() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [organizationId, techSearch]);
+  }, [organizationId, techSearch, teamId]);
 
   if (loadState === "loading") return <SkeletonBlock rows={8} />;
   if (loadState === "error" || !organizationId || !allowed) {
@@ -431,7 +432,7 @@ export function JobFormWorkspace() {
             <Label>Team</Label>
             <AsyncEntityCombobox
               value={teamId}
-              onValueChange={setTeamId}
+              onValueChange={(value) => { setTeamId(value); setTechnicianIds([]); setTechOptions([]); }}
               fetchPage={fetchTeams}
               placeholder="Search teams…"
               emptyLabel="No teams found."
@@ -493,7 +494,8 @@ export function JobFormWorkspace() {
                     search: techSearch.trim() || undefined,
                     page: techPage + 1,
                     pageSize: 20,
-                    roles: "TECHNICIAN,SUPERVISOR",
+                    roles: "TECHNICIAN",
+                    teamId: teamId || undefined,
                   });
                   setTechPage(next.page);
                   setTechTotal(next.total);

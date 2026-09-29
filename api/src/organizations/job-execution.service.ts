@@ -1,3 +1,4 @@
+import { workTimeBlockers } from './job-work-time.js';
 import {
   BadRequestException,
   ConflictException,
@@ -15,7 +16,6 @@ import {
 } from '../common/constants.js';
 import {
   ApprovalType,
-  ClockSessionStatus,
   JobOutcome,
   JobStatus,
   OrganizationRole,
@@ -340,69 +340,57 @@ export class JobExecutionService {
   }
 
   async submit(ctx: OrganizationContext, actorUserId: string, jobId: string) {
-    const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
-    const assigned = job.assignments.some((row) => row.userId === actorUserId);
-    if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
-      throw new ForbiddenException('Insufficient organization role');
-    }
-    this.workflow.assertTransition(job.status, JobStatus.PENDING_APPROVAL);
-    if (executionRecordsLocked(job.status)) {
-      throw new BadRequestException('This job can no longer be submitted');
-    }
+    const visibleJob = await this.requireVisibleJob(ctx, actorUserId, jobId);
+    const emails = await this.prisma.$transaction(async (tx) => {
+      const job = await this.jobEvents.snapshot(tx, ctx.organizationId, visibleJob.id, true);
+      const before = job;
+      const assigned = job.assignments.some((row) => row.userId === actorUserId);
+      if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
+        throw new ForbiddenException('Insufficient organization role');
+      }
+      this.workflow.assertTransition(job.status, JobStatus.PENDING_APPROVAL);
+      if (executionRecordsLocked(job.status)) {
+        throw new BadRequestException('This job can no longer be submitted');
+      }
 
-    const openClock = await this.prisma.clockSession.findFirst({
-      where: {
+      await this.syncSafetyControls(tx, {
         organizationId: ctx.organizationId,
-        technicianUserId: actorUserId,
         jobId: job.id,
-        status: ClockSessionStatus.OPEN,
-      },
-      select: { id: true },
-    });
-    if (openClock) {
-      throw new BadRequestException(
-        'Clock out of this job before submitting it for approval',
-      );
-    }
-
-    await this.syncSafetyControls(this.prisma, {
-      organizationId: ctx.organizationId,
-      jobId: job.id,
-      requireRiskAssessment: job.requireRiskAssessment,
-      requirePermit: job.requirePermit,
-      requireLoto: job.requireLoto,
-    });
-    const controls = await this.prisma.jobSafetyControl.findMany({
-      where: { organizationId: ctx.organizationId, jobId: job.id },
-    });
-    if (!requiredSafetySatisfied(controls)) {
-      throw new BadRequestException(
-        'Confirm required safety controls before submitting this job',
-      );
-    }
-
-    this.assertCompletion(job.workPerformed, job.outcome, job.outcomeReason);
-
-    const settings = await this.prisma.organizationSettings.findUnique({
-      where: { organizationId: ctx.organizationId },
-      select: { requireClientSignature: true },
-    });
-    const signatureRequired =
-      job.requireClientSignOff || Boolean(settings?.requireClientSignature);
-    if (signatureRequired) {
-      const signature = await this.prisma.jobSignature.findFirst({
-        where: { organizationId: ctx.organizationId, jobId: job.id },
-        select: { id: true },
+        requireRiskAssessment: job.requireRiskAssessment,
+        requirePermit: job.requirePermit,
+        requireLoto: job.requireLoto,
       });
-      if (!signature) {
+      const controls = await tx.jobSafetyControl.findMany({
+        where: { organizationId: ctx.organizationId, jobId: job.id },
+      });
+      if (!requiredSafetySatisfied(controls)) {
         throw new BadRequestException(
-          'Capture a client signature before submitting this job',
+          'Confirm required safety controls before submitting this job',
         );
       }
-    }
 
-    const emails = await this.prisma.$transaction(async (tx) => {
-      const before = await this.jobEvents.snapshot(tx, ctx.organizationId, job.id, true);
+      this.assertCompletion(job.workPerformed, job.outcome, job.outcomeReason);
+
+      const settings = await tx.organizationSettings.findUnique({
+        where: { organizationId: ctx.organizationId },
+        select: { requireClientSignature: true },
+      });
+      const signatureRequired =
+        job.requireClientSignOff || Boolean(settings?.requireClientSignature);
+      if (signatureRequired) {
+        const signature = await tx.jobSignature.findFirst({
+          where: { organizationId: ctx.organizationId, jobId: job.id },
+          select: { id: true },
+        });
+        if (!signature) {
+          throw new BadRequestException(
+            'Capture a client signature before submitting this job',
+          );
+        }
+      }
+
+      const blockers = await workTimeBlockers(tx, ctx, actorUserId, job.id);
+      if (blockers.length) throw new BadRequestException(blockers[0].message);
       const updated = await tx.job.updateMany({
         where: {
           id: job.id,

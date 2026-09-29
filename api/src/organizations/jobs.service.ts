@@ -1,3 +1,7 @@
+import { ClockService } from './clock.service.js';
+import type { GpsEvidenceDto } from './dto/clock-action.dto.js';
+import { workTimeBlockers } from './job-work-time.js';
+import { requireJobAssignee } from './job-assignment.js';
 import {
   BadRequestException,
   ConflictException,
@@ -11,8 +15,6 @@ import {
   AUDIT_JOB_CREATED,
   AUDIT_JOB_DISPATCHED,
   AUDIT_JOB_RETURNED,
-  AUDIT_JOB_STARTED,
-  AUDIT_JOB_SUBMITTED,
   AUDIT_JOB_UPDATED,
   WORK_PERFORMED_MIN_LENGTH,
 } from '../common/constants.js';
@@ -33,7 +35,6 @@ import {
   EntityStatus,
   JobAssignmentRole,
   JobStatus,
-  MembershipStatus,
   OrganizationRole,
   Prisma,
 } from '../generated/prisma/client.js';
@@ -89,6 +90,7 @@ const LIST_INCLUDE = {
 export class JobsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly clocks: ClockService,
     private readonly audit: AuditService,
     private readonly teams: TeamsService,
     private readonly workflow: JobWorkflowService,
@@ -210,6 +212,7 @@ export class JobsService {
       longitude: job.site.longitude?.toString() ?? null,
       addressLabel: addressLabel ?? job.site.name,
     });
+    const activeClock = await this.clocks.currentSession(ctx.organizationId, actorUserId);
     const clockedInOnJob = job.clockSessions.some(
       (row) =>
         row.status === ClockSessionStatus.OPEN &&
@@ -230,7 +233,7 @@ export class JobsService {
         submissionBlockers.push({ code: 'SAFETY', message: `Confirm ${def.title.toLowerCase()}.` });
       }
     }
-    if (clockedInOnJob) submissionBlockers.push({ code: 'CLOCK', message: 'End your active work session on this job before submitting.' });
+    submissionBlockers.push(...await workTimeBlockers(this.prisma, ctx, actorUserId, job.id));
     if (!isMeaningfulWorkPerformed(job.workPerformed)) {
       submissionBlockers.push({ code: 'WORK_PERFORMED', message: `Describe the work completed (at least ${WORK_PERFORMED_MIN_LENGTH} characters).` });
     }
@@ -292,8 +295,9 @@ export class JobsService {
         canEdit: this.workflow.canEditFields(ctx.role, job.status),
         canDispatch: this.workflow.canDispatch(ctx.role),
         canCancel: this.workflow.canCancel(ctx.role),
-        canApprove: this.workflow.canApprove(ctx.role),
+        canApprove: this.workflow.canApprove(ctx.role) && !assigned,
         canFieldAdvance: this.workflow.canFieldAdvance(ctx.role, assigned),
+        canClockIn: !activeClock && this.workflow.canClockAgainst(ctx.role, assigned, job.status),
         canExecute,
         canSubmit:
           this.workflow.canFieldAdvance(ctx.role, assigned) &&
@@ -401,11 +405,11 @@ export class JobsService {
       await this.requireOrgTeam(ctx.organizationId, dto.teamId);
     }
     if (dto.supervisorUserId) {
-      await this.requireActiveMember(ctx.organizationId, dto.supervisorUserId);
+      await requireJobAssignee(this.prisma, ctx.organizationId, dto.supervisorUserId, 'supervisor');
     }
     const techIds = [...new Set(dto.technicianUserIds ?? [])];
     for (const userId of techIds) {
-      await this.requireActiveMember(ctx.organizationId, userId);
+      await requireJobAssignee(this.prisma, ctx.organizationId, userId, 'technician');
       if (ctx.role === OrganizationRole.SUPERVISOR) {
         await this.assertSupervisorMayAssign(ctx, actorUserId, userId);
       }
@@ -506,7 +510,7 @@ export class JobsService {
       await this.requireOrgTeam(ctx.organizationId, dto.teamId);
     }
     if (dto.supervisorUserId) {
-      await this.requireActiveMember(ctx.organizationId, dto.supervisorUserId);
+      await requireJobAssignee(this.prisma, ctx.organizationId, dto.supervisorUserId, 'supervisor');
     }
     const nextTechs =
       dto.technicianUserIds === undefined
@@ -514,7 +518,7 @@ export class JobsService {
         : [...new Set(dto.technicianUserIds)];
     if (nextTechs) {
       for (const userId of nextTechs) {
-        await this.requireActiveMember(ctx.organizationId, userId);
+        await requireJobAssignee(this.prisma, ctx.organizationId, userId, 'technician');
         if (ctx.role === OrganizationRole.SUPERVISOR) {
           await this.assertSupervisorMayAssign(ctx, actorUserId, userId);
         }
@@ -648,21 +652,18 @@ export class JobsService {
     );
   }
 
-  async start(ctx: OrganizationContext, actorUserId: string, jobId: string) {
+  async start(ctx: OrganizationContext, actorUserId: string, jobId: string, gps: GpsEvidenceDto = {}) {
     const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
     const assigned = job.assignments.some((row) => row.userId === actorUserId);
     if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
       throw new ForbiddenException('Insufficient organization role');
     }
     this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-    return this.applyStatus(
-      ctx,
-      actorUserId,
-      job.id,
-      job.status,
-      JobStatus.IN_PROGRESS,
-      AUDIT_JOB_STARTED,
-    );
+    const session = await this.clocks.currentSession(ctx.organizationId, actorUserId);
+    if (!(session?.jobId === jobId && job.status === JobStatus.IN_PROGRESS)) {
+      await this.clocks.clockIn(ctx, actorUserId, { ...gps, jobId });
+    }
+    return this.get(ctx, actorUserId, jobId);
   }
 
   async submit(ctx: OrganizationContext, actorUserId: string, jobId: string) {
@@ -791,21 +792,8 @@ export class JobsService {
     return this.get(ctx, actorUserId, job.id);
   }
 
-  async resume(ctx: OrganizationContext, actorUserId: string, jobId: string) {
-    const job = await this.requireVisibleJob(ctx, actorUserId, jobId);
-    const assigned = job.assignments.some((row) => row.userId === actorUserId);
-    if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
-      throw new ForbiddenException('Insufficient organization role');
-    }
-    this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-    return this.applyStatus(
-      ctx,
-      actorUserId,
-      job.id,
-      job.status,
-      JobStatus.IN_PROGRESS,
-      AUDIT_JOB_STARTED,
-    );
+  async resume(ctx: OrganizationContext, actorUserId: string, jobId: string, gps: GpsEvidenceDto = {}) {
+    return this.start(ctx, actorUserId, jobId, gps);
   }
 
   async cancel(
@@ -1006,20 +994,6 @@ export class JobsService {
       );
     }
     return team;
-  }
-
-  private async requireActiveMember(organizationId: string, userId: string) {
-    const member = await this.prisma.organizationMember.findFirst({
-      where: {
-        organizationId,
-        userId,
-        status: MembershipStatus.ACTIVE,
-      },
-    });
-    if (!member) {
-      throw new BadRequestException('Assignee must be an active organization member');
-    }
-    return member;
   }
 
   private async assertSupervisorMayAssign(

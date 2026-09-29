@@ -79,8 +79,7 @@ export class ClockService {
       throw new ConflictException('Already clocked in');
     }
 
-    let jobId: string | null = dto.jobId ?? null;
-    let startedJob = false;
+    const jobId: string | null = dto.jobId ?? null;
     let site = { latitude: null as number | null, longitude: null as number | null };
     if (jobId) {
       const job = await this.requireAssignedClockable(ctx, actorUserId, jobId);
@@ -88,10 +87,6 @@ export class ClockService {
         latitude: toFiniteNumber(job.site.latitude),
         longitude: toFiniteNumber(job.site.longitude),
       };
-      if (job.status === JobStatus.DISPATCHED) {
-        this.workflow.assertTransition(job.status, JobStatus.IN_PROGRESS);
-        startedJob = true;
-      }
     }
 
     const now = this.clock.now();
@@ -104,6 +99,13 @@ export class ClockService {
 
     try {
       const session = await this.prisma.$transaction(async (tx) => {
+        // Serialize clock-in against submission and recheck eligibility under the job lock.
+        const before = jobId ? await this.jobEvents.snapshot(tx, ctx.organizationId, jobId, true) : null;
+        if (before && !this.workflow.canClockAgainst(ctx.role,
+          before.assignments.some((row) => row.userId === actorUserId), before.status)) {
+          throw new ForbiddenException('This job is not available to clock');
+        }
+        const startedJob = before && (before.status === JobStatus.DISPATCHED || before.status === JobStatus.RETURNED);
         const created = await tx.clockSession.create({
           data: {
             organizationId: ctx.organizationId,
@@ -116,13 +118,13 @@ export class ClockService {
             status: ClockSessionStatus.OPEN,
           },
         });
-        if (startedJob && jobId) {
-          const before = await this.jobEvents.snapshot(tx, ctx.organizationId, jobId, true);
+        if (startedJob && jobId && before) {
+          this.workflow.assertTransition(before.status, JobStatus.IN_PROGRESS);
           const progressed = await tx.job.updateMany({
             where: {
               id: jobId,
               organizationId: ctx.organizationId,
-              status: JobStatus.DISPATCHED,
+              status: before.status,
             },
             data: { status: JobStatus.IN_PROGRESS },
           });
@@ -137,7 +139,7 @@ export class ClockService {
                 entityId: jobId,
                 organizationId: ctx.organizationId,
                 actorUserId,
-                oldValues: { status: JobStatus.DISPATCHED },
+                oldValues: { status: before.status },
                 newValues: { status: JobStatus.IN_PROGRESS },
               },
               tx,
@@ -193,6 +195,10 @@ export class ClockService {
         return replayed;
       }
       throw new BadRequestException('Not clocked in');
+    }
+
+    if (dto.jobId && existing.jobId !== dto.jobId) {
+      throw new BadRequestException('Your active clock session belongs to a different job');
     }
 
     const site = existing.jobId

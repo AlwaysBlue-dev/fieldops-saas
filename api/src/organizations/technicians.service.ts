@@ -1,3 +1,4 @@
+import { eligibleTechnicianWhere } from './job-assignment.js';
 import {
   ConflictException,
   Inject,
@@ -113,6 +114,9 @@ export class TechniciansService {
     const where: Prisma.OrganizationMemberWhereInput = {
       organizationId: ctx.organizationId,
       userId: { in: visibleUserIds },
+      AND: roles?.length === 1 && roles[0] === OrganizationRole.TECHNICIAN
+        ? [eligibleTechnicianWhere(ctx.organizationId, query.teamId)]
+        : query.teamId ? [{ user: { teamMemberships: { some: { organizationId: ctx.organizationId, teamId: query.teamId } } } }] : [],
       ...(roles ? { role: { in: roles } } : {}),
       ...(query.status
         ? { status: query.status as never }

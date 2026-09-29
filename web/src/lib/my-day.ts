@@ -97,7 +97,7 @@ export function clockIn(
   });
 }
 
-export function clockOut(organizationId: string, body: GpsPayload = {}) {
+export function clockOut(organizationId: string, body: GpsPayload & { jobId?: string } = {}) {
   return apiRequest(`/organizations/${organizationId}/my-day/clock-out`, {
     method: "POST",
     body,

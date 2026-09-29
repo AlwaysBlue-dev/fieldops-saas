@@ -1,3 +1,4 @@
+import { GpsEvidenceDto } from './dto/clock-action.dto.js';
 import {
   Body,
   Controller,
@@ -172,8 +173,9 @@ export class JobsController {
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
     @Param('jobId') jobId: string,
+    @Body() dto: GpsEvidenceDto,
   ) {
-    return this.jobs.start(organization, user.id, jobId);
+    return this.jobs.start(organization, user.id, jobId, dto);
   }
 
   @Post(':jobId/submit')
@@ -221,8 +223,9 @@ export class JobsController {
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
     @Param('jobId') jobId: string,
+    @Body() dto: GpsEvidenceDto,
   ) {
-    return this.jobs.resume(organization, user.id, jobId);
+    return this.jobs.resume(organization, user.id, jobId, dto);
   }
 
   @Post(':jobId/safety/:code/confirm')

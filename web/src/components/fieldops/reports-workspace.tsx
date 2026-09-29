@@ -120,7 +120,7 @@ export function ReportsWorkspace() {
         const [clientRows, teamRows, techRows] = await Promise.all([
           listClients(orgId, { pageSize: 100, status: "ACTIVE" }),
           listTeams(orgId, { pageSize: 50, status: "ACTIVE" }),
-          listTechnicians(orgId, { pageSize: 100 }),
+          listTechnicians(orgId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE" }),
         ]);
         if (cancelled) return;
         setClients(clientRows.items);

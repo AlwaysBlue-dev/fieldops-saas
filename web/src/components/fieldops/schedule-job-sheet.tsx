@@ -26,7 +26,7 @@ import {
   utcToZonedInput,
   zonedLocalToUtc,
 } from "@/lib/timezone";
-import type { TechnicianSummary, TeamSummary } from "@/lib/teams";
+import { listTechnicians, type TechnicianSummary, type TeamSummary } from "@/lib/teams";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { MutationButton } from "./mutation-control";
@@ -40,7 +40,6 @@ export function ScheduleJobSheet({
   timezone,
   workingWeek: workingWeekProp,
   job,
-  technicians,
   teams,
   canEdit,
   onSaved,
@@ -52,11 +51,39 @@ export function ScheduleJobSheet({
   timezone: string;
   workingWeek?: string[];
   job: ScheduleJob | null;
-  technicians: TechnicianSummary[];
+  technicians?: TechnicianSummary[];
   teams: TeamSummary[];
   canEdit: boolean;
   onSaved: () => void;
 }) {
+  const [selectedTeam, setSelectedTeam] = useState(job?.team?.id ?? "");
+  const [supervisors, setSupervisors] = useState<TechnicianSummary[]>([]);
+  const [eligibleTechnicians, setEligibleTechnicians] = useState<TechnicianSummary[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
+  const [peopleError, setPeopleError] = useState(false);
+  useEffect(() => { setSelectedTeam(job?.team?.id ?? ""); }, [job?.id, open]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setPeopleLoading(true);
+    setPeopleError(false);
+    setError(null);
+    async function loadPeople(roles: string, teamId?: string) {
+      const people: TechnicianSummary[] = [];
+      let page = 1;
+      while (true) {
+        const result = await listTechnicians(organizationId, { roles, teamId, status: "ACTIVE", page, pageSize: 100 });
+        people.push(...result.items);
+        if (page >= result.totalPages) return people;
+        page++;
+      }
+    }
+    Promise.all([loadPeople("TECHNICIAN", selectedTeam || undefined), loadPeople("OWNER,ADMIN,OPERATIONS_MANAGER,SUPERVISOR")])
+      .then(([techs, supervisors]) => { if (!cancelled) { setEligibleTechnicians(techs); setSupervisors(supervisors); } })
+      .catch(() => { if (!cancelled) { setEligibleTechnicians([]); setSupervisors([]); setPeopleError(true); setError("Could not load eligible assignees. Reopen the schedule to retry."); } })
+      .finally(() => { if (!cancelled) setPeopleLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, organizationId, selectedTeam]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
@@ -65,6 +92,7 @@ export function ScheduleJobSheet({
     message: string;
     body: ScheduleWriteBody;
   } | null>(null);
+  const unavailableAssignments = job?.technicians.filter((person) => !eligibleTechnicians.some((eligible) => eligible.userId === person.userId)) ?? [];
   const start = utcToZonedInput(job?.scheduledStart ?? null, timezone);
   const finish = utcToZonedInput(job?.expectedFinish ?? null, timezone);
 
@@ -119,10 +147,10 @@ export function ScheduleJobSheet({
         description="Schedule times use the organization timezone."
       >
         {!job ? null : (
-          <ResponsiveForm
+          <ResponsiveForm key={job.id}
             onSubmit={async (event) => {
               event.preventDefault();
-              if (!canEdit) return;
+              if (!canEdit || pending || peopleLoading || peopleError) return;
               const form = new FormData(event.currentTarget);
               const startDate = String(form.get("startDate") ?? "");
               const startTime = String(form.get("startTime") ?? "");
@@ -131,6 +159,8 @@ export function ScheduleJobSheet({
               const technicianUserIds = form
                 .getAll("technicianUserIds")
                 .map(String);
+              const removed = new Set(form.getAll("removeUnavailable").map(String));
+              technicianUserIds.push(...unavailableAssignments.filter((person) => !removed.has(person.userId)).map((person) => person.userId));
               const scheduledStart =
                 startDate && startTime
                   ? zonedLocalToUtc(
@@ -198,7 +228,7 @@ export function ScheduleJobSheet({
                   name="startDate"
                   type="date"
                   defaultValue={start.date}
-                  disabled={!canEdit}
+                  disabled={!canEdit || peopleLoading}
                   className="h-11 md:h-8"
                 />
               </FormField>
@@ -209,7 +239,7 @@ export function ScheduleJobSheet({
                   name="startTime"
                   type="time"
                   defaultValue={start.time}
-                  disabled={!canEdit}
+                  disabled={!canEdit || peopleLoading}
                   className="h-11 md:h-8"
                 />
               </FormField>
@@ -220,7 +250,7 @@ export function ScheduleJobSheet({
                   name="finishDate"
                   type="date"
                   defaultValue={finish.date}
-                  disabled={!canEdit}
+                  disabled={!canEdit || peopleLoading}
                   className="h-11 md:h-8"
                 />
               </FormField>
@@ -231,7 +261,7 @@ export function ScheduleJobSheet({
                   name="finishTime"
                   type="time"
                   defaultValue={finish.time}
-                  disabled={!canEdit}
+                  disabled={!canEdit || peopleLoading}
                   className="h-11 md:h-8"
                 />
               </FormField>
@@ -242,8 +272,9 @@ export function ScheduleJobSheet({
               <select
                 id="teamId"
                 name="teamId"
-                disabled={!canEdit}
-                defaultValue={job.team?.id ?? ""}
+                disabled={!canEdit || peopleLoading}
+                value={selectedTeam}
+                onChange={(event) => setSelectedTeam(event.target.value)}
                 className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
               >
                 <option value="">Select…</option>
@@ -260,12 +291,13 @@ export function ScheduleJobSheet({
               <select
                 id="supervisorUserId"
                 name="supervisorUserId"
-                disabled={!canEdit}
+                disabled={!canEdit || peopleLoading}
                 defaultValue={job.supervisor?.userId ?? ""}
                 className="h-11 rounded-lg border border-input bg-transparent px-2.5 text-sm md:h-8"
               >
                 <option value="">Select…</option>
-                {technicians.map((person) => (
+                {job.supervisor && !supervisors.some((person) => person.userId === job.supervisor?.userId) ? <option value={job.supervisor.userId}>{job.supervisor.fullName} (existing; review eligibility)</option> : null}
+                {supervisors.map((person) => (
                   <option key={person.userId} value={person.userId}>
                     {person.fullName}
                   </option>
@@ -275,7 +307,7 @@ export function ScheduleJobSheet({
 
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">Technicians</legend>
-              {technicians.map((person) => (
+              {eligibleTechnicians.map((person) => (
                 <label
                   key={person.userId}
                   className="flex min-h-11 items-center gap-2 text-sm"
@@ -284,7 +316,7 @@ export function ScheduleJobSheet({
                     type="checkbox"
                     name="technicianUserIds"
                     value={person.userId}
-                    disabled={!canEdit}
+                    disabled={!canEdit || peopleLoading}
                     defaultChecked={job.technicians.some(
                       (item) => item.userId === person.userId,
                     )}
@@ -294,6 +326,15 @@ export function ScheduleJobSheet({
               ))}
             </fieldset>
 
+            {!peopleLoading && unavailableAssignments.length > 0 ? (
+              <fieldset className="space-y-2 rounded-lg border p-3 text-sm">
+                <legend className="font-medium">Existing assignments needing review</legend>
+                <p className="text-muted-foreground">These people are outside the current eligible technician selection. Existing assignments remain unless you explicitly remove them. Ineligible organization roles cannot be saved as technicians.</p>
+                {unavailableAssignments.map((person) => <label key={person.userId} className="flex items-center gap-2">
+                  <input type="checkbox" name="removeUnavailable" value={person.userId} disabled={!canEdit} /> Remove assignment: {person.fullName}
+                </label>)}
+              </fieldset>
+            ) : null}
             {conflicts.length > 0 ? (
               <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
                 <p className="font-medium">Overlap warning</p>
@@ -315,7 +356,7 @@ export function ScheduleJobSheet({
                 <MutationButton
                   type="submit"
                   className="h-11 w-full md:h-8"
-                  disabled={pending}
+                  disabled={pending || peopleLoading || peopleError}
                 >
                   {conflicts.length > 0 ? "Confirm and save" : "Save schedule"}
                 </MutationButton>
