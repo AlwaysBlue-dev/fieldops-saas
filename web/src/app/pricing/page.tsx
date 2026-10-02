@@ -150,9 +150,7 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
     },
     {
       label: "Organization Branding",
-      values: columns.map((p) =>
-        p.featureFlags.CUSTOM_BRANDING ? "yes" : "no",
-      ),
+       values: ["yes", "yes", "yes"],
     },
   ];
 
