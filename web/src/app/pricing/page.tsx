@@ -35,8 +35,9 @@ function PricingCard({
   emphasized?: boolean;
 }) {
   const price = annualPriceParts(plan);
-  const highlights =
-    plan.highlights?.length > 0 ? plan.highlights : plan.inclusions;
+  const highlights = (
+    plan.highlights?.length > 0 ? plan.highlights : plan.inclusions
+  ).filter((item) => !/advanced reports|advanced branding|^approvals$/i.test(item));
 
   return (
     <article
@@ -118,11 +119,11 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       values: columns.map((p) => p.includedStorage),
     },
     {
-      label: "Jobs",
+      label: "Jobs & Work Orders",
       values: columns.map((p) => (p.featureFlags.JOBS ? "yes" : "no")),
     },
     {
-      label: "Scheduling",
+      label: "Scheduling & Dispatch",
       values: columns.map((p) => (p.featureFlags.JOBS ? "yes" : "no")),
     },
     {
@@ -130,7 +131,7 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       values: columns.map((p) => (p.featureFlags.TIMESHEETS ? "yes" : "no")),
     },
     {
-      label: "GPS",
+      label: "GPS Clock Events",
       values: columns.map((p) => (p.featureFlags.GPS ? "yes" : "no")),
     },
     {
@@ -140,29 +141,17 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       ),
     },
     {
-      label: "Basic Reports",
+      label: "Reports",
       values: ["yes", "yes", "yes"],
     },
     {
-      label: "Advanced Reports",
-      values: columns.map((p) =>
-        p.featureFlags.ADVANCED_REPORTS ? "yes" : "no",
-      ),
-    },
-    {
       label: "Approvals",
-      values: columns.map((p) => (p.featureFlags.APPROVALS ? "yes" : "no")),
+      values: ["yes", "yes", "yes"],
     },
     {
       label: "Organization Branding",
       values: columns.map((p) =>
         p.featureFlags.CUSTOM_BRANDING ? "yes" : "no",
-      ),
-    },
-    {
-      label: "Advanced Branding",
-      values: columns.map((p) =>
-        p.featureFlags.ADVANCED_BRANDING ? "yes" : "no",
       ),
     },
   ];
@@ -171,7 +160,8 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
     <section className="mt-16">
       <h2 className="text-xl font-semibold tracking-tight">Compare plans</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Limits and features come from the live plan catalog.
+        Limits and features come from the live plan catalog. Organization logo
+        uploads are included with Professional and Business.
       </p>
 
       {/* Mobile: stacked plan summaries */}
@@ -297,7 +287,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What is Business?",
-    a: "Business is for larger teams and custom commercial requirements — higher seat and storage limits, advanced branding options, and sales-assisted onboarding. Contact sales for a quote.",
+    a: "Business is for larger operations with higher user and storage limits and custom commercial requirements. Contact sales for a quote.",
   },
 ] as const;
 
