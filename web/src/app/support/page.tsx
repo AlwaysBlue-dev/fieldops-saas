@@ -1,9 +1,13 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Support" };
+export const metadata = publicPageMetadata({
+  title: "Contact FieldKeel",
+  description: "Contact FieldKeel for product support, account help, sales and activation questions, or security reports.",
+  path: "/support",
+});
 
 export default async function SupportPage() {
   const trust = await getPublicTrust();

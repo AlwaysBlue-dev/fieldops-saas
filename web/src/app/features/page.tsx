@@ -1,9 +1,11 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Features",
-};
+export const metadata = publicPageMetadata({
+  title: "FieldKeel field service management features",
+  description: "Explore FieldKeel tools for scheduling, jobs, clients, teams, time tracking, approvals, reports, and workspace settings.",
+  path: "/features",
+});
 
 const features = [
   {

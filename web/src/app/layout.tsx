@@ -21,11 +21,25 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://fieldkeel.com"),
 
   title: {
-    default: APP_NAME,
+    default: `${APP_NAME} | Field service management software`,
     template: `%s · ${APP_NAME}`,
   },
 
   description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: APP_NAME,
+    title: `${APP_NAME} | Field service management software`,
+    description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+  },
+
+  twitter: {
+    card: "summary",
+    title: `${APP_NAME} | Field service management software`,
+    description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+  },
 
   applicationName: APP_NAME,
 

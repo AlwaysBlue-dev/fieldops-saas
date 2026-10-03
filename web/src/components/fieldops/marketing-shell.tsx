@@ -10,6 +10,14 @@ import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: APP_NAME,
+  url: "https://fieldkeel.com",
+  logo: "https://fieldkeel.com/icons/logo.png",
+};
+
 const links = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
@@ -49,6 +57,12 @@ export function MarketingShell({
     <PwaInstallProvider>
       <MarketingAuthProvider>
         <div className="min-h-dvh overflow-x-hidden bg-workspace">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(organizationJsonLd),
+            }}
+          />
           <header
             className="sticky top-0 z-20 border-b border-border bg-card/95"
             style={{ paddingTop: "env(safe-area-inset-top)" }}

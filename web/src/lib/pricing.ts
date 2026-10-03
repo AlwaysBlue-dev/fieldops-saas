@@ -40,7 +40,11 @@ export type PublicCatalog = {
 };
 
 export async function getPublicCatalog(): Promise<PublicCatalog | null> {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+  // Bracket access keeps Next.js from baking this public variable into the
+  // server bundle, so a deployed server reads the API URL from its runtime env.
+  const base =
+    process.env["NEXT_PUBLIC_API_URL"]?.trim().replace(/\/+$/, "") ||
+    "http://localhost:4000/api";
   try {
     const response = await fetch(`${base}/plans`, { cache: "no-store" });
     if (!response.ok) return null;

@@ -1,9 +1,13 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Trust Center" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel trust and security information",
+  description: "Find FieldKeel's current security, privacy, data protection, location, billing, and account policies in one place.",
+  path: "/trust",
+});
 
 const sections = [
   {

@@ -9,6 +9,7 @@ import {
   getArticle,
   getCategory,
 } from "@/lib/docs";
+import { publicPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -32,8 +33,12 @@ export async function generateMetadata({
   const { slug } = await params;
   const canonical = LEGACY_DOC_SLUGS[slug] ?? slug;
   const article = getArticle(canonical);
-  if (!article) return { title: "Documentation" };
-  return { title: article.title, description: article.description };
+  if (!article) return { title: "FieldKeel documentation and guides" };
+  return publicPageMetadata({
+    title: `${article.title} | FieldKeel Guides`,
+    description: article.description,
+    path: `/docs/${article.slug}`,
+  });
 }
 
 export default async function DocArticlePage({

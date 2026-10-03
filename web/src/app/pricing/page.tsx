@@ -7,12 +7,14 @@ import {
   type PublicPlan,
 } from "@/lib/pricing";
 import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
-import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Pricing",
-};
+export const metadata = publicPageMetadata({
+  title: "FieldKeel pricing plans",
+  description: "Compare FieldKeel Starter, Professional, and Business plans, including annual pricing, user capacity, storage, and trial details.",
+  path: "/pricing",
+});
 
 function CheckItem({ children }: { children: string }) {
   return (

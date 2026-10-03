@@ -10,6 +10,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
+      url: `${BASE_URL}/pricing`,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/features`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: `${BASE_URL}/docs`,
       changeFrequency: "weekly",
       priority: 0.8,
@@ -25,24 +35,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
-      url: `${BASE_URL}/privacy`,
-      changeFrequency: "yearly",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE_URL}/terms`,
-      changeFrequency: "yearly",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE_URL}/billing-policy`,
-      changeFrequency: "yearly",
-      priority: 0.5,
-    },
-    {
-      url: `${BASE_URL}/acceptable-use`,
-      changeFrequency: "yearly",
-      priority: 0.5,
+      url: `${BASE_URL}/support`,
+      changeFrequency: "monthly",
+      priority: 0.6,
     },
   ];
 }

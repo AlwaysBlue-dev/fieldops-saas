@@ -1,9 +1,13 @@
 import { LegalDocument, LegalSection } from "@/components/fieldops/legal-document";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Security" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel security",
+  description: "Read about FieldKeel's current application security practices, including organization access controls, private file access, and audit logging.",
+  path: "/security",
+});
 
 export default async function SecurityPage() {
   const trust = await getPublicTrust();

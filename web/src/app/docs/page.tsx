@@ -2,13 +2,14 @@ import { DocsSearch } from "@/components/fieldops/docs-search";
 import { DocsShell } from "@/components/fieldops/docs-shell";
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
 import { allCategories, getArticlesByCategory, getArticle } from "@/lib/docs";
-import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Documentation",
-  description: "FieldKeel product documentation and help articles.",
-};
+export const metadata = publicPageMetadata({
+  title: "FieldKeel documentation and guides",
+  description: "Browse FieldKeel guides for workspaces, jobs, crews, time tracking, storage, billing, and troubleshooting.",
+  path: "/docs",
+});
 
 const POPULAR = [
   "what-is-fieldkeel",

@@ -1,14 +1,15 @@
 import { HomeHeroCtas } from "@/components/fieldops/home-hero-ctas";
 import { MarketingInstallAppSection } from "@/components/fieldops/marketing-install";
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
-import { APP_DESCRIPTION, APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
+import { APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: { absolute: APP_HOME_TITLE },
-  description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
-};
+export const metadata = publicPageMetadata({
+  title: "Field service management software | FieldKeel",
+  description: `${APP_TAGLINE} FieldKeel brings dispatch, crews, job time, and approvals together in one field operations workspace.`,
+  path: "/",
+});
 
 export default async function HomePage() {
   const catalog = await getPublicCatalog();
