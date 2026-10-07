@@ -7,8 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/app/", "/platform/"],
     },
-
     sitemap: "https://fieldkeel.com/sitemap.xml",
-    host: "https://fieldkeel.com",
   };
 }
