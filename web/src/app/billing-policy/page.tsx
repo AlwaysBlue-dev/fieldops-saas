@@ -1,9 +1,13 @@
 import { LegalDocument, LegalSection } from "@/components/fieldops/legal-document";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Billing & Subscription Policy" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel Billing and Subscription Policy",
+  description: "Understand FieldKeel organization invoices, due dates, secure payment links, subscription activation, renewals, and the billing process for workspaces.",
+  path: "/billing-policy",
+});
 
 export default async function BillingPolicyPage() {
   const [trust, catalog] = await Promise.all([getPublicTrust(), getPublicCatalog()]);

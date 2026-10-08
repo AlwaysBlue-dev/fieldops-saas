@@ -4,6 +4,7 @@ import { PwaRegister } from "@/components/fieldops/pwa-register";
 import { PwaThemeMeta } from "@/components/fieldops/pwa-theme-meta";
 import { ThemeProvider } from "@/components/fieldops/theme-provider";
 import { APP_DESCRIPTION, APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { SITE_URL } from "@/lib/seo";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://fieldkeel.com"),
+  metadataBase: new URL(SITE_URL),
 
   title: {
     default: `${APP_NAME} | Field service management software`,
@@ -33,12 +34,14 @@ export const metadata: Metadata = {
     siteName: APP_NAME,
     title: `${APP_NAME} | Field service management software`,
     description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+    images: [{ url: "/icons/logo.png", alt: "FieldKeel logo" }],
   },
 
   twitter: {
     card: "summary",
     title: `${APP_NAME} | Field service management software`,
     description: `${APP_TAGLINE} ${APP_DESCRIPTION}`,
+    images: ["/icons/logo.png"],
   },
 
   applicationName: APP_NAME,

@@ -36,7 +36,7 @@ export async function generateMetadata({
   if (!article) return { title: "FieldKeel documentation and guides" };
   return publicPageMetadata({
     title: `${article.title} | FieldKeel Guides`,
-    description: article.description,
+    description: `${article.description} Learn more about ${article.title.toLowerCase()} with practical product guidance for your FieldKeel workspace.`,
     path: `/docs/${article.slug}`,
   });
 }

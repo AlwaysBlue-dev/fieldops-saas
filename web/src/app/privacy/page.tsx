@@ -1,8 +1,12 @@
 import { LegalDocument, LegalSection } from "@/components/fieldops/legal-document";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Privacy Policy" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel Privacy Policy: Account and Job Data",
+  description: "Learn what personal and operational information FieldKeel processes, including account, organization, job, evidence, and GPS-on-clock data, and how it is used.",
+  path: "/privacy",
+});
 
 export default async function PrivacyPage() {
   const trust = await getPublicTrust();

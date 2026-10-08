@@ -3,6 +3,7 @@ import { InviteAcceptForm } from "./invite-accept-form";
 
 export const metadata: Metadata = {
   title: "Accept invitation",
+  robots: { index: false, follow: false },
 };
 
 export default async function InvitePage({

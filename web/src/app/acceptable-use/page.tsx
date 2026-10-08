@@ -1,8 +1,12 @@
 import { LegalDocument, LegalSection } from "@/components/fieldops/legal-document";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Acceptable Use Policy" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel Acceptable Use Policy for Organizations",
+  description: "Read the rules for using FieldKeel, including restrictions on unlawful activity, account sharing, unauthorized testing, harmful uploads, and service interference.",
+  path: "/acceptable-use",
+});
 
 export default async function AcceptableUsePage() {
   const trust = await getPublicTrust();

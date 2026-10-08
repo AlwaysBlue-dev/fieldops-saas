@@ -6,7 +6,9 @@ import {
 } from "@/components/fieldops/marketing-auth-actions";
 import { BrandMark } from "@/components/fieldops/brand-mark";
 import { PwaInstallProvider } from "@/components/fieldops/pwa-install-provider";
+import { JsonLd } from "@/components/fieldops/json-ld";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { SITE_URL } from "@/lib/seo";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -14,13 +16,14 @@ const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: APP_NAME,
-  url: "https://fieldkeel.com",
-  logo: "https://fieldkeel.com/icons/logo.png",
+  url: SITE_URL,
+  logo: `${SITE_URL}/icons/logo.png`,
 };
 
 const links = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/compare", label: "Compare" },
   { href: "/docs", label: "Documentation" },
   { href: "/trust", label: "Trust" },
 ];
@@ -35,6 +38,12 @@ const footer = {
   Trust: [
     { href: "/trust", label: "Trust Center" },
     { href: "/security", label: "Security" },
+  ],
+  Compare: [
+    { href: "/compare/jobber", label: "Jobber" },
+    { href: "/compare/housecall-pro", label: "Housecall Pro" },
+    { href: "/compare/servicetitan", label: "ServiceTitan" },
+    { href: "/compare", label: "All comparisons" },
   ],
   Legal: [
     { href: "/terms", label: "Terms of Service" },
@@ -57,12 +66,7 @@ export function MarketingShell({
     <PwaInstallProvider>
       <MarketingAuthProvider>
         <div className="min-h-dvh overflow-x-hidden bg-workspace">
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(organizationJsonLd),
-            }}
-          />
+          <JsonLd data={organizationJsonLd} />
           <header
             className="sticky top-0 z-20 border-b border-border bg-card/95"
             style={{ paddingTop: "env(safe-area-inset-top)" }}
@@ -110,8 +114,8 @@ export function MarketingShell({
             <div
               className={
                 wide
-                  ? "mx-auto grid max-w-7xl gap-8 px-4 py-8 text-sm md:grid-cols-4"
-                  : "mx-auto grid max-w-6xl gap-8 px-4 py-8 text-sm md:grid-cols-4"
+                  ? "mx-auto grid max-w-7xl gap-8 px-4 py-8 text-sm md:grid-cols-3 lg:grid-cols-5"
+                  : "mx-auto grid max-w-6xl gap-8 px-4 py-8 text-sm md:grid-cols-3 lg:grid-cols-5"
               }
             >
               {Object.entries(footer).map(([heading, items]) => (

@@ -1,9 +1,11 @@
 import { HomeHeroCtas } from "@/components/fieldops/home-hero-ctas";
 import { MarketingInstallAppSection } from "@/components/fieldops/marketing-install";
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
+import { JsonLd } from "@/components/fieldops/json-ld";
+import { CompareLinkRow } from "@/components/fieldops/compare-link-row";
 import { APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
-import { publicPageMetadata } from "@/lib/seo";
+import { publicPageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "Field service management software | FieldKeel",
@@ -24,6 +26,7 @@ export default async function HomePage() {
 
   return (
     <MarketingShell>
+      <JsonLd data={softwareApplicationJsonLd(catalog)} />
       <section className="max-w-2xl">
         <p className="text-3xl font-semibold tracking-tight md:text-5xl">
           {APP_HOME_TITLE}
@@ -70,6 +73,7 @@ export default async function HomePage() {
         ))}
       </section>
 
+      <CompareLinkRow className="mt-5" />
       <MarketingInstallAppSection />
     </MarketingShell>
   );

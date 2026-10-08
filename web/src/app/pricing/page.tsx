@@ -1,4 +1,6 @@
 import { MarketingShell } from "@/components/fieldops/marketing-shell";
+import { JsonLd } from "@/components/fieldops/json-ld";
+import { CompareLinkRow } from "@/components/fieldops/compare-link-row";
 import { Button } from "@/components/ui/button";
 import {
   annualPriceParts,
@@ -8,7 +10,7 @@ import {
 } from "@/lib/pricing";
 import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
 import Link from "next/link";
-import { publicPageMetadata } from "@/lib/seo";
+import { publicPageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "FieldKeel pricing plans",
@@ -301,6 +303,18 @@ export default async function PricingPage() {
 
   return (
     <MarketingShell>
+      <JsonLd data={softwareApplicationJsonLd(catalog)} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQ_ITEMS.map((item) => ({
+            "@type": "Question",
+            name: item.q,
+            acceptedAnswer: { "@type": "Answer", text: item.a },
+          })),
+        }}
+      />
       <p className="type-label">Pricing</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight">
         Simple annual plans for field operations.
@@ -356,6 +370,7 @@ export default async function PricingPage() {
           ))}
         </dl>
       </section>
+      <CompareLinkRow className="mt-8" />
     </MarketingShell>
   );
 }

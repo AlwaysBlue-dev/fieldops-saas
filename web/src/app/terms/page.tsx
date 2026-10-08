@@ -1,8 +1,12 @@
 import { LegalDocument, LegalSection } from "@/components/fieldops/legal-document";
 import { getPublicTrust } from "@/lib/trust";
-import type { Metadata } from "next";
+import { publicPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Terms of Service" };
+export const metadata = publicPageMetadata({
+  title: "FieldKeel Terms of Service for Workspace Accounts",
+  description: "Review the terms that apply when creating a FieldKeel workspace, inviting authorized users, and using the service, including account responsibilities and service conditions.",
+  path: "/terms",
+});
 
 export default async function TermsPage() {
   const trust = await getPublicTrust();
