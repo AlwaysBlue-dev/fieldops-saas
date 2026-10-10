@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
 import {
+  createPaddleInvoiceCheckout,
   getOrganizationInvoice,
   invoiceStatusLabel,
   listOrganizationInvoices,
@@ -311,6 +312,8 @@ function InvoiceDetail({
   onRefresh?: () => Promise<void>;
 }) {
   const [reference, setReference] = useState("");
+  const [paddleBusy, setPaddleBusy] = useState(false);
+  const [paddleError, setPaddleError] = useState<string | null>(null);
   const label = invoiceStatusLabel(invoice.status, invoice.statusLabel);
   const isPreparing = invoice.status === "PREPARING" || invoice.status === "DRAFT";
   const awaiting = invoice.status === "PAYMENT_REPORTED";
@@ -318,6 +321,21 @@ function InvoiceDetail({
     (invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
     Boolean(invoice.paymentReportedAt);
 
+  async function startPaddleCheckout() {
+    setPaddleBusy(true);
+    setPaddleError(null);
+    try {
+      const session = await createPaddleInvoiceCheckout(organizationId, invoice.id);
+      const { initializePaddle } = await import("@paddle/paddle-js");
+      const paddle = await initializePaddle({ environment: "sandbox", token: session.clientToken });
+      if (!paddle) throw new Error("Paddle checkout could not be initialized.");
+      paddle.Checkout.open({ transactionId: session.transactionId, customer: { email: session.customerEmail } });
+    } catch (error) {
+      setPaddleError(error instanceof Error ? error.message : "Unable to open Paddle checkout.");
+    } finally {
+      setPaddleBusy(false);
+    }
+  }
   async function downloadPdf() {
     const response = await fetch(
       `${API_URL}/organizations/${organizationId}/invoices/${invoice.id}/pdf`,
@@ -400,6 +418,13 @@ function InvoiceDetail({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
+        {(invoice.status === "ISSUED" || invoice.status === "PAYMENT_REPORTED" || invoice.status === "OVERDUE") &&
+        (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
+          <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
+            {paddleBusy ? "Opening checkout…" : "Pay with Paddle (Sandbox)"}
+          </Button>
+        ) : null}
+        {paddleError ? <p className="w-full text-sm text-destructive">{paddleError}</p> : null}
         {invoice.canPay && invoice.paymentUrl ? (
           <Button
             className="h-11"

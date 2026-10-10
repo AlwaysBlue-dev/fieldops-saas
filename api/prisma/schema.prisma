@@ -458,7 +458,7 @@ model OrganizationCounter {
 }
 
 // ---------------------------------------------------------------------------
-// SaaS plans (no payment provider integration)
+// SaaS plans (provider checkout is mapped through sandbox configuration)
 // ---------------------------------------------------------------------------
 
 model Plan {
@@ -626,6 +626,8 @@ model Invoice {
   paymentUrl                 String?
   /// Internal reconciliation reference (not shown to customers).
   externalReference          String?
+
+  paddleTransactionId        String?       @unique
   paymentReportedAt          DateTime?     @db.Timestamptz
   paymentVerifiedAt          DateTime?     @db.Timestamptz
   verifiedByUserId           String?       @db.Uuid
@@ -651,6 +653,16 @@ model Invoice {
   @@index([verifiedByUserId])
 }
 
+/// Idempotency ledger for verified Paddle webhook deliveries.
+model PaddleWebhookEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventId     String   @unique
+  eventType   String
+  processedAt DateTime @default(now()) @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  @@index([eventType, processedAt])
+}
 model InvoicePaymentNotice {
   id               String   @id @default(uuid()) @db.Uuid
   invoiceId        String   @db.Uuid

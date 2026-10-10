@@ -229,3 +229,17 @@ export function invoiceStatusLabel(status: string, statusLabel?: string) {
       return status.replaceAll("_", " ");
   }
 }
+
+export type PaddleCheckoutSession = {
+  transactionId: string;
+  clientToken: string;
+  customerEmail: string;
+  environment: "sandbox";
+};
+
+export function createPaddleInvoiceCheckout(organizationId: string, invoiceId: string) {
+  return apiRequest<PaddleCheckoutSession>(
+    `/organizations/${organizationId}/invoices/${invoiceId}/paddle-checkout`,
+    { method: "POST", body: {} },
+  );
+}

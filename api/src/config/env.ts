@@ -178,4 +178,24 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   LEGAL_EFFECTIVE_DATE?: string;
+  /** Sandbox-only Paddle Billing settings. Checkout is disabled until all are provided. */
+  @IsOptional()
+  @IsString()
+  PADDLE_SANDBOX_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_SANDBOX_CLIENT_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_SANDBOX_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_SANDBOX_STARTER_PRICE_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_SANDBOX_PROFESSIONAL_PRICE_ID?: string;
 }

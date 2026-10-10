@@ -6,16 +6,19 @@ import { SubscriptionModule } from '../subscription/subscription.module.js';
 import { BillingSettingsService } from './billing-settings.service.js';
 import { InvoicePdfService } from './invoice-pdf.service.js';
 import { InvoiceService } from './invoice.service.js';
+import { PaddleController } from './paddle.controller.js';
+import { PaddleService } from './paddle.service.js';
 import { InvoicesController } from './invoices.controller.js';
 import { PlatformBillingController } from './platform-billing.controller.js';
 
 @Module({
   imports: [AuthModule, SubscriptionModule, NotificationsModule],
-  controllers: [PlatformBillingController, InvoicesController],
+  controllers: [PlatformBillingController, InvoicesController, PaddleController],
   providers: [
     BillingSettingsService,
     InvoicePdfService,
     InvoiceService,
+    PaddleService,
     SuperAdminGuard,
   ],
   exports: [InvoiceService, BillingSettingsService],

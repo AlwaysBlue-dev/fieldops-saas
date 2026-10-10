@@ -15,7 +15,7 @@ export class CsrfHeaderGuard implements CanActivate {
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
       return true;
     }
-    if (request.path.includes('/health')) {
+    if (request.path.includes('/health') || request.path.endsWith('/webhooks/paddle')) {
       return true;
     }
     const header = request.headers[CSRF_HEADER];
