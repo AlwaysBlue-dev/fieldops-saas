@@ -79,7 +79,7 @@ export class PlatformBillingController {
     @CurrentUser() user: AuthUser,
     @Body() dto: UpdateDiscountedInvoiceDto,
   ) {
-    return this.paddle.updateDiscountedInvoice(invoiceId, dto.requestId, user.id, dto.termYears);
+    return this.paddle.updateDiscountedInvoice(invoiceId, dto.requestId, user.id, dto.termYears, dto.paymentUrl);
   }
 
   @Get('invoices/:invoiceId/pdf')

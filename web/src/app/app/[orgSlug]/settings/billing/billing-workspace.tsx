@@ -435,6 +435,12 @@ function InvoiceDetail({
     (invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
     Boolean(invoice.paymentReportedAt);
   const discountPercent = MULTI_YEAR_TERM_DISCOUNTS[termYears - 1] ?? 0;
+  const invoiceTermYears = [1, 2, 3, 4, 5].find((years) => {
+    const expectedEnd = new Date(invoice.billingPeriodStart);
+    expectedEnd.setUTCFullYear(expectedEnd.getUTCFullYear() + years);
+    return expectedEnd.toISOString().slice(0, 10) === new Date(invoice.billingPeriodEnd).toISOString().slice(0, 10);
+  }) ?? 1;
+  const invoiceDiscountPercent = MULTI_YEAR_TERM_DISCOUNTS[invoiceTermYears - 1] ?? 0;
   const termAmountCents = multiYearPriceCents(invoice.plan?.annualPriceCents ?? invoice.totalCents, termYears) ?? invoice.totalCents;
   const formattedTermAmount = new Intl.NumberFormat("en-US", {
     style: "currency", currency: invoice.currency,
@@ -446,7 +452,7 @@ function InvoiceDetail({
     try {
       await submitDiscountedInvoiceRequest(organizationId, invoice.id, termYears);
       setInvoiceRequestSent(true);
-      onNotice("Request sent. The FieldKeel team will respond and update your invoice.");
+      onNotice(`Request sent for ${termYears} years. The FieldKeel team will respond and update your invoice.`);
     } catch (error) {
       setInvoiceRequestError(error instanceof Error ? error.message : "Could not send the invoice request.");
     } finally {
@@ -585,7 +591,7 @@ function InvoiceDetail({
             </p>
           </div>
           <div className="space-y-2">
-            {invoiceRequestSent ? <p role="status" className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium">Request sent. The FieldKeel team will respond and update your invoice.</p> : null}
+            {invoiceRequestSent ? <p role="status" className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium">Request sent for {termYears} years. The FieldKeel team will respond and update your invoice.</p> : null}
             <div className="flex flex-wrap items-center gap-2">
               {termYears > 1 ? (
                 <Button type="button" variant="outline" disabled={invoiceRequestBusy || invoiceRequestSent} onClick={() => void requestDiscountedInvoice()}>
@@ -596,7 +602,7 @@ function InvoiceDetail({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            This invoice was issued for 1 year. Pay Now applies the selected multi-year discount immediately. To pay by invoice with a discount, request an updated invoice above; the team will respond and update it.
+            This invoice currently covers {invoiceTermYears} {invoiceTermYears === 1 ? "year" : "years"}. Pay Now applies the selected term and discount immediately. To pay by invoice with a discount, request an updated invoice above; the team will respond and update it.
           </p>
         </div>
       ) : null}
@@ -617,24 +623,23 @@ function InvoiceDetail({
       <div className="flex flex-wrap gap-2">
         {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
         (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
-          <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
-            {paddleBusy ? "Opening checkout…" : "Pay Now"}
-          </Button>
+          <div className="flex flex-col items-start gap-1">
+            <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
+              {paddleBusy ? "Opening checkout…" : `Pay Now For ${termYears} ${termYears === 1 ? "year" : "years"}`}
+            </Button>
+            <span className="px-1 text-xs text-muted-foreground">Save {discountPercent}%</span>
+          </div>
         ) : null}
         {paddleError ? <p className="w-full text-sm text-destructive">{paddleError}</p> : null}
         {invoice.canPay && invoice.paymentUrl ? (
-          <Button
-            className="h-11"
-            asChild
-          >
-            <a
-              href={invoice.paymentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Pay Invoice
-            </a>
-          </Button>
+          <div className="flex flex-col items-start gap-1">
+            <Button className="h-11" asChild>
+              <a href={invoice.paymentUrl} target="_blank" rel="noopener noreferrer">
+                Pay Invoice For {invoiceTermYears} {invoiceTermYears === 1 ? "year" : "years"}
+              </a>
+            </Button>
+            <span className="px-1 text-xs text-muted-foreground">Save {invoiceDiscountPercent}%</span>
+          </div>
         ) : null}
         <Button className="h-11" variant="outline" onClick={() => void downloadPdf()}>
           Download PDF

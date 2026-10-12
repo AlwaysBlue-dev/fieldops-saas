@@ -91,7 +91,7 @@ export class PaddleService {
     return { url: session.urls.general.overview };
   }
 
-  async updateDiscountedInvoice(invoiceId: string, requestId: string, actorUserId: string, termYears: number) {
+  async updateDiscountedInvoice(invoiceId: string, requestId: string, actorUserId: string, termYears: number, paymentUrl?: string) {
     const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId }, select: { id: true, paddleTransactionId: true } });
     if (!invoice) throw new NotFoundException();
     if (invoice.paddleTransactionId) {
@@ -103,7 +103,7 @@ export class PaddleService {
         throw new BadRequestException('This invoice has a completed or processing card payment. Resolve that payment before changing the invoice.');
       }
     }
-    return this.invoices.updateDiscountedTerm(invoiceId, requestId, actorUserId, termYears);
+    return this.invoices.updateDiscountedTerm(invoiceId, requestId, actorUserId, termYears, paymentUrl);
   }
 
   async createInvoiceCheckout(organizationId: string, invoiceId: string, ownerUserId: string, termYears: number) {

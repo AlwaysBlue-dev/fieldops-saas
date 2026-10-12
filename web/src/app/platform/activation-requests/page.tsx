@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { updateDiscountedPlatformInvoice } from "@/lib/billing";
 import { ApiError } from "@/lib/api";
 import {
@@ -17,6 +18,7 @@ export default function PlatformActivationRequestsPage() {
   const [rows, setRows] = useState<PlatformCommercialRequest[] | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [paymentUrls, setPaymentUrls] = useState<Record<string, string>>({});
 
   async function refresh() {
     const [activations, planChanges] = await Promise.all([
@@ -70,7 +72,7 @@ export default function PlatformActivationRequestsPage() {
     setMessage(null);
     setPendingId(row.id);
     try {
-      await updateDiscountedPlatformInvoice(invoiceId, row.id, termYears);
+      await updateDiscountedPlatformInvoice(invoiceId, row.id, termYears, paymentUrls[row.id]?.trim() || undefined);
       await refresh();
       setMessage(`Invoice updated to ${termYears} years and sent to the workspace billing contacts.`);
     } catch (error) {
@@ -177,13 +179,24 @@ export default function PlatformActivationRequestsPage() {
                         </Button>
                       ) : null}
                       {isDiscountedInvoiceRequest ? (
-                        <Button
-                          className="h-8"
-                          disabled={busy || row.status === "CLOSED" || row.status === "COMPLETED"}
-                          onClick={() => void sendDiscountedInvoice(row, invoiceId!, termYears)}
-                        >
-                          {busy ? "Sending…" : `Update & send ${termYears}-year invoice`}
-                        </Button>
+                        <div className="flex min-w-56 flex-col gap-2">
+                          <Input
+                            aria-label="Replacement invoice payment URL"
+                            className="h-8"
+                            type="url"
+                            placeholder="New invoice payment URL (optional)"
+                            value={paymentUrls[row.id] ?? ""}
+                            onChange={(event) => setPaymentUrls((current) => ({ ...current, [row.id]: event.target.value }))}
+                          />
+                          <p className="text-xs text-muted-foreground">Leave blank to keep the current invoice link.</p>
+                          <Button
+                            className="h-8"
+                            disabled={busy || row.status === "CLOSED" || row.status === "COMPLETED"}
+                            onClick={() => void sendDiscountedInvoice(row, invoiceId!, termYears)}
+                          >
+                            {busy ? "Sending…" : `Update & send ${termYears}-year invoice`}
+                          </Button>
+                        </div>
                       ) : null}
                       <Button
                         className="h-8"

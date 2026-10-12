@@ -160,9 +160,9 @@ export function updatePlatformInvoicePayment(
   });
 }
 
-export function updateDiscountedPlatformInvoice(invoiceId: string, requestId: string, termYears: number) {
+export function updateDiscountedPlatformInvoice(invoiceId: string, requestId: string, termYears: number, paymentUrl?: string) {
   return apiRequest<InvoiceSummary>(`/platform/invoices/${invoiceId}/discounted-term`, {
-    method: 'PATCH', body: { requestId, termYears },
+    method: 'PATCH', body: { requestId, termYears, ...(paymentUrl ? { paymentUrl } : {}) },
   });
 }
 

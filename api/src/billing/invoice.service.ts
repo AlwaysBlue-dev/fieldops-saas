@@ -287,6 +287,7 @@ export class InvoiceService {
     requestId: string,
     actorUserId: string,
     termYears: number,
+    paymentUrl?: string,
   ) {
     if (!Number.isInteger(termYears) || termYears < 2 || termYears > 5) {
       throw new BadRequestException('Discounted invoice terms must be between 2 and 5 years');
@@ -305,6 +306,14 @@ export class InvoiceService {
     const discount = discounts[termYears - 1];
     const totalCents = Math.round(invoice.plan.annualPriceCents * termYears * (100 - discount) / 100);
     const currentStart = invoice.billingPeriodStart;
+    let updatedPaymentUrl: string | undefined;
+    if (paymentUrl !== undefined) {
+      try {
+        updatedPaymentUrl = assertHttpsPaymentUrl(paymentUrl);
+      } catch (error) {
+        throw new BadRequestException(error instanceof Error ? error.message : 'Invalid payment URL');
+      }
+    }
     const periodEnd = new Date(currentStart);
     periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + termYears);
     const revision = this.clock.now().toISOString();
@@ -321,6 +330,7 @@ export class InvoiceService {
           subtotalCents: totalCents, totalCents,
           billingPeriodStart: currentStart, billingPeriodEnd: periodEnd,
           status: InvoiceStatus.ISSUED, paddleTransactionId: null,
+          ...(updatedPaymentUrl !== undefined ? { paymentUrl: updatedPaymentUrl } : {}),
           internalNotes: [invoice.internalNotes, `Discounted ${termYears}-year invoice sent by platform admin ${actorUserId} on ${revision}.`].filter(Boolean).join('\n'),
         },
         include: this.include(),
