@@ -612,7 +612,6 @@ function progressFromSubscription(
 
 /** Customer-facing activation and renewal actions continue in Billing. */
 export function WorkspaceBillingCta({ orgSlug }: {
-  organizationId: string;
   orgSlug: string;
   mode: "activate" | "reactivate";
   kind?: "activation" | "renewal";

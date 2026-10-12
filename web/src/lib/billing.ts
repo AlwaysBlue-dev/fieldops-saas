@@ -39,6 +39,7 @@ export type InvoiceSummary = {
     reference: string | null;
     message: string | null;
     createdAt: string;
+    submittedBy?: { fullName: string; email: string } | null;
     reviewedAt?: string | null;
     rejectionReason?: string | null;
   }>;
