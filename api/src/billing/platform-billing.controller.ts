@@ -23,7 +23,9 @@ import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
 import { UpdateBillingSettingsDto } from './dto/update-billing-settings.dto.js';
 import { UpdateInvoicePaymentDto } from './dto/update-invoice-payment.dto.js';
 import { RejectInvoicePaymentDto } from './dto/reject-invoice-payment.dto.js';
+import { UpdateDiscountedInvoiceDto } from './dto/update-discounted-invoice.dto.js';
 import { InvoiceService } from './invoice.service.js';
+import { PaddleService } from './paddle.service.js';
 
 @Controller('platform')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
@@ -31,6 +33,7 @@ export class PlatformBillingController {
   constructor(
     private readonly invoices: InvoiceService,
     private readonly settings: BillingSettingsService,
+    private readonly paddle: PaddleService,
   ) {}
 
   @Get('billing-settings')
@@ -68,6 +71,15 @@ export class PlatformBillingController {
     @Body() dto: UpdateInvoicePaymentDto,
   ) {
     return this.invoices.updatePaymentDetails(invoiceId, user.id, dto);
+  }
+
+  @Patch('invoices/:invoiceId/discounted-term')
+  updateDiscountedTerm(
+    @Param('invoiceId') invoiceId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateDiscountedInvoiceDto,
+  ) {
+    return this.paddle.updateDiscountedInvoice(invoiceId, dto.requestId, user.id, dto.termYears);
   }
 
   @Get('invoices/:invoiceId/pdf')

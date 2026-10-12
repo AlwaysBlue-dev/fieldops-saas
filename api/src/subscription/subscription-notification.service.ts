@@ -137,14 +137,20 @@ export class SubscriptionNotificationService {
     message: string | null;
     planName: string;
     effectiveStatus: string;
+    requestId?: string;
+    requestedAt?: Date;
   }) {
-    const periodKey = new Date().toISOString().slice(0, 10);
+    const periodKey = input.requestId
+      ? `${input.requestId}:${input.requestedAt?.getTime() ?? Date.now()}`
+      : new Date().toISOString().slice(0, 10);
     await this.deliver({
       organizationId: input.organizationId,
       kind: NOTIFICATION_PLAN_CHANGE_REQUESTED,
       periodKey,
       to: this.salesEmail(),
-      subject: `Plan change requested: ${input.organizationName}`,
+      subject: input.message?.startsWith('Discounted invoice request')
+        ? `Discounted invoice requested: ${input.organizationName}`
+        : `Plan change requested: ${input.organizationName}`,
       text: [
         `Plan change requested for ${input.organizationName}.`,
         '',
@@ -156,9 +162,21 @@ export class SubscriptionNotificationService {
         '',
         input.message ? `Message:\n${input.message}` : 'No message was provided.',
         '',
-        'Assign a new plan from platform administration.',
+        input.message?.startsWith('Discounted invoice request')
+          ? 'Open platform activation requests to update and send the existing invoice.'
+          : 'Review the plan change request in platform administration.',
       ].join('\n'),
     });
+
+    if (input.message?.startsWith('Discounted invoice request')) {
+      await this.notifications.notifyPlatformAdmins({
+        type: 'PLATFORM_DISCOUNTED_INVOICE_REQUESTED',
+        title: `Discounted invoice requested - ${input.organizationName}`,
+        message: `${input.requesterName} requested a discounted invoice for ${input.organizationName}. ${input.message}`,
+        relatedEntityType: 'ActivationRequest', relatedEntityId: input.requestId ?? input.organizationId,
+        payload: { ctaPath: '/platform/activation-requests' },
+      });
+    }
 
     await this.notifications.notify({
       organizationId: input.organizationId,
@@ -306,6 +324,30 @@ export class SubscriptionNotificationService {
         });
       }
     }
+  }
+
+  async queueInvoiceUpdated(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; invoiceId: string; invoiceNumber: string; planName: string; amount: string; dueAt: Date | null; slug: string; termYears: number; revision: string },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const message = `Invoice ${input.invoiceNumber} was updated to ${input.termYears} years (${input.amount}) and is ready in Billing${input.dueAt ? ` and due ${date(input.dueAt)}` : ''}.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'INVOICE_UPDATED',
+        periodKey: `${input.invoiceId}:revision:${input.revision}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject: 'Your FieldKeel invoice was updated', text: `${context.name}: ${message} Open Billing to review and pay the updated invoice.`,
+        ctaLabel: 'Open Billing', ctaUrl: this.billingLink(input.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'INVOICE_UPDATED', title: 'Invoice updated', message,
+      relatedEntityType: 'Invoice', relatedEntityId: input.invoiceId,
+      payload: { organizationSlug: input.slug }, dedupeUnread: true,
+    }, tx);
   }
 
   async queueInvoiceIssued(

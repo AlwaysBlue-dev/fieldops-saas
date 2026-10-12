@@ -8,6 +8,7 @@ import { OrganizationRoles } from '../tenancy/organization-roles.decorator.js';
 import { OrganizationRolesGuard } from '../tenancy/organization-roles.guard.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import { RequestActivationDto } from './dto/request-activation.dto.js';
+import { RequestDiscountedInvoiceDto } from './dto/request-discounted-invoice.dto.js';
 import { SubscriptionService } from './subscription.service.js';
 
 @Controller('organizations/:organizationId')
@@ -58,5 +59,16 @@ export class SubscriptionController {
     @Body() dto: RequestActivationDto,
   ) {
     return this.subscriptions.requestPlanChange(organization, user, dto);
+  }
+
+  @Post('discounted-invoice-requests')
+  @UseGuards(OrganizationRolesGuard)
+  @OrganizationRoles(OrganizationRole.OWNER)
+  requestDiscountedInvoice(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestDiscountedInvoiceDto,
+  ) {
+    return this.subscriptions.requestDiscountedInvoice(organization, user, dto);
   }
 }

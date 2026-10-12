@@ -175,12 +175,37 @@ export class SubscriptionService {
     user: AuthUser,
     dto: RequestActivationDto,
   ) {
-    return this.createRequest(
-      organization,
-      user,
-      CommercialRequestType.PLAN_CHANGE,
-      dto.message,
-    );
+    return this.createRequest(organization, user, CommercialRequestType.PLAN_CHANGE, dto.message);
+  }
+
+  async requestDiscountedInvoice(
+    organization: OrganizationContext,
+    user: AuthUser,
+    dto: { invoiceId: string; termYears: number },
+  ) {
+    if (!Number.isInteger(dto.termYears) || dto.termYears < 2 || dto.termYears > 5) {
+      throw new BadRequestException('Choose a discounted invoice term from 2 to 5 years');
+    }
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: dto.invoiceId, organizationId: organization.organizationId }, include: { plan: true },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    if (!['starter', 'professional'].includes(invoice.plan.code) || invoice.plan.annualPriceCents == null) {
+      throw new BadRequestException('Discounted invoice terms are available for Starter and Professional invoices');
+    }
+    if (!['ISSUED', 'OVERDUE'].includes(invoice.status)) {
+      throw new BadRequestException('Only an unpaid issued invoice can be updated');
+    }
+    const discounts = [0, 5, 7, 10, 15];
+    const discount = discounts[dto.termYears - 1];
+    const totalCents = Math.round(invoice.plan.annualPriceCents * dto.termYears * (100 - discount) / 100);
+    const amount = new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(totalCents / 100);
+    const message = [
+      'Discounted invoice request', `Invoice ID: ${invoice.id}`, `Invoice number: ${invoice.invoiceNumber}`,
+      `Requested term: ${dto.termYears} years`, `Discount: ${discount}%`, `Requested total: ${amount}`,
+      'Please update and send this invoice for the requested term.',
+    ].join('\n');
+    return this.createRequest(organization, user, CommercialRequestType.PLAN_CHANGE, message, true);
   }
 
   private resolveActivationProgress(input: {
@@ -368,6 +393,7 @@ export class SubscriptionService {
     user: AuthUser,
     requestType: CommercialRequestType,
     message?: string,
+    updateExisting = false,
   ) {
     const organizationRow = await this.prisma.organization.findFirst({
       where: { id: organization.organizationId },
@@ -381,17 +407,35 @@ export class SubscriptionService {
     );
 
     const request = await this.prisma.$transaction(async (tx) => {
-      const existing = await tx.activationRequest.findFirst({
-        where: {
-          organizationId: organization.organizationId,
-          requestType,
-          status: { in: OPEN_REQUEST_STATUSES },
-        },
+      const requestedInvoiceId = updateExisting
+        ? message?.match(/Invoice ID:\s*([0-9a-f-]{36})/i)?.[1]
+        : undefined;
+      const existing = requestedInvoiceId
+        ? await tx.activationRequest.findFirst({
+            where: {
+              organizationId: organization.organizationId, requestType,
+              status: { in: OPEN_REQUEST_STATUSES }, message: { contains: requestedInvoiceId },
+            },
+            orderBy: { createdAt: 'desc' },
+          })
+        : updateExisting
+          ? null
+          : await tx.activationRequest.findFirst({
+              where: {
+                organizationId: organization.organizationId,
+                requestType,
+                status: { in: OPEN_REQUEST_STATUSES },
+              },
+              orderBy: { createdAt: 'desc' },
+            });
         orderBy: { createdAt: 'desc' },
       });
       if (existing) {
-        // Idempotent: never create a second open/contacted request.
-        return { row: existing, created: false as const };
+        if (!updateExisting) return { row: existing, created: false as const, updated: false as const };
+        const updated = await tx.activationRequest.update({
+          where: { id: existing.id }, data: { message: message?.trim() || null, requestedByUserId: user.id },
+        });
+        return { row: updated, created: false as const, updated: true as const };
       }
 
       const created = await tx.activationRequest.create({
@@ -425,10 +469,10 @@ export class SubscriptionService {
         },
         tx,
       );
-      return { row: created, created: true as const };
+      return { row: created, created: true as const, updated: false as const };
     });
 
-    if (request.created) {
+    if (request.created || request.updated) {
       if (requestType === CommercialRequestType.RENEWAL) {
         await this.notifications.sendRenewalRequested({
           organizationId: organization.organizationId,
@@ -451,6 +495,8 @@ export class SubscriptionService {
           message: request.row.message,
           planName: entitlement.plan.name,
           effectiveStatus: entitlement.effectiveStatus,
+          requestId: request.row.id,
+          requestedAt: request.row.updatedAt,
         });
       } else {
         await this.notifications.sendActivationRequested({

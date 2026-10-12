@@ -91,6 +91,21 @@ export class PaddleService {
     return { url: session.urls.general.overview };
   }
 
+  async updateDiscountedInvoice(invoiceId: string, requestId: string, actorUserId: string, termYears: number) {
+    const invoice = await this.prisma.invoice.findFirst({ where: { id: invoiceId }, select: { id: true, paddleTransactionId: true } });
+    if (!invoice) throw new NotFoundException();
+    if (invoice.paddleTransactionId) {
+      if (!this.client) throw new ServiceUnavailableException('Paddle is unavailable, so the existing checkout cannot be safely canceled');
+      const transaction = await this.client.transactions.get(invoice.paddleTransactionId);
+      if (transaction.status === 'draft' || transaction.status === 'ready') {
+        await this.client.transactions.update(invoice.paddleTransactionId, { status: 'canceled' } as never);
+      } else if (transaction.status !== 'canceled') {
+        throw new BadRequestException('This invoice has a completed or processing card payment. Resolve that payment before changing the invoice.');
+      }
+    }
+    return this.invoices.updateDiscountedTerm(invoiceId, requestId, actorUserId, termYears);
+  }
+
   async createInvoiceCheckout(organizationId: string, invoiceId: string, ownerUserId: string, termYears: number) {
     const config = this.requireConfig();
     const client = this.client!;
@@ -116,8 +131,17 @@ export class PaddleService {
     }
     const priceId = invoice.plan.code === 'starter' ? config.starterPriceId : config.professionalPriceId;
     const expectedAmount = invoice.plan.annualPriceCents;
-    if (expectedAmount == null || invoice.currency !== 'USD' || invoice.totalCents !== expectedAmount) {
-      throw new BadRequestException('Invoice amount does not match the configured annual plan');
+    if (expectedAmount == null || invoice.currency !== 'USD') {
+      throw new BadRequestException('Invoice amount does not match the configured plan');
+    }
+    const storedTermIsValid = [1, 2, 3, 4, 5].some((years) => {
+      const expectedEnd = new Date(invoice.billingPeriodStart);
+      expectedEnd.setUTCFullYear(expectedEnd.getUTCFullYear() + years);
+      return invoice.totalCents === termPriceCents(expectedAmount, years) &&
+        expectedEnd.toISOString().slice(0, 10) === invoice.billingPeriodEnd.toISOString().slice(0, 10);
+    });
+    if (invoice.totalCents !== expectedAmount && !storedTermIsValid) {
+      throw new BadRequestException('Invoice amount and billing period do not match a configured plan term');
     }
     const paddlePrice = await client.prices.get(priceId);
     if (

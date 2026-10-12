@@ -30,7 +30,7 @@ export type InvoiceSummary = {
   billingContactEmail?: string;
   paymentInstructions: string | null;
   internalNotes?: string | null;
-  plan: { code: string; name: string } | null;
+  plan: { code: string; name: string; annualPriceCents?: number | null } | null;
   organization: { name: string; slug: string } | null;
   /** Live org Owner — platform admin responses only. */
   organizationOwner?: { id: string; fullName: string; email: string } | null;
@@ -157,6 +157,12 @@ export function updatePlatformInvoicePayment(
   return apiRequest<InvoiceSummary>(`/platform/invoices/${invoiceId}/payment`, {
     method: "PATCH",
     body,
+  });
+}
+
+export function updateDiscountedPlatformInvoice(invoiceId: string, requestId: string, termYears: number) {
+  return apiRequest<InvoiceSummary>(`/platform/invoices/${invoiceId}/discounted-term`, {
+    method: 'PATCH', body: { requestId, termYears },
   });
 }
 

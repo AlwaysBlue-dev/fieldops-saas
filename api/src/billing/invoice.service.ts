@@ -282,6 +282,71 @@ export class InvoiceService {
     return this.present(updated, { includeInstructions: true, includeInternal: true });
   }
 
+  async updateDiscountedTerm(
+    invoiceId: string,
+    requestId: string,
+    actorUserId: string,
+    termYears: number,
+  ) {
+    if (!Number.isInteger(termYears) || termYears < 2 || termYears > 5) {
+      throw new BadRequestException('Discounted invoice terms must be between 2 and 5 years');
+    }
+    const invoice = await this.requireInvoice(invoiceId);
+    if (!['starter', 'professional'].includes(invoice.plan.code) || invoice.plan.annualPriceCents == null) {
+      throw new BadRequestException('Discounted terms are available for Starter and Professional invoices');
+    }
+    if (![InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE].includes(invoice.status)) {
+      throw new BadRequestException('Only unpaid issued invoices can be updated');
+    }
+    if (invoice.paymentReportedAt || invoice.paymentVerifiedAt) {
+      throw new BadRequestException('This invoice has a payment under review or already confirmed and cannot be changed');
+    }
+    const discounts = [0, 5, 7, 10, 15];
+    const discount = discounts[termYears - 1];
+    const totalCents = Math.round(invoice.plan.annualPriceCents * termYears * (100 - discount) / 100);
+    const currentStart = invoice.billingPeriodStart;
+    const periodEnd = new Date(currentStart);
+    periodEnd.setUTCFullYear(periodEnd.getUTCFullYear() + termYears);
+    const revision = this.clock.now().toISOString();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const request = await tx.activationRequest.findFirst({
+        where: { id: requestId, organizationId: invoice.organizationId, requestType: 'PLAN_CHANGE', status: { in: ['OPEN', 'CONTACTED'] }, message: { contains: `Invoice ID: ${invoice.id}` } },
+      });
+      if (!request || !request.message?.includes(`Requested term: ${termYears} years`)) {
+        throw new BadRequestException('The open discounted invoice request does not match this invoice and term');
+      }
+      const row = await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          subtotalCents: totalCents, totalCents,
+          billingPeriodStart: currentStart, billingPeriodEnd: periodEnd,
+          status: InvoiceStatus.ISSUED, paddleTransactionId: null,
+          internalNotes: [invoice.internalNotes, `Discounted ${termYears}-year invoice sent by platform admin ${actorUserId} on ${revision}.`].filter(Boolean).join('\n'),
+        },
+        include: this.include(),
+      });
+      await tx.activationRequest.update({ where: { id: request.id }, data: { status: 'COMPLETED' } });
+      await this.audit.record({
+        action: 'INVOICE_DISCOUNTED_TERM_APPLIED', entityType: 'Invoice', entityId: row.id,
+        organizationId: row.organizationId, actorUserId,
+        oldValues: { totalCents: invoice.totalCents, periodEnd: invoice.billingPeriodEnd.toISOString(), paddleTransactionId: invoice.paddleTransactionId },
+        newValues: { totalCents, periodEnd: periodEnd.toISOString(), termYears, discountPercent: discount, requestId },
+      }, tx);
+      await this.audit.record({
+        action: 'DISCOUNTED_INVOICE_REQUEST_COMPLETED', entityType: 'ActivationRequest', entityId: request.id,
+        organizationId: row.organizationId, actorUserId,
+        oldValues: { status: request.status }, newValues: { status: 'COMPLETED', invoiceId: row.id, termYears },
+      }, tx);
+      await this.subscriptionNotifications.queueInvoiceUpdated(tx, {
+        organizationId: row.organizationId, invoiceId: row.id, invoiceNumber: row.invoiceNumber,
+        planName: row.plan.name, amount: `${formatCentsUsd(row.totalCents)} ${row.currency}`,
+        dueAt: row.dueAt, slug: row.organization.slug, termYears, revision,
+      });
+      return row;
+    });
+    return this.present(updated, { includeInstructions: true, includeInternal: true });
+  }
+
   async issue(invoiceId: string, actorUserId: string) {
     const invoice = await this.requireInvoice(invoiceId);
     if (

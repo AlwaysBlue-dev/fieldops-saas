@@ -15,7 +15,7 @@ import {
   reportInvoicePayment,
   type InvoiceSummary,
 } from "@/lib/billing";
-import { formatStorageBytes, getOrganizationSubscription, requestPlanChange } from "@/lib/subscription";
+import { formatStorageBytes, getOrganizationSubscription, requestDiscountedInvoice as submitDiscountedInvoiceRequest } from "@/lib/subscription";
 import { useSubscription } from "@/components/fieldops/subscription-provider";
 import type { OrganizationSubscription } from "@/lib/subscription";
 import { useEffect, useState } from "react";
@@ -411,12 +411,22 @@ function InvoiceDetail({
   const [paddleBusy, setPaddleBusy] = useState(false);
   const [termYears, setTermYears] = useState(1);
   const [invoiceRequestBusy, setInvoiceRequestBusy] = useState(false);
+  const [invoiceRequestSent, setInvoiceRequestSent] = useState(false);
   const [invoiceRequestError, setInvoiceRequestError] = useState<string | null>(null);
   const [paddleError, setPaddleError] = useState<string | null>(null);
   const label = invoiceStatusLabel(invoice.status, invoice.statusLabel);
   useEffect(() => {
+    setInvoiceRequestSent(false);
+    const start = new Date(invoice.billingPeriodStart);
+    const end = new Date(invoice.billingPeriodEnd);
+    const storedTerm = [1, 2, 3, 4, 5].find((years) => {
+      const expectedEnd = new Date(start);
+      expectedEnd.setUTCFullYear(expectedEnd.getUTCFullYear() + years);
+      return expectedEnd.toISOString().slice(0, 10) === end.toISOString().slice(0, 10);
+    }) ?? 1;
     const saved = Number(window.localStorage.getItem(`fieldkeel:paddle-term:${invoice.id}`));
-    if (Number.isInteger(saved) && saved >= 1 && saved <= 5) setTermYears(saved);
+    if (invoice.plan?.annualPriceCents != null && invoice.totalCents !== invoice.plan.annualPriceCents) setTermYears(storedTerm);
+    else if (Number.isInteger(saved) && saved >= 1 && saved <= 5) setTermYears(saved);
     else setTermYears(1);
   }, [invoice.id]);
   const isPreparing = invoice.status === "PREPARING" || invoice.status === "DRAFT";
@@ -425,7 +435,7 @@ function InvoiceDetail({
     (invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
     Boolean(invoice.paymentReportedAt);
   const discountPercent = MULTI_YEAR_TERM_DISCOUNTS[termYears - 1] ?? 0;
-  const termAmountCents = multiYearPriceCents(invoice.totalCents, termYears) ?? invoice.totalCents;
+  const termAmountCents = multiYearPriceCents(invoice.plan?.annualPriceCents ?? invoice.totalCents, termYears) ?? invoice.totalCents;
   const formattedTermAmount = new Intl.NumberFormat("en-US", {
     style: "currency", currency: invoice.currency,
   }).format(termAmountCents / 100);
@@ -434,8 +444,8 @@ function InvoiceDetail({
     setInvoiceRequestBusy(true);
     setInvoiceRequestError(null);
     try {
-      const message = `Discounted invoice request for ${invoice.invoiceNumber}: ${invoice.plan?.name ?? "plan"}, ${termYears} ${termYears === 1 ? "year" : "years"}, ${discountPercent}% discount, ${formattedTermAmount} total. Please update and reissue the invoice for this term.`;
-      await requestPlanChange(organizationId, message);
+      await submitDiscountedInvoiceRequest(organizationId, invoice.id, termYears);
+      setInvoiceRequestSent(true);
       onNotice("Request sent. The FieldKeel team will respond and update your invoice.");
     } catch (error) {
       setInvoiceRequestError(error instanceof Error ? error.message : "Could not send the invoice request.");
@@ -557,6 +567,7 @@ function InvoiceDetail({
               <select
                 className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                 value={termYears}
+                disabled={invoiceRequestSent}
                 onChange={(event) => {
                   const years = Number(event.target.value);
                   setTermYears(years);
@@ -573,13 +584,16 @@ function InvoiceDetail({
               Due today: <strong>{formattedTermAmount}</strong>{discountPercent ? ` · ${discountPercent}% off` : ""}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {termYears > 1 ? (
-              <Button type="button" variant="outline" disabled={invoiceRequestBusy} onClick={() => void requestDiscountedInvoice()}>
-                {invoiceRequestBusy ? "Sending request…" : "Request discounted invoice"}
-              </Button>
-            ) : null}
-            {invoiceRequestError ? <p className="text-sm text-destructive">{invoiceRequestError}</p> : null}
+          <div className="space-y-2">
+            {invoiceRequestSent ? <p role="status" className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium">Request sent. The FieldKeel team will respond and update your invoice.</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              {termYears > 1 ? (
+                <Button type="button" variant="outline" disabled={invoiceRequestBusy || invoiceRequestSent} onClick={() => void requestDiscountedInvoice()}>
+                  {invoiceRequestBusy ? "Sending request…" : invoiceRequestSent ? "Request for discount sent successfully" : "Request discounted invoice"}
+                </Button>
+              ) : null}
+              {invoiceRequestError ? <p className="text-sm text-destructive">{invoiceRequestError}</p> : null}
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             This invoice was issued for 1 year. Pay Now applies the selected multi-year discount immediately. To pay by invoice with a discount, request an updated invoice above; the team will respond and update it.

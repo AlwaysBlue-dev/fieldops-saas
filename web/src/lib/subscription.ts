@@ -141,10 +141,14 @@ export function requestRenewal(organizationId: string, message?: string) {
 export function requestPlanChange(organizationId: string, message?: string) {
   return apiRequest<CommercialRequest>(
     `/organizations/${organizationId}/plan-change-requests`,
-    {
-      method: "POST",
-      body: message ? { message } : {},
-    },
+    { method: "POST", body: message ? { message } : {} },
+  );
+}
+
+export function requestDiscountedInvoice(organizationId: string, invoiceId: string, termYears: number) {
+  return apiRequest<CommercialRequest>(
+    `/organizations/${organizationId}/discounted-invoice-requests`,
+    { method: "POST", body: { invoiceId, termYears } },
   );
 }
 

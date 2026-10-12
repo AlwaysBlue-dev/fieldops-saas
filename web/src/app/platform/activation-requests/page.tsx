@@ -1,9 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { updateDiscountedPlatformInvoice } from "@/lib/billing";
 import { ApiError } from "@/lib/api";
 import {
   listActivationRequests,
+  listCommercialRequests,
   platformActivate,
   updateCommercialRequest,
   type PlatformCommercialRequest,
@@ -17,14 +19,21 @@ export default function PlatformActivationRequestsPage() {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   async function refresh() {
-    setRows(await listActivationRequests());
+    const [activations, planChanges] = await Promise.all([
+      listActivationRequests(),
+      listCommercialRequests({ requestType: "PLAN_CHANGE" }),
+    ]);
+    setRows([...activations, ...planChanges].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
   }
 
   useEffect(() => {
     let cancelled = false;
-    listActivationRequests()
-      .then((next) => {
-        if (!cancelled) setRows(next);
+    Promise.all([
+      listActivationRequests(),
+      listCommercialRequests({ requestType: "PLAN_CHANGE" }),
+    ])
+      .then(([activations, planChanges]) => {
+        if (!cancelled) setRows([...activations, ...planChanges].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)));
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -52,6 +61,20 @@ export default function PlatformActivationRequestsPage() {
       );
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Update failed.");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function sendDiscountedInvoice(row: PlatformCommercialRequest, invoiceId: string, termYears: number) {
+    setMessage(null);
+    setPendingId(row.id);
+    try {
+      await updateDiscountedPlatformInvoice(invoiceId, row.id, termYears);
+      await refresh();
+      setMessage(`Invoice updated to ${termYears} years and sent to the workspace billing contacts.`);
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : "Invoice could not be updated.");
     } finally {
       setPendingId(null);
     }
@@ -101,6 +124,9 @@ export default function PlatformActivationRequestsPage() {
             {(rows ?? []).map((row) => {
               const owner = row.owner ?? row.requestedBy;
               const busy = pendingId === row.id;
+              const invoiceId = row.message?.match(/Invoice ID:\s*([0-9a-f-]{36})/i)?.[1];
+              const termYears = Number(row.message?.match(/Requested term:\s*(\d+)\s+years?/i)?.[1]);
+              const isDiscountedInvoiceRequest = Boolean(invoiceId && termYears >= 2 && termYears <= 5);
               return (
                 <tr
                   key={row.id}
@@ -140,18 +166,25 @@ export default function PlatformActivationRequestsPage() {
                       >
                         Mark contacted
                       </Button>
-                      <Button
-                        className="h-8"
-                        variant="outline"
-                        disabled={
-                          busy ||
-                          row.status === "CLOSED" ||
-                          row.status === "COMPLETED"
-                        }
-                        onClick={() => activateFromRequest(row)}
-                      >
-                        Activate organization
-                      </Button>
+                      {!isDiscountedInvoiceRequest ? (
+                        <Button
+                          className="h-8"
+                          variant="outline"
+                          disabled={busy || row.status === "CLOSED" || row.status === "COMPLETED"}
+                          onClick={() => activateFromRequest(row)}
+                        >
+                          Activate organization
+                        </Button>
+                      ) : null}
+                      {isDiscountedInvoiceRequest ? (
+                        <Button
+                          className="h-8"
+                          disabled={busy || row.status === "CLOSED" || row.status === "COMPLETED"}
+                          onClick={() => void sendDiscountedInvoice(row, invoiceId!, termYears)}
+                        >
+                          {busy ? "Sending…" : `Update & send ${termYears}-year invoice`}
+                        </Button>
+                      ) : null}
                       <Button
                         className="h-8"
                         variant="outline"
