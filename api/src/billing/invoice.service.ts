@@ -295,7 +295,7 @@ export class InvoiceService {
     if (!['starter', 'professional'].includes(invoice.plan.code) || invoice.plan.annualPriceCents == null) {
       throw new BadRequestException('Discounted terms are available for Starter and Professional invoices');
     }
-    if (![InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE].includes(invoice.status)) {
+    if (invoice.status !== InvoiceStatus.ISSUED && invoice.status !== InvoiceStatus.OVERDUE) {
       throw new BadRequestException('Only unpaid issued invoices can be updated');
     }
     if (invoice.paymentReportedAt || invoice.paymentVerifiedAt) {

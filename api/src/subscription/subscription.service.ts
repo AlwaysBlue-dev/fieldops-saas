@@ -428,8 +428,6 @@ export class SubscriptionService {
               },
               orderBy: { createdAt: 'desc' },
             });
-        orderBy: { createdAt: 'desc' },
-      });
       if (existing) {
         if (!updateExisting) return { row: existing, created: false as const, updated: false as const };
         const updated = await tx.activationRequest.update({
