@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -52,7 +53,7 @@ export class SubscriptionService {
 
   async getForOrganization(organizationId: string) {
     const entitlement = await this.entitlements.evaluate(organizationId);
-    const [usage, openRequests, activationInvoice, renewalInvoice] =
+    const [usage, openRequests, activationInvoice, renewalInvoice, billingSubscription] =
       await Promise.all([
         this.usage.usageForSubscription(organizationId),
         this.prisma.activationRequest.findMany({
@@ -77,6 +78,9 @@ export class SubscriptionService {
             type: InvoiceType.RENEWAL,
           },
           orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        }),
+        this.prisma.subscription.findUnique({
+          where: { organizationId }, select: { externalSubscriptionId: true },
         }),
       ]);
 
@@ -129,18 +133,14 @@ export class SubscriptionService {
         createdAt: row.createdAt.toISOString(),
       })),
       supportEmail: this.salesEmail(),
+      paymentMethod: entitlement.effectiveStatus === 'TRIALING' || entitlement.effectiveStatus === 'GRACE'
+        ? 'TRIAL'
+        : billingSubscription?.externalSubscriptionId ? 'PADDLE_CARD' : 'MANUAL_INVOICE',
       activationProgress,
       renewalProgress,
       availableActions: {
-        requestActivation:
-          canRequestActivationStatus &&
-          !hasOpenActivation &&
-          activationProgress.state === 'can_request',
-        requestRenewal:
-          canRequestRenewalStatus &&
-          !hasOpenRenewal &&
-          (renewalProgress.state === 'can_request' ||
-            renewalProgress.state === 'none'),
+        requestActivation: false,
+        requestRenewal: false,
         requestPlanChange:
           entitlement.effectiveStatus !== 'SUSPENDED' &&
           entitlement.effectiveStatus !== 'CANCELLED' &&
@@ -156,28 +156,18 @@ export class SubscriptionService {
 
   async requestActivation(
     organization: OrganizationContext,
-    user: AuthUser,
-    dto: RequestActivationDto,
+    _user: AuthUser,
+    _dto: RequestActivationDto,
   ) {
-    return this.createRequest(
-      organization,
-      user,
-      CommercialRequestType.ACTIVATION,
-      dto.message,
-    );
+    throw new BadRequestException(`Paid activation is handled in Billing. Open /app/${encodeURIComponent(organization.slug)}/settings/billing and choose Pay Now.`);
   }
 
   async requestRenewal(
     organization: OrganizationContext,
-    user: AuthUser,
-    dto: RequestActivationDto,
+    _user: AuthUser,
+    _dto: RequestActivationDto,
   ) {
-    return this.createRequest(
-      organization,
-      user,
-      CommercialRequestType.RENEWAL,
-      dto.message,
-    );
+    throw new BadRequestException(`Renewal is handled in Billing. Open /app/${encodeURIComponent(organization.slug)}/settings/billing and review the available payment options.`);
   }
 
   async requestPlanChange(
@@ -242,7 +232,7 @@ export class SubscriptionService {
     if (input.canRequestActivation) {
       return {
         state: 'can_request',
-        label: 'Request Activation',
+        label: 'Pay Now',
         invoiceId: null,
         canPay: false,
         statusLabel: null,
@@ -297,7 +287,7 @@ export class SubscriptionService {
     if (input.canRequestRenewal) {
       return {
         state: 'can_request',
-        label: 'Request Renewal',
+        label: 'Pay Now',
         invoiceId: null,
         canPay: false,
         statusLabel: null,

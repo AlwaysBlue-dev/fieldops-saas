@@ -32,7 +32,7 @@ export const cannotInvite: DocArticle = {
       id: "readonly",
       heading: "Read-only and duplicates",
       paragraphs: [
-        "After trial grace, expired, suspended, or cancelled workspaces reject invites. Request activation first. Also check for an existing pending invitation to the same email you can resend or revoke before creating another.",
+        "After trial grace, expired, suspended, or cancelled workspaces reject invites. Open Billing to review payment options and restore access after payment is confirmed. Also check for an existing pending invitation to the same email you can resend or revoke before creating another.",
         "If the person already has an ACTIVE membership, invite is unnecessary — adjust their role from Members instead.",
       ],
     },

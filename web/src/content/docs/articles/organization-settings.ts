@@ -52,7 +52,7 @@ export const organizationSettings: DocArticle = {
       heading: "Branding, storage, and plan",
       paragraphs: [
         "Settings → Storage shows org-wide quota usage. Branding/logo upload requires CUSTOM_BRANDING on the effective plan (Professional trial and paid Professional/Business). Logo files should stay near the ~2 MB guidance.",
-        "Plan & Subscription, Plan & Usage, and Billing are available only to the organization OWNER. They show effective status, trial/renewal dates, usage, invoices, and request actions for activation, renewal, or plan change. Request Activation becomes Request Sent after submission and follows invoice progress (prepare → pay → verify → active).",
+        "Plan & Subscription, Plan & Usage, and Billing are available only to the organization OWNER. They show status, trial/renewal dates, usage, invoices, and payment options. Open Billing to pay an issued invoice by card or manual invoice. Manual payment remains under review until a platform admin confirms receipt.",
         "Theme appearance preferences are UI chrome and do not change tenant data.",
       ],
     },

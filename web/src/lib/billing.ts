@@ -18,10 +18,12 @@ export type InvoiceSummary = {
   paidAt: string | null;
   paymentReportedAt?: string | null;
   paymentVerifiedAt?: string | null;
+  verifiedBy?: { id: string; fullName: string; email: string } | null;
   hasPaymentUrl?: boolean;
   canPay?: boolean;
   paymentUrl?: string | null;
   externalReference?: string | null;
+  paymentMethodLabel?: string;
   customerName: string;
   customerBillingEmail: string;
   billingContactName?: string;
@@ -37,6 +39,8 @@ export type InvoiceSummary = {
     reference: string | null;
     message: string | null;
     createdAt: string;
+    reviewedAt?: string | null;
+    rejectionReason?: string | null;
   }>;
 };
 
@@ -46,6 +50,16 @@ export type InvoiceListResponse = {
   pageSize: number;
   total: number;
   totalPages: number;
+  paddlePayments?: Array<{
+    eventType: string;
+    eventStatus: string | null;
+    transactionId: string | null;
+    amountCents: number | null;
+    currency: string | null;
+    billingPeriodStart: string | null;
+    billingPeriodEnd: string | null;
+    createdAt: string;
+  }>;
 };
 
 export type BillingSettings = {
@@ -86,6 +100,13 @@ export function listOrganizationInvoices(
   return apiRequest<InvoiceListResponse>(
     `/organizations/${organizationId}/invoices${toQuery(query)}`,
   );
+}
+
+export function createPaddleCustomerPortalSession(organizationId: string) {
+  return apiRequest<{ url: string }>(`/organizations/${organizationId}/paddle-portal`, {
+    method: "POST",
+    body: {},
+  });
 }
 
 export function getOrganizationInvoice(organizationId: string, invoiceId: string) {
@@ -173,12 +194,12 @@ export function markPlatformInvoiceOverdue(invoiceId: string) {
   });
 }
 
-export function markPlatformInvoicePaymentNotFound(invoiceId: string) {
+export function markPlatformInvoicePaymentNotFound(invoiceId: string, reason: string) {
   return apiRequest<InvoiceSummary>(
     `/platform/invoices/${invoiceId}/payment-not-found`,
     {
       method: "POST",
-      body: {},
+      body: { reason },
     },
   );
 }
@@ -221,6 +242,14 @@ export function invoiceStatusLabel(status: string, statusLabel?: string) {
       return "Payment awaiting verification";
     case "PAID":
       return "Paid";
+    case "REFUND_PENDING":
+      return "Refund under review";
+    case "PARTIALLY_REFUNDED":
+      return "Partially refunded";
+    case "REFUNDED":
+      return "Refunded";
+    case "DISPUTED":
+      return "Payment disputed";
     case "OVERDUE":
       return "Overdue";
     case "VOID":

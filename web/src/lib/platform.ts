@@ -5,6 +5,29 @@ import type {
   SubscriptionPlan,
 } from "./subscription";
 
+
+export type PlatformNotification = {
+  id: string;
+  organizationId: string | null;
+  type: string;
+  title: string;
+  message: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  payload: unknown;
+  status: "UNREAD" | "READ";
+  readAt: string | null;
+  createdAt: string;
+};
+
+export function listPlatformNotifications(page = 1) {
+  return apiRequest<{ items: PlatformNotification[]; page: number; pageSize: number; total: number; totalPages: number }>(`/platform/notifications?page=${page}&pageSize=50`);
+}
+
+export function markPlatformNotificationRead(id: string) {
+  return apiRequest<PlatformNotification>(`/platform/notifications/${id}/read`, { method: "PATCH", body: {} });
+}
+
 export type PlatformOwner = {
   id: string;
   fullName: string;

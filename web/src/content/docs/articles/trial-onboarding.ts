@@ -49,11 +49,11 @@ export const trialOnboarding: DocArticle = {
     },
     {
       id: "activation",
-      heading: "Request activation and manual invoice",
+      heading: "Choose a payment method",
       paragraphs: [
-        "There is no self-serve card checkout. Owners request activation from Plan & Subscription or the trial banner. After Request Activation, the control shows Request Sent, then Invoice Being Prepared, then Pay Invoice when Billing has the secure link. After I’ve Sent Payment, status is Payment Awaiting Verification until FieldKeel confirms payment and the subscription becomes Active.",
+        "The 14-day Professional trial needs no card and will not auto-charge. When an invoice is issued, Owners can pay by card through Paddle for an annually renewing subscription, or follow manual invoice/bank-transfer instructions. After a manual payment, select I’ve Sent Payment and allow up to 2 business days for verification. A subscription changes only after payment is confirmed.",
         "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
-        "Never-activated additional workspaces show Activate Workspace. Workspaces that previously had a trial or paid period and later expired show Reactivate Workspace. Both open the same Billing activation workflow.",
+        "An additional workspace with no paid period and an expired workspace both link to Billing with Pay Now. Pay an issued invoice by card or manual invoice; access changes only after payment is confirmed.",
       ],
     },
     {

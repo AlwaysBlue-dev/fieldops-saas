@@ -12,6 +12,14 @@ export function invoiceStatusLabel(status: InvoiceStatus | string): string {
       return 'Payment awaiting verification';
     case 'PAID':
       return 'Paid';
+    case 'REFUND_PENDING':
+      return 'Refund under review';
+    case 'PARTIALLY_REFUNDED':
+      return 'Partially refunded';
+    case 'REFUNDED':
+      return 'Refunded';
+    case 'DISPUTED':
+      return 'Payment disputed';
     case 'OVERDUE':
       return 'Overdue';
     case 'VOID':

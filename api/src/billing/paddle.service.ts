@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Environment, Paddle } from '@paddle/paddle-node-sdk';
 import {
   InvoiceStatus,
+  Prisma,
   SubscriptionStatus,
 } from '../generated/prisma/client.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -48,6 +49,24 @@ export class PaddleService {
     this.client = apiKey ? new Paddle(apiKey, { environment: Environment.sandbox }) : null;
   }
 
+  async createCustomerPortalSession(organizationId: string) {
+    if (!this.client) {
+      throw new ServiceUnavailableException('Paddle sandbox billing management is not configured');
+    }
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+      select: { externalCustomerId: true, externalSubscriptionId: true },
+    });
+    if (!subscription?.externalCustomerId || !subscription.externalSubscriptionId) {
+      throw new BadRequestException('This workspace does not have a linked Paddle subscription');
+    }
+    const session = await this.client.customerPortalSessions.create(
+      subscription.externalCustomerId,
+      [subscription.externalSubscriptionId],
+    );
+    return { url: session.urls.general.overview };
+  }
+
   async createInvoiceCheckout(organizationId: string, invoiceId: string, ownerUserId: string) {
     const config = this.requireConfig();
     const client = this.client!;
@@ -56,7 +75,7 @@ export class PaddleService {
       include: { plan: true },
     });
     if (!invoice) throw new NotFoundException();
-    if (invoice.status !== InvoiceStatus.ISSUED && invoice.status !== InvoiceStatus.PAYMENT_REPORTED && invoice.status !== InvoiceStatus.OVERDUE) {
+    if (invoice.status !== InvoiceStatus.ISSUED && invoice.status !== InvoiceStatus.OVERDUE) {
       throw new BadRequestException('Only issued or overdue invoices can be paid with checkout');
     }
     if (invoice.plan.code !== 'starter' && invoice.plan.code !== 'professional') {
@@ -66,7 +85,7 @@ export class PaddleService {
       where: { organizationId },
       select: { externalSubscriptionId: true },
     });
-    if (currentSubscription?.externalSubscriptionId && invoice.type !== 'ACTIVATION') {
+    if (currentSubscription?.externalSubscriptionId) {
       throw new BadRequestException('This workspace already has a Paddle subscription; manage its recurring billing instead of starting a second one.');
     }
     const priceId = invoice.plan.code === 'starter' ? config.starterPriceId : config.professionalPriceId;
@@ -130,6 +149,14 @@ export class PaddleService {
       await this.processCompletedTransaction(event.eventId, event.eventType, data);
       return { received: true, processed: true };
     }
+    if (event.eventType === 'transaction.payment_failed') {
+      await this.processFailedTransaction(event.eventId, event.eventType, data);
+      return { received: true, processed: true };
+    }
+    if (event.eventType === 'adjustment.created' || event.eventType === 'adjustment.updated') {
+      await this.processAdjustment(event.eventId, event.eventType, data);
+      return { received: true, processed: true };
+    }
     if (event.eventType.startsWith('subscription.')) {
       await this.processSubscriptionEvent(event.eventId, event.eventType, data);
       return { received: true, processed: true };
@@ -178,22 +205,124 @@ export class PaddleService {
       throw new BadRequestException('Paddle transaction does not match an eligible FieldKeel invoice');
     }
     this.assertTransactionMatchesPlan(data, invoice.plan.code, invoice.plan.annualPriceCents, invoice.currency, invoice.totalCents);
+    // InvoiceService owns its transaction and performs an idempotent invoice+subscription
+    // transition. Keep event claiming separate so a retry can finish if a worker stops between them.
+    const active = await this.prisma.subscription.findUnique({ where: { organizationId }, select: { activatedAt: true } });
+    const paddlePeriod = data.billingPeriod && typeof data.billingPeriod === 'object'
+      ? data.billingPeriod as PaddleRecord : {};
+    const periodStart = typeof paddlePeriod.startsAt === 'string' ? new Date(paddlePeriod.startsAt) : null;
+    const periodEnd = typeof paddlePeriod.endsAt === 'string' ? new Date(paddlePeriod.endsAt) : null;
+    const validPaddlePeriod = periodStart && periodEnd && !Number.isNaN(periodStart.getTime()) &&
+      !Number.isNaN(periodEnd.getTime()) && periodEnd > periodStart
+      ? { start: periodStart, end: periodEnd } : undefined;
+    if (!validPaddlePeriod) {
+      throw new BadRequestException('Completed Paddle transaction is missing its authoritative billing period');
+    }
+    if (invoice.status !== InvoiceStatus.PAID) {
+      if (invoice.type === 'RENEWAL' || active?.activatedAt) {
+        await this.invoices.markPaddlePaidAndApply(invoiceId, ownerUserId, 'renew', validPaddlePeriod);
+      } else {
+        await this.invoices.markPaddlePaidAndApply(invoiceId, ownerUserId, 'activate', validPaddlePeriod);
+      }
+    }
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
-      const active = await tx.subscription.findUnique({ where: { organizationId }, select: { activatedAt: true } });
-      if (invoice.status !== InvoiceStatus.PAID) {
-        if (invoice.type === 'RENEWAL' || active?.activatedAt) {
-          await this.invoices.markPaidAndRenew(invoiceId, ownerUserId);
-        } else {
-          await this.invoices.markPaidAndActivate(invoiceId, ownerUserId);
-        }
-      }
       await tx.subscription.update({
         where: { organizationId },
         data: { externalCustomerId: customerId, externalSubscriptionId: paddleSubscriptionId },
       });
       await tx.paddleWebhookEvent.create({ data: { eventId, eventType } });
+      await this.saveTransactionEvent(tx, eventId, organizationId, invoiceId, transactionId, paddleSubscriptionId, data);
+    });
+  }
+
+  private async processFailedTransaction(eventId: string, eventType: string, data: PaddleRecord) {
+    const transactionId = typeof data.id === 'string' ? data.id : '';
+    const paddleSubscriptionId = typeof data.subscriptionId === 'string' ? data.subscriptionId : '';
+    if (!transactionId) throw new BadRequestException('Failed Paddle transaction is missing its ID');
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { paddleTransactionId: transactionId }, include: { plan: true },
+    });
+    const subscription = paddleSubscriptionId
+      ? await this.prisma.subscription.findFirst({ where: { externalSubscriptionId: paddleSubscriptionId } })
+      : null;
+    const organizationId = invoice?.organizationId ?? subscription?.organizationId;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
+      if (organizationId) {
+        await this.subscriptionNotifications.queuePaddlePaymentFailed(tx, {
+          organizationId, eventId, transactionId,
+          invoiceNumber: invoice?.invoiceNumber ?? null, renewal: Boolean(subscription),
+        });
+        if (invoice && !subscription) {
+          await tx.invoice.updateMany({
+            where: { id: invoice.id, paddleTransactionId: transactionId },
+            data: {
+              paddleTransactionId: null,
+              internalNotes: [invoice.internalNotes, `Paddle payment failed (${eventId}): ${transactionId}`].filter(Boolean).join('\n'),
+            },
+          });
+        }
+      }
+      await tx.paddleWebhookEvent.create({ data: { eventId, eventType } });
+      if (organizationId) {
+        await this.saveTransactionEvent(tx, eventId, organizationId, invoice?.id ?? null, transactionId, paddleSubscriptionId || null, data);
+      }
+    });
+  }
+
+  private async processAdjustment(eventId: string, eventType: string, data: PaddleRecord) {
+    const transactionId = typeof data.transactionId === 'string' ? data.transactionId : '';
+    const action = typeof data.action === 'string' ? data.action : '';
+    const adjustmentStatus = typeof data.status === 'string' ? data.status : '';
+    if (!transactionId || !['refund', 'chargeback', 'chargeback_warning', 'chargeback_reverse', 'chargeback_warning_reverse'].includes(action)) {
+      await this.prisma.paddleWebhookEvent.createMany({ data: [{ eventId, eventType }], skipDuplicates: true });
+      return;
+    }
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { paddleTransactionId: transactionId }, include: { plan: true },
+    });
+    const paddleSubscriptionId = typeof data.subscriptionId === 'string' ? data.subscriptionId : '';
+    const subscription = paddleSubscriptionId
+      ? await this.prisma.subscription.findFirst({ where: { externalSubscriptionId: paddleSubscriptionId } })
+      : null;
+    const organizationId = invoice?.organizationId ?? subscription?.organizationId;
+    let nextStatus: string | null = null;
+    if (action === 'refund') {
+      if (adjustmentStatus === 'approved') {
+        const adjustmentType = typeof data.type === 'string' ? data.type : '';
+        nextStatus = adjustmentType === 'full' ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+      } else if (adjustmentStatus === 'pending_approval') nextStatus = 'REFUND_PENDING';
+      else if (['rejected', 'reversed'].includes(adjustmentStatus)) nextStatus = 'PAID';
+    } else if (action === 'chargeback_reverse' || action === 'chargeback_warning_reverse') {
+      nextStatus = 'PAID';
+    } else if (action === 'chargeback' && ['approved', 'pending_approval'].includes(adjustmentStatus)) {
+      nextStatus = 'DISPUTED';
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
+      if (invoice && nextStatus) {
+        await tx.$executeRaw`UPDATE "Invoice" SET "status" = ${nextStatus}::"InvoiceStatus", "updatedAt" = NOW() WHERE "id" = ${invoice.id}::uuid`;
+        await this.audit.record({
+          action: 'PADDLE_ADJUSTMENT_RECORDED', entityType: 'Invoice', entityId: invoice.id,
+          organizationId: invoice.organizationId, actorUserId: null,
+          oldValues: { status: invoice.status },
+          newValues: { status: nextStatus, eventId, eventType, adjustmentStatus, action },
+        }, tx);
+      }
+      if (organizationId) {
+        await this.subscriptionNotifications.queuePaddleAdjustment(tx, {
+          organizationId, eventId, transactionId, invoiceNumber: invoice?.invoiceNumber ?? null,
+          action, adjustmentStatus, nextInvoiceStatus: nextStatus,
+        });
+      }
+      await tx.paddleWebhookEvent.create({ data: { eventId, eventType } });
+      if (organizationId) {
+        await this.saveTransactionEvent(tx, eventId, organizationId, invoice?.id ?? null, transactionId, paddleSubscriptionId || null, data, `${action}_${adjustmentStatus}`);
+      }
     });
   }
 
@@ -229,6 +358,8 @@ export class PaddleService {
       amount ?? -1,
     );
     await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       const before = await this.subscriptionNotifications.lockSubscription(tx, subscription.organizationId);
       await tx.subscription.update({
         where: { id: subscription.id },
@@ -256,6 +387,11 @@ export class PaddleService {
         'renewal',
       );
       await tx.paddleWebhookEvent.create({ data: { eventId, eventType } });
+      const transactionId = typeof data.id === 'string' ? data.id : null;
+      const paddleSubscriptionId = typeof data.subscriptionId === 'string' ? data.subscriptionId : null;
+      if (transactionId) {
+        await this.saveTransactionEvent(tx, eventId, subscription.organizationId, null, transactionId, paddleSubscriptionId, data);
+      }
     });
   }
 
@@ -284,21 +420,60 @@ export class PaddleService {
     }
   }
 
+  private async saveTransactionEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    organizationId: string,
+    invoiceId: string | null,
+    transactionId: string,
+    paddleSubscriptionId: string | null,
+    data: PaddleRecord,
+    statusOverride?: string,
+  ) {
+    const details = data.details && typeof data.details === 'object' ? data.details as PaddleRecord : {};
+    const nestedTotals = details.totals && typeof details.totals === 'object' ? details.totals as PaddleRecord : {};
+    const eventTotals = data.totals && typeof data.totals === 'object' ? data.totals as PaddleRecord : {};
+    const amount = Number(eventTotals.total ?? nestedTotals.total ?? eventTotals.subtotal ?? nestedTotals.subtotal);
+    const period = data.billingPeriod && typeof data.billingPeriod === 'object' ? data.billingPeriod as PaddleRecord : {};
+    const start = typeof period.startsAt === 'string' ? new Date(period.startsAt) : null;
+    const end = typeof period.endsAt === 'string' ? new Date(period.endsAt) : null;
+    const status = statusOverride ?? (typeof data.status === 'string' ? data.status : null);
+    const currency = typeof data.currencyCode === 'string' ? data.currencyCode : null;
+    await tx.$executeRaw`UPDATE "PaddleWebhookEvent" SET
+      "organizationId" = ${organizationId}::uuid,
+      "invoiceId" = ${invoiceId}::uuid,
+      "transactionId" = ${transactionId},
+      "paddleSubscriptionId" = ${paddleSubscriptionId},
+      "eventStatus" = ${status},
+      "amountCents" = ${Number.isSafeInteger(amount) ? amount : null},
+      "currency" = ${currency},
+      "billingPeriodStart" = ${start && !Number.isNaN(start.getTime()) ? start : null},
+      "billingPeriodEnd" = ${end && !Number.isNaN(end.getTime()) ? end : null}
+      WHERE "eventId" = ${eventId}`;
+  }
+
   private async processSubscriptionEvent(eventId: string, eventType: string, data: PaddleRecord) {
     const paddleSubscriptionId = typeof data.id === 'string' ? data.id : '';
     if (!paddleSubscriptionId) throw new BadRequestException('Paddle subscription event is missing its ID');
     if (await this.prisma.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
     await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       const current = await tx.subscription.findFirst({ where: { externalSubscriptionId: paddleSubscriptionId } });
       if (current) {
         const scheduledChange = data.scheduledChange && typeof data.scheduledChange === 'object'
           ? data.scheduledChange as PaddleRecord
           : null;
         const status = typeof data.status === 'string' ? data.status : '';
+        const hasScheduledChange = Object.prototype.hasOwnProperty.call(data, 'scheduledChange');
+        const cancelAtPeriodEnd = status === 'canceled' || scheduledChange?.action === 'cancel' ||
+          (!hasScheduledChange && current.cancelAtPeriodEnd);
+        const reactivated = status === 'active' &&
+          (current.cancelAtPeriodEnd || current.status === SubscriptionStatus.PAST_DUE) && !cancelAtPeriodEnd;
         await tx.subscription.update({
           where: { id: current.id },
           data: {
-            cancelAtPeriodEnd: scheduledChange?.action === 'cancel' || status === 'canceled',
+            cancelAtPeriodEnd,
             ...(status === 'past_due' ? { status: SubscriptionStatus.PAST_DUE } : {}),
             ...(status === 'active' && current.status === SubscriptionStatus.PAST_DUE
               ? { status: SubscriptionStatus.ACTIVE }
@@ -306,6 +481,15 @@ export class PaddleService {
             ...(typeof data.customerId === 'string' ? { externalCustomerId: data.customerId } : {}),
           },
         });
+        if ((cancelAtPeriodEnd && !current.cancelAtPeriodEnd) || reactivated) {
+          const period = data.currentBillingPeriod && typeof data.currentBillingPeriod === 'object'
+            ? data.currentBillingPeriod as PaddleRecord : {};
+          const periodEnd = typeof period.endsAt === 'string' ? new Date(period.endsAt) : current.currentPeriodEnd;
+          await this.subscriptionNotifications.queuePaddleSubscriptionNotice(tx, {
+            organizationId: current.organizationId, eventId, cancelled: cancelAtPeriodEnd,
+            effectiveAt: periodEnd && !Number.isNaN(periodEnd.getTime()) ? periodEnd : null,
+          });
+        }
       }
       await tx.paddleWebhookEvent.create({ data: { eventId, eventType } });
     });

@@ -360,8 +360,8 @@ export function CreateWorkspaceForm() {
                 </select>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   {planCode === "business"
-                    ? "Business is sales-assisted. After creating the workspace, use Activate Workspace or Billing to continue."
-                    : "After create, use Activate Workspace from the banner or open Billing. FieldKeel sends an official invoice — there is no card checkout in the app."}
+                    ? "Business is sales-assisted. After creating the workspace, open Billing or contact FieldKeel to arrange activation."
+                    : "After create, open Billing to review payment options. Once a Starter or Professional invoice is issued, you can pay by card or follow manual invoice instructions. Contact FieldKeel if no invoice appears."}
                 </p>
               </FormField>
             ) : null}

@@ -97,6 +97,40 @@ export class NotificationsService {
     return targetIds;
   }
 
+  async notifyPlatformAdmins(input: {
+    type: string; title: string; message: string; relatedEntityType?: string; relatedEntityId?: string;
+    payload?: Record<string, unknown>;
+  }, db: Db = this.prisma) {
+    const admins = await db.user.findMany({
+      where: { platformRole: 'SUPER_ADMIN', status: 'ACTIVE' }, select: { id: true },
+    });
+    return this.notify({
+      organizationId: null, recipientUserIds: admins.map((admin) => admin.id),
+      ...input, dedupeUnread: true,
+    }, db);
+  }
+
+  async listPlatform(userId: string, query: { unreadOnly?: boolean; page?: number; pageSize?: number } = {}) {
+    const page = query.page ?? 1;
+    const pageSize = Math.min(Math.max(query.pageSize ?? 40, 1), 100);
+    const where = { organizationId: null, userId, ...(query.unreadOnly ? { status: NotificationStatus.UNREAD } : {}) };
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    ]);
+    return { items: rows.map((row) => this.serialize(row)), page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
+  }
+
+  async markPlatformRead(userId: string, notificationId: string, read: boolean) {
+    const row = await this.prisma.notification.findFirst({ where: { id: notificationId, organizationId: null, userId } });
+    if (!row) throw new NotFoundException();
+    if ((row.status === NotificationStatus.READ) === read) return this.serialize(row);
+    const updated = await this.prisma.notification.update({
+      where: { id: row.id }, data: { status: read ? NotificationStatus.READ : NotificationStatus.UNREAD, readAt: read ? new Date() : null },
+    });
+    return this.serialize(updated);
+  }
+
   async list(
     ctx: OrganizationContext,
     actorUserId: string,

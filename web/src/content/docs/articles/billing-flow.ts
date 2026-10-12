@@ -52,7 +52,7 @@ export const understandingInvoice: DocArticle = {
       heading: "FieldKeel invoice identity",
       paragraphs: [
         "FieldKeel generates its own invoice numbers (for example FC-2026-000021). The invoice records your organization, plan, amount, currency, issued and due dates, billing period, and status.",
-        "While an invoice is being prepared you will see “Invoice being prepared.” When it is ready to pay, the status becomes “Payment due.” After you report payment it shows “Payment awaiting verification,” then “Paid” once confirmed.",
+        "While an invoice is being prepared you will see “Invoice being prepared.” When it is ready to pay, the status becomes “Payment due.” Manual payments show “Payment under review” after you select I’ve Sent Payment; allow up to 2 business days for verification. Card payments are confirmed from Paddle events.",
       ],
     },
     {
@@ -69,7 +69,7 @@ export const payingAnInvoice: DocArticle = {
   slug: "paying-an-invoice",
   title: "Paying an invoice",
   description:
-    "How to open the secure payment link from Billing and complete payment.",
+    "Pay by card through Paddle or use manual invoice instructions and verify payment.",
   categoryId: "billing",
   keywords: ["pay", "payment", "secure link", "Pay Invoice"],
   relatedSlugs: [
@@ -83,7 +83,7 @@ export const payingAnInvoice: DocArticle = {
       id: "how",
       heading: "How to pay",
       paragraphs: [
-        "When your invoice is ready, a secure payment link will appear in your Billing area. Select Pay Invoice and complete payment using the options available on the secure payment page.",
+        "For an issued Starter or Professional invoice, choose Pay by Card to open Paddle checkout for an annual subscription that automatically renews, or follow the manual invoice/bank-transfer instructions. The no-card trial does not automatically convert to a paid subscription.",
         "FieldKeel subscriptions are business services. Please use an eligible business/commercial payment method.",
         "Opening Pay Invoice does not mark the invoice paid and does not activate or renew your subscription by itself.",
       ],
@@ -116,7 +116,7 @@ export const paymentVerification: DocArticle = {
       id: "flow",
       heading: "Payments are verified before activation",
       paragraphs: [
-        "After you complete payment on the secure payment page, your invoice may remain in “Payment awaiting verification” until payment has been confirmed.",
+        "Paddle card payments are confirmed by a verified Paddle event. Manual invoice payments remain under review until confirmed by a platform admin; allow up to 2 business days.",
         "You may optionally select I’ve Sent Payment to notify FieldKeel. That action does not immediately activate or renew the subscription and does not mark the invoice Paid.",
         "Once payment is confirmed, FieldKeel updates the subscription and the Owner receives confirmation.",
       ],
@@ -148,22 +148,20 @@ export const activatingSubscription: DocArticle = {
   sections: [
     {
       id: "request",
-      heading: "Requesting activation",
+      heading: "Paying for activation",
       paragraphs: [
-        "1. Select Request Activation from the trial banner or Settings → Plan & Subscription (Owners and Admins).",
-        "2. FieldKeel records the request. The control changes to Request Sent and stays that way until the next billing step — you cannot submit a duplicate request for the same activation cycle.",
-        "3. FieldKeel prepares your invoice. The control may show Invoice Being Prepared.",
-        "4. When the invoice is issued, open Billing and use Pay Invoice (or View Invoice).",
-        "5. Complete payment on the secure payment page. Optionally select I’ve Sent Payment.",
-        "6. While FieldKeel verifies payment, Billing shows Payment awaiting verification.",
-        "7. After payment is confirmed, your subscription becomes Active for the billing period on the invoice.",
+        "1. Open Billing from the trial banner or Settings.",
+        "2. Review the issued invoice and choose Pay by Card or manual invoice/bank transfer.",
+        "3. Card checkout creates an annual subscription that renews through Paddle. Manual invoice payment requires a new invoice each period.",
+        "4. After a manual payment, select I’ve Sent Payment and allow up to 2 business days for platform verification.",
+        "5. Your subscription becomes active only after Paddle confirms card payment or an authorized platform admin verifies manual payment.",
       ],
     },
     {
       id: "activate",
       heading: "From trial to paid",
       paragraphs: [
-        "Near the end of your Professional trial, FieldKeel prepares an activation invoice in Billing. Pay using the secure payment link, then wait for payment confirmation.",
+        "Near the end of your Professional trial, open Billing to review payment options. The platform billing team must issue an invoice before payment can be made. Pay by card or follow the manual invoice instructions, then wait for payment confirmation.",
         "When payment is confirmed, your subscription becomes active for the billing period shown on the invoice. You will receive a confirmation email.",
       ],
     },
@@ -188,8 +186,7 @@ export const renewingSubscription: DocArticle = {
       id: "reminders",
       heading: "Before renewal",
       paragraphs: [
-        "FieldKeel sends reminders before your paid period ends. Your renewal invoice becomes available in Billing. Open Pay Invoice on the secure payment page when it is ready.",
-        "FieldKeel does not automatically charge a stored card.",
+        "Paddle card subscriptions renew automatically each year using Paddle's configured recurring price. Manual invoice subscriptions do not auto-renew; a new invoice must be issued and verified. Billing shows the next date when available.",
       ],
     },
     {

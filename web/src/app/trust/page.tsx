@@ -37,7 +37,7 @@ const sections = [
   },
   {
     title: "Subscription transparency",
-    copy: "Manual invoices, authenticated payment instructions, and explicit activation after payment is confirmed.",
+    copy: "Paddle card subscriptions renew annually; manual invoices require payment verification before subscription changes.",
     href: "/billing-policy",
   },
 ];

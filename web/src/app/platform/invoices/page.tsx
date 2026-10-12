@@ -48,6 +48,7 @@ export default function PlatformInvoicesPage() {
   const [billingContactName, setBillingContactName] = useState("");
   const [billingContactEmail, setBillingContactEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   async function refreshList() {
     const result = await listPlatformInvoices({
@@ -119,6 +120,7 @@ export default function PlatformInvoicesPage() {
   function openInvoice(invoice: InvoiceSummary) {
     void getPlatformInvoice(invoice.id).then((detail) => {
       setSelected(detail);
+      setRejectionReason("");
       setPaymentUrl(detail.paymentUrl ?? "");
       setExternalReference(detail.externalReference ?? "");
       setBillingContactName(detail.billingContactName ?? detail.customerName);
@@ -252,6 +254,10 @@ export default function PlatformInvoicesPage() {
             <option value="ISSUED">Issued</option>
             <option value="PAYMENT_REPORTED">Payment reported</option>
             <option value="PAID">Paid</option>
+            <option value="REFUND_PENDING">Refund pending</option>
+            <option value="PARTIALLY_REFUNDED">Partially refunded</option>
+            <option value="REFUNDED">Refunded</option>
+            <option value="DISPUTED">Disputed</option>
             <option value="OVERDUE">Overdue</option>
             <option value="VOID">Void</option>
           </select>
@@ -353,7 +359,14 @@ export default function PlatformInvoicesPage() {
         <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-4 text-sm">
           <h2 className="text-sm font-semibold">{selected.invoiceNumber}</h2>
           <p>
-            {selected.organization?.name} · {selected.plan?.name} · {selected.amountLabel}
+            <a className="text-primary underline" href={`/platform/organizations/${selected.organizationId}`}>
+              {selected.organization?.name}
+            </a> · {selected.plan?.name} · {selected.amountLabel}
+          </p>
+          <p className="text-muted-foreground">
+            Period {new Date(selected.billingPeriodStart).toLocaleDateString()} to {new Date(selected.billingPeriodEnd).toLocaleDateString()}
+            {selected.issuedAt ? ` · Issued ${new Date(selected.issuedAt).toLocaleDateString()}` : ""}
+            {selected.paymentVerifiedAt ? ` · Verified ${new Date(selected.paymentVerifiedAt).toLocaleString()} by ${selected.verifiedBy?.fullName ?? (selected.paymentMethodLabel === "Paddle card" ? "Paddle" : "platform admin")}` : ""}
           </p>
           <div className="rounded-md border border-border bg-muted/40 px-3 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -390,6 +403,21 @@ export default function PlatformInvoicesPage() {
               ? ` · Payment reported ${new Date(selected.paymentReportedAt).toLocaleString()}`
               : ""}
           </p>
+          {selected.paymentNotices?.length ? (
+            <div className="rounded-md border border-border px-3 py-3">
+              <h3 className="font-medium">Payment submission history</h3>
+              <ul className="mt-2 space-y-2">
+                {selected.paymentNotices.map((notice) => (
+                  <li key={notice.id} className="border-t border-border pt-2">
+                    <p>{notice.submittedBy?.fullName ?? "Member"} - {new Date(notice.createdAt).toLocaleString()}</p>
+                    {notice.reference ? <p>Reference: {notice.reference}</p> : null}
+                    {notice.message ? <p className="whitespace-pre-wrap text-muted-foreground">{notice.message}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {canEditBillingContact ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -499,24 +527,27 @@ export default function PlatformInvoicesPage() {
             </Button>
             {selected.status === "PAYMENT_REPORTED" ||
             selected.storedStatus === "PAYMENT_REPORTED" ? (
-              <Button
-                className="h-11"
-                variant="outline"
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      "Payment could not be confirmed.\n\nThis will return the invoice to Payment Due. The organization will not be activated or renewed.",
-                    )
-                  ) {
-                    return;
-                  }
-                  void run("Returned to Payment Due.", () =>
-                    markPlatformInvoicePaymentNotFound(selected.id),
-                  );
-                }}
-              >
-                Payment Not Found
-              </Button>
+              <>
+                <Input
+                  className="h-11 min-w-64"
+                  placeholder="Reason payment could not be verified"
+                  value={rejectionReason}
+                  onChange={(event) => setRejectionReason(event.target.value)}
+                />
+                <Button
+                  className="h-11"
+                  variant="outline"
+                  disabled={rejectionReason.trim().length < 3}
+                  onClick={() => {
+                    if (!window.confirm(`Payment could not be confirmed.\n\nReason: ${rejectionReason.trim()}\n\nThis will return the invoice to Payment Due. The organization will not be activated or renewed.`)) return;
+                    void run("Payment rejected and returned to Payment Due.", () =>
+                      markPlatformInvoicePaymentNotFound(selected.id, rejectionReason.trim()),
+                    );
+                  }}
+                >
+                  Reject Payment
+                </Button>
+              </>
             ) : null}
             <Button
               className="h-11"

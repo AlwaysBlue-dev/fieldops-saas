@@ -27,6 +27,13 @@ export class PaddleController {
     return this.paddle.createInvoiceCheckout(organization.organizationId, invoiceId, user.id);
   }
 
+  @Post('organizations/:organizationId/paddle-portal')
+  @UseGuards(JwtAuthGuard, OrganizationMembershipGuard, OrganizationRolesGuard)
+  @OrganizationRoles(OrganizationRole.OWNER)
+  createPortalSession(@CurrentOrganization() organization: OrganizationContext) {
+    return this.paddle.createCustomerPortalSession(organization.organizationId);
+  }
+
   @Post('webhooks/paddle')
   webhook(
     @Req() request: Request & { rawBody?: Buffer },

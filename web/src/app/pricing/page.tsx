@@ -245,11 +245,11 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
 const FAQ_ITEMS = [
   {
     q: "How do I pay for FieldKeel?",
-    a: "When your subscription invoice is ready, a secure payment link will appear in Billing. Payments are confirmed before your subscription is activated or renewed.",
+    a: "Pay by card through Paddle for an annual Starter or Professional subscription with automatic annual renewal. Or pay by manual invoice/bank transfer, select I’ve Sent Payment, and allow up to 2 business days for platform verification.",
   },
   {
     q: "Do you automatically charge my card?",
-    a: "No. FieldKeel does not currently automatically charge a stored card.",
+    a: "The no-card Professional trial never automatically charges you. If you later pay by card, the Starter or Professional plan renews annually through Paddle. Manual invoice payments never auto-renew; each period needs a new invoice and verification.",
   },
   {
     q: "What happens after I pay?",
@@ -257,7 +257,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What happens after the trial?",
-    a: "An activation invoice becomes available in Billing before your trial or grace period ends. After payment is confirmed, your paid subscription is activated.",
+    a: "Your Professional trial does not require a card and will not auto-charge. In Billing, pay an issued invoice by card or manual invoice. Your subscription changes only after Paddle confirms card payment or FieldKeel verifies the manual payment.",
   },
   {
     q: "Do I need a credit card for the trial?",
@@ -281,7 +281,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can I change plan later?",
-    a: "Yes. Owners and admins can submit a plan-change request from billing. FieldKeel handles the commercial change with an invoice when needed — there is no self-serve checkout that charges a card automatically.",
+    a: "Contact FieldKeel to arrange a plan change. An issued Starter or Professional invoice can be paid by card or manual invoice; Business remains Contact Sales.",
   },
   {
     q: "What happens if I exceed users or storage?",

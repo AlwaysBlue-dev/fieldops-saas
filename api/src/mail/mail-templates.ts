@@ -230,9 +230,9 @@ export function trialEndingMail(input: {
     heading: 'Your trial is ending soon',
     paragraphs: [
       `The FieldKeel trial for ${input.organizationName} ends in ${input.daysRemaining} day${input.daysRemaining === 1 ? '' : 's'}.`,
-      'Request activation from Plan & Subscription or Billing. When your invoice is ready, complete payment there — no credit card is required in the product.',
+      'Open Billing to review payment options. Starter and Professional invoices can be paid by card through Paddle or by manual invoice; the Professional trial does not auto-charge.',
     ],
-    ctaLabel: 'Open plan & subscription',
+    ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
   }, branding);
   return { ...content, subject: 'Your FieldKeel trial is ending soon' };
@@ -248,9 +248,9 @@ export function trialGraceMail(input: {
     heading: 'Your trial grace period is active',
     paragraphs: [
       `The trial for ${input.organizationName} has ended. You are in a ${input.graceDaysRemaining}-day grace window.`,
-      'Request activation or complete payment from Billing to keep full write access.',
+      'Open Billing to complete payment before the grace period ends to keep full write access.',
     ],
-    ctaLabel: 'Request activation',
+    ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
   }, branding);
   return { ...content, subject: 'Your FieldKeel trial grace period is active' };
@@ -265,7 +265,7 @@ export function trialExpiredMail(input: {
     heading: 'Your trial has ended',
     paragraphs: [
       `The FieldKeel trial for ${input.organizationName} has ended. The workspace is read-only.`,
-      'Existing records are kept. Open Billing to request activation or complete payment and restore writes.',
+      'Existing records are kept. Open Billing to pay an issued invoice and restore writes after payment is confirmed.',
     ],
     ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
@@ -279,17 +279,17 @@ export function activationAckMail(input: {
   billingUrl: string;
 }, branding: MailBranding): MailContent {
   const content = transactionalMailLayout({
-    preheader: 'Activation request received',
-    heading: 'We received your activation request',
+    preheader: 'Payment options are available',
+    heading: 'Review payment options',
     paragraphs: [
       `Hi ${input.recipientName},`,
-      `FieldKeel received an activation request for ${input.organizationName}.`,
-      'Your invoice is being prepared. Track status under Plan & Subscription and Billing.',
+      `Open Billing to review payment options for ${input.organizationName}.`,
+      'Payment by card starts an annual subscription through Paddle. Manual invoice payments require verification before activation.',
     ],
-    ctaLabel: 'Open plan & subscription',
+    ctaLabel: 'Open Billing',
     ctaUrl: input.billingUrl,
   }, branding);
-  return { ...content, subject: `Activation request received — ${input.organizationName}` };
+  return { ...content, subject: `Payment options — ${input.organizationName}` };
 }
 
 export function emailVerificationMail(input: {

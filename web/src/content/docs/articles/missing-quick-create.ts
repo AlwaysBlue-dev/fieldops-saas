@@ -30,7 +30,7 @@ export const missingQuickCreate: DocArticle = {
       id: "subscription",
       heading: "Read-only subscription",
       paragraphs: [
-        "When the workspace is trial-expired, suspended, or cancelled, Quick Create actions disable with activation messaging. Request activation to restore creates. If only one shortcut is missing, it may be intentionally out of scope for your role rather than a global outage.",
+        "When the workspace is trial-expired, suspended, or cancelled, Quick Create actions disable with billing messaging. Open Billing to review payment options and restore creates after payment is confirmed. If only one shortcut is missing, it may be intentionally out of scope for your role rather than a global outage.",
       ],
     },
   ],

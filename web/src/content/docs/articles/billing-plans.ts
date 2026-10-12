@@ -51,8 +51,8 @@ export const billingPlans: DocArticle = {
       id: "how-pay",
       heading: "How payment works",
       paragraphs: [
-        "When your subscription invoice is ready, a secure payment link appears in Settings → Billing. Select Pay Invoice and complete payment on the secure payment page. FieldKeel confirms payment before activating or renewing the subscription. There is no automatic card charge in the product today.",
-        "Owners and admins request activation from the trial banner or Plan & Subscription. After you select Request Activation, the control becomes Request Sent until an invoice is ready — duplicate open activation requests are not created. See Activating your subscription for the full sequence.",
+        "For Starter and Professional, an issued invoice can be paid by card through Paddle or by manual invoice/bank transfer. Card payment creates an annual subscription with automatic renewal. Manual invoice subscriptions require a new invoice and verification each period. The no-card Professional trial never auto-charges.",
+        "Owners open Billing and select Pay Now to review the current invoice and available payment methods. If no invoice has been issued, contact FieldKeel support or the platform billing team. A payment attempt does not activate the workspace; payment must be confirmed first.",
         "Renewal and plan-change requests from Plan & Subscription also block duplicates while a request is already open or being handled.",
       ],
     },

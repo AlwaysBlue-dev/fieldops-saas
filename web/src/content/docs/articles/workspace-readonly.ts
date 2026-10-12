@@ -25,14 +25,14 @@ export const workspaceReadonly: DocArticle = {
       heading: "Why writes stop",
       paragraphs: [
         "New organizations that receive a trial use Professional for 14 days, then three grace days with writes still allowed. After grace, effective status is trial-expired and the workspace becomes read-only: you can sign in and read records, but not create jobs, clock, invite, upload, or approve.",
-        "Additional workspaces created after your account has already used its free trial start needing activation (never activated). They are also read-only until the Owner activates a subscription. Operator-set SUSPENDED or CANCELLED states are read-only. Paid expiry after renewal grace behaves similarly. A persistent banner explains the state with Activate Workspace or Reactivate Workspace as appropriate.",
+        "Additional workspaces created after your account has used its free trial start without a trial and remain read-only until a paid subscription is confirmed. Operator-set SUSPENDED or CANCELLED states are read-only. Paid expiry after renewal grace behaves similarly. A persistent banner links the Owner to Billing with Pay Now.",
       ],
     },
     {
       id: "fix",
       heading: "How to restore mutations",
       paragraphs: [
-        "Owners submit an activation (or renewal) request from the banner or Plan & Subscription. Never-activated workspaces use Activate Workspace; previously active or trial workspaces that expired use Reactivate Workspace. The control progresses through Request Sent → Invoice Being Prepared → Pay Invoice → Payment Awaiting Verification → Active. Complete payment from Billing when the invoice is ready.",
+        "Owners open Billing from the banner or Settings and choose an available payment method for an issued invoice. Card payment is confirmed by Paddle; manual invoice payment requires I’ve Sent Payment and platform review. The workspace changes only after payment is confirmed.",
         "Until activation succeeds, treat the workspace as historical read — reports and CSV/PDF may still work for review, but field operations wait on commercial activation. Billing, invoices, Owner Inbox, documentation, and account areas stay available so you can restore service.",
       ],
     },

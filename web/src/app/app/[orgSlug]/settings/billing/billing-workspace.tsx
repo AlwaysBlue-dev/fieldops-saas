@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
 import {
+  createPaddleCustomerPortalSession,
   createPaddleInvoiceCheckout,
   getOrganizationInvoice,
   invoiceStatusLabel,
@@ -14,6 +15,7 @@ import {
   type InvoiceSummary,
 } from "@/lib/billing";
 import { formatStorageBytes, getOrganizationSubscription } from "@/lib/subscription";
+import { useSubscription } from "@/components/fieldops/subscription-provider";
 import type { OrganizationSubscription } from "@/lib/subscription";
 import { useEffect, useState } from "react";
 
@@ -30,8 +32,8 @@ function billingReadOnlyNotice(subscription: OrganizationSubscription) {
 
   if (state === "awaiting_verification") {
     return isRenewal
-      ? "Your renewal payment is awaiting verification. Your data remains retained."
-      : "Your payment is awaiting verification. Your subscription will be activated after payment is confirmed. Your data remains retained.";
+      ? "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed. Your data remains retained."
+      : "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed. Your data remains retained.";
   }
   if (state === "pay_invoice" || state === "view_invoice") {
     return isRenewal
@@ -44,19 +46,24 @@ function billingReadOnlyNotice(subscription: OrganizationSubscription) {
       : "Your workspace is read-only until the subscription is activated. Your activation is in progress — the invoice will appear here when ready.";
   }
   return isRenewal
-    ? "Your workspace is read-only until the subscription is renewed. Request renewal from Plan & Subscription, then complete payment here when the invoice is ready."
-    : "Your workspace is read-only until the subscription is activated. Request activation from Plan & Subscription, then complete payment here when the invoice is ready.";
+    ? "Your workspace is read-only until the subscription is renewed. Open Billing to review payment options. The FieldKeel team must issue an invoice before payment can be completed."
+    : "Your workspace is read-only until the subscription is activated. Open Billing to review payment options. The FieldKeel team must issue an invoice before payment can be completed.";
 }
 
 export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
+  const { refresh: refreshSubscription } = useSubscription();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
   const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
+  const [paddlePayments, setPaddlePayments] = useState<NonNullable<Awaited<ReturnType<typeof listOrganizationInvoices>>["paddlePayments"]>>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState<InvoiceSummary | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +71,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       const match = memberships.find((item) => item.organization.slug === orgSlug);
       if (cancelled || !match) return;
       setOrganizationId(match.organization.id);
+      setOrganizationName(match.organization.name);
       setCanManage(match.role === "OWNER");
     });
     return () => {
@@ -81,6 +89,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
       if (cancelled) return;
       setSubscription(nextSub);
       setInvoices(nextInvoices.items);
+      setPaddlePayments(nextInvoices.paddlePayments ?? []);
       setTotalPages(nextInvoices.totalPages);
     });
     return () => {
@@ -97,9 +106,24 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
     ]);
     setSubscription(nextSub);
     setInvoices(nextInvoices.items);
+    setPaddlePayments(nextInvoices.paddlePayments ?? []);
     setTotalPages(nextInvoices.totalPages);
     if (nextSelected) setSelected(nextSelected);
   });
+
+  async function openPaddlePortal() {
+    if (!organizationId) return;
+    setPortalBusy(true);
+    setPortalError(null);
+    try {
+      const session = await createPaddleCustomerPortalSession(organizationId);
+      window.location.assign(session.url);
+    } catch (error) {
+      setPortalError(error instanceof Error ? error.message : "Unable to open billing management.");
+    } finally {
+      setPortalBusy(false);
+    }
+  }
 
   const currentInvoice =
     selected ??
@@ -129,8 +153,16 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
         <section className="rounded-lg border border-border bg-card px-4 py-4 text-sm">
           <dl className="grid gap-3 sm:grid-cols-2">
             <div>
+              <dt className="text-muted-foreground">Organization</dt>
+              <dd className="font-medium">{organizationName || "—"}</dd>
+            </div>
+            <div>
               <dt className="text-muted-foreground">Current plan</dt>
               <dd className="font-medium">{subscription.plan.name}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Annual price</dt>
+              <dd className="font-medium">{subscription.plan.priceLabel}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Subscription status</dt>
@@ -160,12 +192,41 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
               <dt className="text-muted-foreground">Storage limit</dt>
               <dd>{formatStorageBytes(subscription.plan.maxStorageBytes)}</dd>
             </div>
+            <div>
+              <dt className="text-muted-foreground">Billing frequency</dt>
+              <dd>{subscription.plan.billingInterval === "ANNUAL" ? "Annual" : subscription.plan.billingInterval.replaceAll("_", " ")}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Payment method</dt>
+              <dd>{subscription.paymentMethod === "PADDLE_CARD" ? "Card - automatic annual renewal" : subscription.paymentMethod === "MANUAL_INVOICE" ? "Manual invoice - renewal requires a new invoice" : "Professional trial - no card required"}</dd>
+            </div>
           </dl>
           {readOnly ? (
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
               {billingReadOnlyNotice(subscription)}
             </p>
           ) : null}
+          {subscription.paymentMethod === "PADDLE_CARD" ? (
+            <div className="mt-4">
+              <Button className="h-11" variant="outline" disabled={portalBusy} onClick={() => void openPaddlePortal()}>
+                {portalBusy ? "Opening billing management…" : "Manage billing and invoices"}
+              </Button>
+              {portalError ? <p className="mt-2 text-sm text-destructive">{portalError}</p> : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {!currentInvoice && subscription ? (
+        <section className="rounded-lg border border-border bg-card px-4 py-4 text-sm">
+          <h2 className="font-semibold">Payment options</h2>
+          {subscription.paymentMethod === "TRIAL" ? (
+            <p className="mt-2 text-muted-foreground">Your 14-day Professional trial does not require a card and will not automatically charge you when it ends. A paid activation invoice must be prepared and issued before you can pay by card or follow manual invoice instructions. Contact FieldKeel if an invoice is needed.</p>
+          ) : subscription.paymentMethod === "PADDLE_CARD" ? (
+            <p className="mt-2 text-muted-foreground">Your annual card subscription renews automatically through Paddle. The next billing date is {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "not yet available"}. Manage your payment method, cancellation, payment history, and downloadable Paddle invoices through Paddle. A second manual renewal invoice is not used for this subscription.</p>
+          ) : (
+            <p className="mt-2 text-muted-foreground">Manual invoice subscriptions do not renew automatically. The FieldKeel team must prepare and issue the next invoice before you can pay. If your renewal is approaching and no invoice appears, contact FieldKeel support.</p>
+          )}
         </section>
       ) : null}
 
@@ -174,13 +235,19 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
           organizationId={organizationId!}
           invoice={currentInvoice}
           onRefresh={async (invoiceId) => {
-            const next = await getOrganizationInvoice(organizationId!, invoiceId);
+            const [next, nextSubscription] = await Promise.all([
+              getOrganizationInvoice(organizationId!, invoiceId),
+              getOrganizationSubscription(organizationId!),
+            ]);
             setSelected(next);
+            setSubscription(nextSubscription);
+            await refreshSubscription();
             const list = await listOrganizationInvoices(organizationId!, {
               page,
               pageSize: 20,
             });
             setInvoices(list.items);
+            setPaddlePayments(list.paddlePayments ?? []);
             setMessage(null);
           }}
           onNotice={setMessage}
@@ -260,14 +327,42 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
         ) : null}
       </section>
 
+      {paddlePayments.length ? (
+        <section className="rounded-lg border border-border bg-card px-4 py-4">
+          <h2 className="text-sm font-semibold">Card payment and renewal history</h2>
+          <div className="mt-3 scroll-x-pane">
+            <table className="w-full min-w-xl text-left text-sm">
+              <thead className="text-muted-foreground"><tr>
+                <th className="py-2 font-medium">Date</th><th className="py-2 font-medium">Event</th>
+                <th className="py-2 font-medium">Amount</th><th className="py-2 font-medium">Billing period</th>
+                <th className="py-2 font-medium">Reference</th>
+              </tr></thead>
+              <tbody>{paddlePayments.map((payment, index) => (
+                <tr key={`${payment.eventType}-${payment.transactionId}-${payment.createdAt}-${index}`} className="border-t border-border">
+                  <td className="py-2">{new Date(payment.createdAt).toLocaleDateString()}</td>
+                  <td className="py-2">{payment.eventType.replaceAll(".", " ").replaceAll("_", " ")} {payment.eventStatus?.replaceAll("_", " ") ?? ""}</td>
+                  <td className="py-2">{payment.amountCents == null ? "—" : `${(payment.amountCents / 100).toLocaleString(undefined, { style: "currency", currency: payment.currency ?? "USD" })}`}</td>
+                  <td className="py-2">{payment.billingPeriodStart && payment.billingPeriodEnd ? `${new Date(payment.billingPeriodStart).toLocaleDateString()} - ${new Date(payment.billingPeriodEnd).toLocaleDateString()}` : "—"}</td>
+                  <td className="py-2 font-mono text-xs">{payment.transactionId ?? "—"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
       {selected && organizationId && selected.id !== currentInvoice?.id ? (
         <InvoiceDetail
           organizationId={organizationId}
           invoice={selected}
           onNotice={setMessage}
           onRefresh={async () => {
-            const next = await getOrganizationInvoice(organizationId, selected.id);
+            const [next, nextSubscription] = await Promise.all([
+              getOrganizationInvoice(organizationId, selected.id),
+              getOrganizationSubscription(organizationId),
+            ]);
             setSelected(next);
+            setSubscription(nextSubscription);
           }}
         />
       ) : null}
@@ -330,6 +425,22 @@ function InvoiceDetail({
       const paddle = await initializePaddle({ environment: "sandbox", token: session.clientToken });
       if (!paddle) throw new Error("Paddle checkout could not be initialized.");
       paddle.Checkout.open({ transactionId: session.transactionId, customer: { email: session.customerEmail } });
+      onNotice("Checkout is open. This page updates after Paddle confirms payment.");
+      void (async () => {
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+          try {
+            const latest = await getOrganizationInvoice(organizationId, invoice.id);
+            if (latest.status === "PAID") {
+              await onRefresh?.();
+              onNotice("Payment confirmed. Your subscription and billing history are updated.");
+              return;
+            }
+          } catch {
+            return;
+          }
+        }
+      })();
     } catch (error) {
       setPaddleError(error instanceof Error ? error.message : "Unable to open Paddle checkout.");
     } finally {
@@ -367,6 +478,10 @@ function InvoiceDetail({
           <dd className="font-medium">{invoice.amountLabel}</dd>
         </div>
         <div>
+          <dt className="text-muted-foreground">Payment method</dt>
+          <dd className="font-medium">{invoice.paymentMethodLabel ?? "Choose card or manual invoice"}</dd>
+        </div>
+        <div>
           <dt className="text-muted-foreground">Billing period</dt>
           <dd>
             {new Date(invoice.billingPeriodStart).toLocaleDateString()} –{" "}
@@ -385,15 +500,13 @@ function InvoiceDetail({
 
       {isPreparing ? (
         <p className="rounded-md bg-muted/50 px-3 py-3 text-muted-foreground">
-          Your subscription is approaching renewal. Your payment invoice will be
-          available here before payment is due.
+          This invoice has not been issued for payment yet. The FieldKeel team must prepare and issue it first. No card payment is processed and manual payment has not been submitted.
         </p>
       ) : null}
 
       {awaiting ? (
         <p className="rounded-md bg-muted/50 px-3 py-3 text-muted-foreground">
-          Payment awaiting verification. We&apos;ll update your subscription after
-          the payment has been confirmed.
+          Payment under review. Please allow up to 2 business days for verification. Your subscription will be updated only after payment is confirmed.
         </p>
       ) : null}
 
@@ -404,13 +517,20 @@ function InvoiceDetail({
         </p>
       ) : null}
 
+      {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
+      (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
+        <p className="rounded-md bg-muted/50 px-3 py-3 text-muted-foreground">
+          Pay by Card starts an annual subscription with automatic renewal through Paddle. The next renewal date is {new Date(invoice.billingPeriodEnd).toLocaleDateString()}. Payment methods, cancellation, payment history, and downloadable Paddle invoices are available through the billing portal after activation. Manual invoice payments require a new invoice and platform verification.
+        </p>
+      ) : null}
+
       {invoice.paymentInstructions &&
       (invoice.status === "ISSUED" ||
         invoice.status === "OVERDUE" ||
         invoice.status === "PAYMENT_REPORTED" ||
         invoice.status === "PAID") ? (
         <div className="rounded-md bg-muted/50 px-3 py-3">
-          <p className="font-medium">Payment notes</p>
+          <p className="font-medium">Invoice / bank-transfer instructions</p>
           <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
             {invoice.paymentInstructions}
           </p>
@@ -418,10 +538,10 @@ function InvoiceDetail({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {(invoice.status === "ISSUED" || invoice.status === "PAYMENT_REPORTED" || invoice.status === "OVERDUE") &&
+        {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
         (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
           <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
-            {paddleBusy ? "Opening checkout…" : "Pay with Paddle (Sandbox)"}
+            {paddleBusy ? "Opening checkout…" : "Pay by Card"}
           </Button>
         ) : null}
         {paddleError ? <p className="w-full text-sm text-destructive">{paddleError}</p> : null}
@@ -460,7 +580,7 @@ function InvoiceDetail({
                     message: "I have sent payment for this invoice.",
                   });
                   onNotice(
-                    "Payment awaiting verification. We'll update your subscription after payment has been confirmed.",
+                    "Your payment has been submitted for verification. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
                   );
                   await onRefresh?.();
                 } catch (error) {

@@ -93,6 +93,7 @@ export type OrganizationSubscription = {
     statusLabel: string | null;
   };
   supportEmail: string | null;
+  paymentMethod: 'TRIAL' | 'PADDLE_CARD' | 'MANUAL_INVOICE';
 };
 
 export type CommercialRequest = {

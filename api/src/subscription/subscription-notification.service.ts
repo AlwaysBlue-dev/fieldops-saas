@@ -64,9 +64,9 @@ export class SubscriptionNotificationService {
       kind: NOTIFICATION_ACTIVATION_REQUESTED,
       periodKey,
       to: this.salesEmail(),
-      subject: `Activation requested: ${input.organizationName}`,
+      subject: `Billing setup needed: ${input.organizationName}`,
       text: [
-        `Activation requested for ${input.organizationName}.`,
+        `Billing setup is needed for ${input.organizationName}.`,
         '',
         `Organization ID: ${input.organizationId}`,
         `Slug: ${input.organizationSlug}`,
@@ -77,19 +77,19 @@ export class SubscriptionNotificationService {
         '',
         input.message ? `Message:\n${input.message}` : 'No message was provided.',
         '',
-        'Prepare an activation invoice in platform billing when ready.',
+        'Open Billing to review payment options. A paid activation invoice must be prepared and issued before payment.',
       ].join('\n'),
     });
 
     await this.mailOwners(input.organizationId, {
       kind: NOTIFICATION_ACTIVATION_ACK,
       periodKey,
-      subject: 'Your FieldKeel activation request was received',
-      text: `FieldKeel received your activation request for ${input.organizationName}. Check Billing for the next steps.`,
+      subject: 'Payment options for your FieldKeel workspace',
+      text: `Open Billing for payment options for ${input.organizationName}. Your workspace activates after payment is confirmed.`,
       inApp: {
         type: NOTIFICATION_ACTIVATION_ACK,
-        title: 'Activation request received',
-        message: `FieldKeel received your activation request for ${input.organizationName}.`,
+        title: 'Payment options available',
+        message: `Open Billing to review payment options for ${input.organizationName}.`,
       },
     });
   }
@@ -186,17 +186,17 @@ export class SubscriptionNotificationService {
       await this.queueLifecycle(tx, context, {
         kind: 'TRIAL_STARTED', periodKey: subscription.trialStartedAt.toISOString(),
         subject: 'Welcome to your FieldKeel Professional trial',
-        text: `Your ${TRIAL_DAYS}-day FieldKeel Professional trial for ${context.name} has started.\nNo credit card is required.\nTrial starts: ${date(subscription.trialStartedAt)}\nTrial ends: ${date(subscription.trialEndsAt)}`,
+        text: `Your ${TRIAL_DAYS}-day FieldKeel Professional trial for ${context.name} has started.\nNo credit card is required.\nTrial starts: ${date(subscription.trialStartedAt)}\nTrial ends: ${date(subscription.trialEndsAt)}\nYour subscription will not automatically charge a card after the trial.`,
         ctaLabel: 'Open workspace', ctaUrl: this.workspaceLink(context.slug),
         platformSubject: `New FieldKeel trial started — ${context.name}`,
       });
     } else if (!trialStarted) {
       await this.queueLifecycle(tx, context, {
         kind: 'WORKSPACE_PENDING_ACTIVATION', periodKey: subscription.createdAt.toISOString(),
-        subject: 'Your FieldKeel workspace is awaiting activation',
-        text: `${context.name} was created on ${date(subscription.createdAt)}. This additional workspace does not include another free trial. It is read-only (PENDING_ACTIVATION) until activation. Open Plan & Subscription to request activation and Billing to complete the manual payment process.`,
+        subject: 'Your FieldKeel workspace needs paid activation',
+        text: `${context.name} was created on ${date(subscription.createdAt)}. This additional workspace does not include another free trial. It remains read-only until paid activation is confirmed. Open Billing to review the plan and payment options; FieldKeel will prepare an invoice if one is required.`,
         platformSubject: `New FieldKeel workspace awaiting activation — ${context.name}`,
-        ctaLabel: 'Activate workspace',
+        ctaLabel: 'Pay Now',
       });
     }
   }
@@ -238,6 +238,40 @@ export class SubscriptionNotificationService {
       platformSubject = 'FieldKeel subscription plan changed';
     }
     if (kind) {
+      if (newStatus === 'ACTIVE') {
+        const staleKinds = [
+          NOTIFICATION_TRIAL_ENDING, NOTIFICATION_TRIAL_EXPIRING,
+          NOTIFICATION_TRIAL_EXPIRED, NOTIFICATION_TRIAL_GRACE,
+          NOTIFICATION_TRIAL_GRACE_ENDING, NOTIFICATION_WORKSPACE_READ_ONLY,
+          NOTIFICATION_SUBSCRIPTION_EXPIRED,
+          ...TRIAL_REMINDER_DAYS.map((days) => `${NOTIFICATION_TRIAL_REMINDER_PREFIX}${days}`),
+          ...RENEWAL_REMINDER_DAYS.map((days) => `${NOTIFICATION_RENEWAL_PREFIX}${days}`),
+        ];
+        await tx.subscriptionNotification.updateMany({
+          where: {
+            organizationId,
+            deliveryState: 'QUEUED',
+            kind: { in: [...staleKinds, ...staleKinds.map((item) => `PLATFORM_${item}`)] },
+          },
+          data: { deliveryState: 'CANCELLED', leaseUntil: null, lastError: 'Superseded by verified subscription payment' },
+        });
+        await tx.notification.updateMany({
+          where: {
+            organizationId,
+            userId: { in: context.billingContacts.map((member) => member.userId) },
+            status: 'UNREAD',
+            type: { in: [
+              NOTIFICATION_TRIAL_ENDING, NOTIFICATION_TRIAL_EXPIRING,
+              NOTIFICATION_TRIAL_EXPIRED, NOTIFICATION_TRIAL_GRACE,
+              NOTIFICATION_TRIAL_GRACE_ENDING, NOTIFICATION_WORKSPACE_READ_ONLY,
+              ...TRIAL_REMINDER_DAYS.map((days) => `${NOTIFICATION_TRIAL_REMINDER_PREFIX}${days}`),
+              ...RENEWAL_REMINDER_DAYS.map((days) => `${NOTIFICATION_RENEWAL_PREFIX}${days}`),
+              NOTIFICATION_SUBSCRIPTION_EXPIRED,
+            ] },
+          },
+          data: { status: 'READ', readAt: occurredAt },
+        });
+      }
       await this.queueLifecycle(tx, context, {
         kind, periodKey: after.updatedAt.toISOString(), subject,
         platformSubject: `${platformSubject} — ${context.name}`,
@@ -257,7 +291,7 @@ export class SubscriptionNotificationService {
     }
     // Preserve billing-contact receipts, merging with the Owner lifecycle email when possible.
     if (receipt) {
-      const bundled = kind && context.owners.some((owner) => owner.user.email.toLowerCase() === receipt.billingEmail.toLowerCase());
+      const bundled = kind && context.billingContacts.some((member) => member.user.email.toLowerCase() === receipt.billingEmail.toLowerCase());
       if (bundled) {
         await tx.subscriptionNotification.createMany({
           data: [{ organizationId, kind: 'INVOICE_PAYMENT_CONFIRMATION', periodKey: receipt.invoiceId }],
@@ -272,6 +306,216 @@ export class SubscriptionNotificationService {
         });
       }
     }
+  }
+
+  async queueInvoiceIssued(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; invoiceId: string; invoiceNumber: string; planName: string; amount: string; dueAt: Date | null; slug: string },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const message = `Invoice ${input.invoiceNumber} for ${input.planName} (${input.amount}) is ready in Billing${input.dueAt ? ` and due ${date(input.dueAt)}` : ''}.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'INVOICE_READY',
+        periodKey: `${input.invoiceId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject: 'Your FieldKeel invoice is ready', text: `${context.name}: ${message}\nOpen Billing to pay by card or follow the invoice instructions for manual payment.`,
+        ctaLabel: 'Pay Now', ctaUrl: this.billingLink(input.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'INVOICE_READY', title: 'Invoice ready', message,
+      relatedEntityType: 'Invoice', relatedEntityId: input.invoiceId,
+      payload: { organizationSlug: input.slug }, dedupeUnread: true,
+    }, tx);
+  }
+
+  async queueManualPaymentSubmitted(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; invoiceId: string; noticeId: string; invoiceNumber: string; planName: string; amount: string; submittedBy: string; reference?: string | null },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const message = `Payment for invoice ${input.invoiceNumber} (${input.planName}, ${input.amount}) was submitted by ${input.submittedBy} and is under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'MANUAL_PAYMENT_SUBMITTED',
+        periodKey: `${input.noticeId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject: 'Payment submitted for verification', text: `${context.name}: ${message}\n${input.reference ? `Reference: ${input.reference}\n` : ''}Your subscription changes after the platform team confirms receipt.`,
+        ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
+      });
+    }
+    await this.notifications.notifyPlatformAdmins({
+      type: 'PLATFORM_MANUAL_PAYMENT_SUBMITTED',
+      title: `Payment submitted - ${context.name} (${input.invoiceNumber})`,
+      message: `${context.name}: ${message}${input.reference ? ` Reference: ${input.reference}` : ''}`,
+      relatedEntityType: 'Invoice', relatedEntityId: input.invoiceId,
+      payload: { ctaPath: `/platform/invoices?organizationId=${input.organizationId}` },
+    }, tx);
+    await this.delivery.enqueue(tx, {
+      organizationId: input.organizationId, kind: 'PLATFORM_MANUAL_PAYMENT_SUBMITTED',
+      periodKey: input.noticeId, to: this.salesEmail(),
+      subject: `Manual payment submitted — ${context.name} (${input.invoiceNumber})`,
+      text: [
+        `Workspace: ${context.name}`, `Organization ID: ${input.organizationId}`, `Slug: ${context.slug}`,
+        ...context.owners.map((owner) => `Owner: ${owner.user.fullName} <${owner.user.email}>`),
+        `Invoice: ${input.invoiceNumber}`, `Plan: ${input.planName}`, `Amount: ${input.amount}`,
+        `Submitted by: ${input.submittedBy}`, ...(input.reference ? [`Reference: ${input.reference}`] : []),
+        'Review the invoice and verify or reject the payment in platform billing.',
+      ].join('\n'),
+      ctaLabel: 'Review payment', ctaUrl: `${this.webUrl()}/platform/invoices?organizationId=${input.organizationId}`,
+    });
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'MANUAL_PAYMENT_SUBMITTED', title: 'Payment under review', message,
+      relatedEntityType: 'Invoice', relatedEntityId: input.invoiceId,
+      payload: { organizationSlug: context.slug }, dedupeUnread: true,
+    }, tx);
+  }
+
+  async queuePaddlePaymentFailed(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; eventId: string; transactionId: string; invoiceNumber?: string | null; renewal: boolean },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const message = input.renewal
+      ? `Paddle reported a failed renewal payment for ${context.name}. Your current paid-through date and existing grace rules remain in effect. Open Billing to review recovery options.`
+      : `Paddle reported a failed card payment for ${context.name}. No paid activation was applied. Open Billing to try again or use manual invoice payment.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'PADDLE_PAYMENT_FAILED',
+        periodKey: `${input.eventId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject: input.renewal ? 'Your FieldKeel renewal payment needs attention' : 'Your FieldKeel card payment did not complete',
+        text: `${context.name}: ${message}${input.invoiceNumber ? `\nInvoice: ${input.invoiceNumber}` : ''}\nTransaction reference: ${input.transactionId}`,
+        ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'PADDLE_PAYMENT_FAILED', title: 'Payment needs attention', message,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { organizationSlug: context.slug }, dedupeUnread: true,
+    }, tx);
+    await this.notifications.notifyPlatformAdmins({
+      type: 'PLATFORM_PADDLE_PAYMENT_FAILED', title: `Paddle payment failed - ${context.name}`,
+      message: `${message} Invoice: ${input.invoiceNumber ?? 'Not linked'}. Transaction: ${input.transactionId}.`,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { ctaPath: `/platform/invoices?organizationId=${input.organizationId}` },
+    }, tx);
+    await this.delivery.enqueue(tx, {
+      organizationId: input.organizationId, kind: 'PLATFORM_PADDLE_PAYMENT_FAILED',
+      periodKey: input.eventId, to: this.salesEmail(),
+      subject: `Paddle payment failed - ${context.name}`,
+      text: `${message}\nInvoice: ${input.invoiceNumber ?? 'Not linked'}\nTransaction: ${input.transactionId}`,
+      ctaLabel: 'Review billing', ctaUrl: `${this.webUrl()}/platform/invoices?organizationId=${input.organizationId}`,
+    });
+  }
+
+  async queuePaddleSubscriptionNotice(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; eventId: string; cancelled: boolean; effectiveAt: Date | null },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const kind = input.cancelled ? 'PADDLE_SUBSCRIPTION_CANCELLATION' : 'PADDLE_SUBSCRIPTION_REACTIVATED';
+    const subject = input.cancelled ? 'Your FieldKeel subscription cancellation is scheduled' : 'Your FieldKeel subscription renewal is active';
+    const message = input.cancelled
+      ? `Automatic renewal is scheduled to stop at the end of the current paid period${input.effectiveAt ? ` on ${date(input.effectiveAt)}` : ''}. Access follows the existing paid-through and grace rules. Contact FieldKeel support if you need help.`
+      : 'Paddle confirmed the subscription is active for automatic annual renewal.';
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind,
+        periodKey: `${input.eventId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject, text: `${context.name}: ${message}`,
+        ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: kind, title: subject, message,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { organizationSlug: context.slug }, dedupeUnread: true,
+    }, tx);
+    await this.notifications.notifyPlatformAdmins({
+      type: `PLATFORM_${kind}`, title: `${subject} - ${context.name}`, message,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { ctaPath: `/platform/organizations/${input.organizationId}` },
+    }, tx);
+    await this.delivery.enqueue(tx, {
+      organizationId: input.organizationId, kind: `PLATFORM_${kind}`, periodKey: input.eventId,
+      to: this.salesEmail(), subject: `${subject} - ${context.name}`,
+      text: `${context.name}: ${message}`, ctaLabel: 'Open platform workspace',
+      ctaUrl: `${this.webUrl()}/platform/organizations/${input.organizationId}`,
+    });
+  }
+
+  async queuePaddleAdjustment(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; eventId: string; transactionId: string; invoiceNumber?: string | null; action: string; adjustmentStatus: string; nextInvoiceStatus: string | null },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const subject = input.action === 'refund'
+      ? `Paddle refund update: ${input.adjustmentStatus.replaceAll('_', ' ')}`
+      : `Paddle dispute update: ${input.adjustmentStatus.replaceAll('_', ' ')}`;
+    const message = `${context.name}: ${subject}. ${input.nextInvoiceStatus ? `Billing record status: ${input.nextInvoiceStatus.replaceAll('_', ' ')}.` : ''} Contact FieldKeel support if you need help reviewing this payment event.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'PADDLE_ADJUSTMENT',
+        periodKey: `${input.eventId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject, text: `${message}${input.invoiceNumber ? `\nInvoice: ${input.invoiceNumber}` : ''}\nPaddle transaction reference: ${input.transactionId}`,
+        ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'PADDLE_ADJUSTMENT', title: subject, message,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { organizationSlug: context.slug }, dedupeUnread: true,
+    }, tx);
+    await this.notifications.notifyPlatformAdmins({
+      type: 'PLATFORM_PADDLE_ADJUSTMENT', title: `${subject} - ${context.name}`,
+      message: `${message} Invoice: ${input.invoiceNumber ?? 'Not linked'}. Transaction: ${input.transactionId}.`,
+      relatedEntityType: 'Organization', relatedEntityId: input.organizationId,
+      payload: { ctaPath: `/platform/invoices?organizationId=${input.organizationId}` },
+    }, tx);
+    await this.delivery.enqueue(tx, {
+      organizationId: input.organizationId, kind: 'PLATFORM_PADDLE_ADJUSTMENT',
+      periodKey: input.eventId, to: this.salesEmail(), subject: `${subject} - ${context.name}`,
+      text: `${message}\nInvoice: ${input.invoiceNumber ?? 'Not linked'}\nPaddle transaction: ${input.transactionId}`,
+      ctaLabel: 'Review billing', ctaUrl: `${this.webUrl()}/platform/invoices?organizationId=${input.organizationId}`,
+    });
+  }
+
+  async queueManualPaymentRejected(
+    tx: Prisma.TransactionClient,
+    input: { organizationId: string; invoiceId: string; noticeId: string; invoiceNumber: string; reason: string },
+  ) {
+    const context = await this.context(tx, input.organizationId);
+    const message = `Payment for invoice ${input.invoiceNumber} could not be verified. Reason: ${input.reason} The invoice is back to Payment Due. Correct the issue and submit payment information again.`;
+    for (const member of context.billingContacts) {
+      await this.delivery.enqueue(tx, {
+        organizationId: input.organizationId, kind: 'MANUAL_PAYMENT_REJECTED',
+        periodKey: `${input.noticeId}:member:${member.userId}`, to: member.user.email,
+        memberUserId: member.userId, memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+        subject: 'Payment could not be verified', text: `${context.name}: ${message}`,
+        ctaLabel: 'Review Billing', ctaUrl: this.billingLink(context.slug),
+      });
+    }
+    await this.notifications.notify({
+      organizationId: input.organizationId,
+      recipientUserIds: context.billingContacts.map((member) => member.userId),
+      type: 'MANUAL_PAYMENT_REJECTED', title: 'Payment could not be verified', message,
+      relatedEntityType: 'Invoice', relatedEntityId: input.invoiceId,
+      payload: { organizationSlug: context.slug }, dedupeUnread: true,
+    }, tx);
   }
 
   async reconcileEntitlement(
@@ -293,7 +537,7 @@ export class SubscriptionNotificationService {
         await this.queueLifecycle(tx, context, {
           kind: `${NOTIFICATION_TRIAL_REMINDER_PREFIX}${days}`, periodKey: entitlement.trialEndsAt.toISOString(),
           subject: `Your FieldKeel trial ends ${when}`,
-          text: `The ${plan} trial for ${context.name} ends ${when}.\nTrial end: ${date(entitlement.trialEndsAt)}\nWrite access continues during the existing ${TRIAL_GRACE_DAYS}-day trial grace period, through ${date(entitlement.graceEndsAt)}. After grace, the workspace is read-only until activation. FieldKeel does not automatically charge a card. Request activation from Plan & Subscription and follow your invoice instructions in Billing.`,
+          text: `The ${plan} trial for ${context.name} ends ${when}.\nTrial end: ${date(entitlement.trialEndsAt)}\nWrite access continues during the existing ${TRIAL_GRACE_DAYS}-day trial grace period, through ${date(entitlement.graceEndsAt)}. After grace, the workspace becomes read-only until payment is confirmed. The free trial does not automatically charge a card. Review Pay Now and available payment options in Billing.`,
           ...(days === 3 ? { platformSubject: `FieldKeel trial ending soon — ${context.name}` } : {}),
           inApp: { type: days <= 1 ? NOTIFICATION_TRIAL_EXPIRING : NOTIFICATION_TRIAL_ENDING,
             title: days === 0 ? 'Trial ends today' : 'Trial ending soon', message: `Your ${plan} trial ends ${when}.` },
@@ -304,14 +548,14 @@ export class SubscriptionNotificationService {
       if (transitioned) await this.queueLifecycle(tx, context, {
         kind: NOTIFICATION_TRIAL_GRACE, periodKey: entitlement.graceEndsAt.toISOString(),
         subject: 'Your FieldKeel trial grace period has started',
-        text: `The trial for ${context.name} ended on ${date(entitlement.trialEndsAt)}. Write access continues through the ${TRIAL_GRACE_DAYS}-day grace period, ending ${date(entitlement.graceEndsAt)}. After that, the workspace becomes read-only until activation. Check Billing for activation/payment instructions.`,
+        text: `The trial for ${context.name} ended on ${date(entitlement.trialEndsAt)}. Write access continues through the ${TRIAL_GRACE_DAYS}-day grace period, ending ${date(entitlement.graceEndsAt)}. After that, the workspace becomes read-only until payment is confirmed. Check Billing for the available payment options.`,
         platformSubject: `FieldKeel trial grace started — ${context.name}`,
         inApp: { type: NOTIFICATION_TRIAL_GRACE, title: 'Trial grace period started', message: 'Your trial ended. Check Billing for activation.' },
       });
       if (entitlement.graceDaysRemaining === 1) await this.queueLifecycle(tx, context, {
         kind: NOTIFICATION_TRIAL_GRACE_ENDING, periodKey: entitlement.graceEndsAt.toISOString(),
         subject: 'Your FieldKeel trial grace period ends soon',
-        text: `The trial grace period for ${context.name} ends ${date(entitlement.graceEndsAt)}. The workspace then becomes read-only. Complete activation through Billing to retain write access.`,
+        text: `The trial grace period for ${context.name} ends ${date(entitlement.graceEndsAt)}. The workspace then becomes read-only. Pay through Billing to retain write access.`,
         inApp: { type: NOTIFICATION_TRIAL_GRACE_ENDING, title: 'Grace period ending soon', message: 'Your trial grace period ends soon. Check Billing.' },
       });
     }
@@ -319,8 +563,8 @@ export class SubscriptionNotificationService {
       await this.queueLifecycle(tx, context, {
         kind: NOTIFICATION_TRIAL_EXPIRED, periodKey: entitlement.graceEndsAt.toISOString(),
         subject: 'Your FieldKeel trial has ended',
-        text: `The ${plan} trial for ${context.name} ended on ${date(entitlement.trialEndsAt)}. Its ${TRIAL_GRACE_DAYS}-day grace period ended on ${date(entitlement.graceEndsAt)}. The workspace is now read-only. Your records are kept; you can still sign in and view history. Open Plan & Subscription to reactivate and Billing for payment instructions.`,
-        platformSubject: `FieldKeel trial expired — ${context.name}`, ctaLabel: 'Reactivate workspace',
+        text: `The ${plan} trial for ${context.name} ended on ${date(entitlement.trialEndsAt)}. Its ${TRIAL_GRACE_DAYS}-day grace period ended on ${date(entitlement.graceEndsAt)}. The workspace is now read-only. Your records are kept; you can still sign in and view history. Open Billing to review payment options and restore access after payment is confirmed.`,
+        platformSubject: `FieldKeel trial expired — ${context.name}`, ctaLabel: 'Pay Now', ctaUrl: this.billingLink(context.slug),
         inApp: { type: NOTIFICATION_TRIAL_EXPIRED, title: 'Trial expired', message: 'Your trial ended and the workspace is read-only.' },
       });
       // Preserve the existing separate read-only notification, but avoid a second equivalent email.
@@ -333,12 +577,16 @@ export class SubscriptionNotificationService {
       for (const days of RENEWAL_REMINDER_DAYS) {
         if (days > 0 && isSameUtcDay(now, entitlement.currentPeriodEnd)) continue;
         if (days === 0 ? !isSameUtcDay(now, entitlement.currentPeriodEnd) : entitlement.daysUntilExpiration !== days) continue;
+        const paddleCard = Boolean(context.subscription.externalSubscriptionId);
+        const renewalText = paddleCard
+          ? `${context.name} — ${plan}\nYour annual card subscription is scheduled to renew automatically through Paddle. Current period ends: ${date(entitlement.currentPeriodEnd)}. If Paddle reports a failed payment, open Billing or contact FieldKeel support. The existing ${PAID_GRACE_DAYS}-day paid grace behavior remains in effect.`
+          : `${context.name} — ${plan}\nSubscription period ends: ${date(entitlement.currentPeriodEnd)}\nArrange renewal in Billing using the instructions on a newly issued invoice, or contact the FieldKeel team. Manual invoice subscriptions do not renew automatically. The existing ${PAID_GRACE_DAYS}-day renewal grace period ends ${date(entitlement.paidGraceEndsAt)}; write access continues during grace and becomes read-only afterward.`;
         await this.queueLifecycle(tx, context, {
           kind: `${NOTIFICATION_RENEWAL_PREFIX}${days}`, periodKey: entitlement.currentPeriodEnd.toISOString(),
           subject: days === 0 ? 'Your FieldKeel subscription renewal is due today' : 'Your FieldKeel subscription renewal is approaching',
-          text: `${context.name} — ${plan}\nSubscription period ends: ${date(entitlement.currentPeriodEnd)}\nPlease arrange renewal through Billing using the instructions on your invoice, or contact the FieldKeel team. FieldKeel does not automatically charge a stored card. The existing ${PAID_GRACE_DAYS}-day renewal grace period ends ${date(entitlement.paidGraceEndsAt)}; write access continues during grace and becomes read-only afterward.`,
+          text: renewalText,
           ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
-          ...(days === 7 ? { platformSubject: `FieldKeel subscription renewal approaching — ${context.name}` } : {}),
+          ...(days === 7 && !paddleCard ? { platformSubject: `Manual invoice renewal approaching — ${context.name}` } : {}),
           inApp: { type: `${NOTIFICATION_RENEWAL_PREFIX}${days}`, title: days === 0 ? 'Renewal due today' : 'Renewal coming up', message: `Your subscription period ends ${date(entitlement.currentPeriodEnd)}.` },
         });
       }
@@ -347,7 +595,7 @@ export class SubscriptionNotificationService {
       await this.queueLifecycle(tx, context, {
         kind: NOTIFICATION_SUBSCRIPTION_EXPIRED, periodKey: entitlement.currentPeriodEnd.toISOString(),
         subject: 'Your FieldKeel subscription renewal grace period has started',
-        text: `The ${plan} paid period for ${context.name} ended ${date(entitlement.currentPeriodEnd)}. Write access continues during the existing ${PAID_GRACE_DAYS}-day renewal grace period, through ${date(entitlement.paidGraceEndsAt)}. Renew through Billing to avoid read-only access.`,
+        text: `The ${plan} paid period for ${context.name} ended ${date(entitlement.currentPeriodEnd)}. Write access continues during the existing ${PAID_GRACE_DAYS}-day renewal grace period, through ${date(entitlement.paidGraceEndsAt)}. ${context.subscription.externalSubscriptionId ? 'Open Billing or contact FieldKeel support to review the Paddle payment recovery options.' : 'Review Pay Now and the next issued invoice in Billing to avoid read-only access.'}`,
         platformSubject: `FieldKeel renewal grace started — ${context.name}`,
         ctaLabel: 'Open Billing', ctaUrl: this.billingLink(context.slug),
       });
@@ -357,7 +605,7 @@ export class SubscriptionNotificationService {
         kind: NOTIFICATION_WORKSPACE_READ_ONLY, periodKey: `paid:${entitlement.paidGraceEndsAt.toISOString()}`,
         subject: 'Your FieldKeel subscription has expired',
         text: `${context.name} — ${plan}\nThe paid period ended ${date(entitlement.currentPeriodEnd)} and the ${PAID_GRACE_DAYS}-day renewal grace period ended ${date(entitlement.paidGraceEndsAt)}. The workspace is now read-only. Your records are kept and Billing remains available. Arrange renewal to reactivate write access.`,
-        platformSubject: `FieldKeel subscription expired — ${context.name}`, ctaLabel: 'Reactivate workspace',
+        platformSubject: `FieldKeel subscription expired — ${context.name}`, ctaLabel: 'Pay Now', ctaUrl: this.billingLink(context.slug),
       });
     }
   }
@@ -370,8 +618,12 @@ export class SubscriptionNotificationService {
       where: { organizationId, status: MembershipStatus.ACTIVE, role: OrganizationRole.OWNER },
       include: { user: { select: { id: true, fullName: true, email: true } } },
     });
+    const billingContacts = await tx.organizationMember.findMany({
+      where: { organizationId, status: MembershipStatus.ACTIVE, role: { in: [OrganizationRole.OWNER, OrganizationRole.ADMIN] } },
+      include: { user: { select: { id: true, fullName: true, email: true } } },
+    });
     return {
-      subscription, owners, organizationId,
+      subscription, owners, billingContacts, organizationId,
       name: subscription.organization.name, slug: subscription.organization.slug,
       effectiveStatus: resolveEffectiveStatus({ ...subscription, storedStatus: subscription.status }, now),
     };
@@ -392,10 +644,11 @@ export class SubscriptionNotificationService {
       where: { organizationId_kind_periodKey: { organizationId, kind: input.kind, periodKey: input.periodKey } },
     });
     if (!legacy) {
-      for (const owner of context.owners) {
+      for (const member of context.billingContacts) {
         await this.delivery.enqueue(tx, {
-          ...input, organizationId, to: owner.user.email, ownerUserId: owner.userId,
-          periodKey: `${input.periodKey}:owner:${owner.userId}`,
+          ...input, organizationId, to: member.user.email, memberUserId: member.userId,
+          memberRoles: [OrganizationRole.OWNER, OrganizationRole.ADMIN],
+          periodKey: `${input.periodKey}:member:${member.userId}`,
           ctaLabel: input.ctaLabel ?? 'Plan & Subscription',
           ctaUrl: input.ctaUrl ?? this.planLink(context.slug),
         });
@@ -404,6 +657,12 @@ export class SubscriptionNotificationService {
     }
     if (input.platformSubject) {
       const currentStatus = context.effectiveStatus;
+      await this.notifications.notifyPlatformAdmins({
+        type: `PLATFORM_${input.kind}`, title: input.platformSubject,
+        message: `${context.name}: ${input.text}`,
+        relatedEntityType: 'Organization', relatedEntityId: organizationId,
+        payload: { ctaPath: `/platform/organizations/${organizationId}` },
+      }, tx);
       await this.delivery.enqueue(tx, {
         organizationId, kind: `PLATFORM_${input.kind}`, periodKey: input.periodKey,
         to: this.salesEmail(), subject: input.platformSubject,
@@ -428,7 +687,7 @@ export class SubscriptionNotificationService {
     context: Awaited<ReturnType<SubscriptionNotificationService['context']>>,
     input: { kind: string; periodKey: string; inApp?: { type: string; title: string; message: string } },
   ) {
-    if (!input.inApp || !context.owners.length) return;
+    if (!input.inApp || !context.billingContacts.length) return;
     const legacy = await tx.subscriptionNotification.findUnique({
       where: { organizationId_kind_periodKey: {
         organizationId: context.organizationId, kind: input.kind, periodKey: input.periodKey,
@@ -441,7 +700,7 @@ export class SubscriptionNotificationService {
     });
     if (!claimed.count) return;
     await this.notifications.notify({
-      organizationId: context.organizationId, recipientUserIds: context.owners.map((owner) => owner.userId),
+      organizationId: context.organizationId, recipientUserIds: context.billingContacts.map((member) => member.userId),
       ...input.inApp, relatedEntityType: 'Organization', relatedEntityId: context.organizationId,
       payload: { organizationSlug: context.slug }, dedupeUnread: true,
     }, tx);

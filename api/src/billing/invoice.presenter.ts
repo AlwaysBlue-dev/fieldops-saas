@@ -45,9 +45,11 @@ export function serializeInvoice(
     paidAt: Date | null;
     paymentUrl?: string | null;
     externalReference?: string | null;
+    paddleTransactionId?: string | null;
     paymentReportedAt?: Date | null;
     paymentVerifiedAt?: Date | null;
     verifiedByUserId?: string | null;
+    verifiedBy?: { id: string; fullName: string; email: string } | null;
     customerName: string;
     customerBillingEmail: string;
     paymentInstructionsSnapshot: string | null;
@@ -100,6 +102,7 @@ export function serializeInvoice(
     paidAt: invoice.paidAt?.toISOString() ?? null,
     paymentReportedAt: invoice.paymentReportedAt?.toISOString() ?? null,
     paymentVerifiedAt: invoice.paymentVerifiedAt?.toISOString() ?? null,
+    verifiedBy: options.includeInternal ? (invoice.verifiedBy ?? null) : undefined,
     hasPaymentUrl: Boolean(paymentUrl),
     canPay: canShowPayInvoice(status, paymentUrl),
     paymentUrl:
@@ -109,6 +112,11 @@ export function serializeInvoice(
     externalReference: options.includeInternal
       ? (invoice.externalReference ?? null)
       : undefined,
+    paymentMethodLabel: invoice.paddleTransactionId
+      ? 'Paddle card'
+      : status === 'PAID' ? 'Manual invoice'
+        : status === 'PAYMENT_REPORTED' ? 'Manual invoice under review'
+          : 'Card or manual invoice',
     /** Snapshot taken at prepare time (defaults from Owner). Preserved after issue. */
     customerName: invoice.customerName,
     customerBillingEmail: invoice.customerBillingEmail,

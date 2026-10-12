@@ -8,7 +8,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { resolveEffectiveStatus } from './entitlement.js';
 import { daysRemaining } from './clock.js';
 
-type DeliveryPayload = { mail: MailPayload; ownerUserId?: string; attemptedProvider?: string };
+type DeliveryPayload = {
+  mail: MailPayload;
+  ownerUserId?: string;
+  memberUserId?: string;
+  memberRoles?: OrganizationRole[];
+  attemptedProvider?: string;
+};
 const RETRY_MS = 5 * 60_000;
 // Resend retains idempotency keys for 24 hours. Stop before that protection expires.
 const SAFE_RETRY_MS = 23 * 60 * 60_000;
@@ -27,10 +33,13 @@ export class SubscriptionDeliveryService {
     organizationId: string; kind: string; periodKey: string;
     to: string; subject: string; text: string;
     ctaLabel?: string; ctaUrl?: string; ownerUserId?: string;
+    memberUserId?: string; memberRoles?: OrganizationRole[];
   }) {
     const payload: DeliveryPayload = {
       mail: this.mail.prepareText(input),
       ...(input.ownerUserId ? { ownerUserId: input.ownerUserId } : {}),
+      ...(input.memberUserId ? { memberUserId: input.memberUserId } : {}),
+      ...(input.memberRoles ? { memberRoles: input.memberRoles } : {}),
     };
     // Atomic insert before any network request; independent ledger row per recipient.
     await tx.subscriptionNotification.createMany({
@@ -80,15 +89,22 @@ export class SubscriptionDeliveryService {
         const organization = await this.prisma.organization.findFirst({
           where: { id: row.organizationId, deletedAt: null }, include: { subscription: true },
         });
-        const owner = payload.ownerUserId ? await this.prisma.organizationMember.findFirst({
+        const recipient = payload.memberUserId ? await this.prisma.organizationMember.findFirst({
+          where: {
+            organizationId: row.organizationId, userId: payload.memberUserId,
+            status: MembershipStatus.ACTIVE,
+            role: { in: payload.memberRoles ?? [OrganizationRole.OWNER, OrganizationRole.ADMIN] },
+            user: { email: payload.mail.to },
+          }, select: { id: true },
+        }) : payload.ownerUserId ? await this.prisma.organizationMember.findFirst({
           where: {
             organizationId: row.organizationId, userId: payload.ownerUserId,
             role: OrganizationRole.OWNER, status: MembershipStatus.ACTIVE,
             user: { email: payload.mail.to },
           }, select: { id: true },
         }) : true;
-        if (!organization || !owner) {
-          await this.finish(row.id, leaseUntil, 'CANCELLED', 'Workspace deleted or recipient no longer an active Owner at this address');
+        if (!organization || !recipient) {
+          await this.finish(row.id, leaseUntil, 'CANCELLED', 'Workspace deleted or recipient is no longer an eligible active member at this address');
           continue;
         }
         // Do not send a queued reminder after renewal, activation, or a date extension superseded it.

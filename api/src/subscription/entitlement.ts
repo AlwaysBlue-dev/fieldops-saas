@@ -300,6 +300,7 @@ export function toSubscriptionDto(
     activationProgress?: BillingActionProgress;
     renewalProgress?: BillingActionProgress;
     supportEmail?: string;
+    paymentMethod?: 'TRIAL' | 'PADDLE_CARD' | 'MANUAL_INVOICE';
   } = {},
 ) {
   return {
@@ -353,5 +354,6 @@ export function toSubscriptionDto(
       statusLabel: null,
     },
     supportEmail: extras.supportEmail ?? null,
+    paymentMethod: extras.paymentMethod ?? (entitlement.effectiveStatus === 'TRIALING' || entitlement.effectiveStatus === 'GRACE' ? 'TRIAL' : 'MANUAL_INVOICE'),
   };
 }

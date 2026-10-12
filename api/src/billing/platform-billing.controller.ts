@@ -22,6 +22,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto.js';
 import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto.js';
 import { UpdateBillingSettingsDto } from './dto/update-billing-settings.dto.js';
 import { UpdateInvoicePaymentDto } from './dto/update-invoice-payment.dto.js';
+import { RejectInvoicePaymentDto } from './dto/reject-invoice-payment.dto.js';
 import { InvoiceService } from './invoice.service.js';
 
 @Controller('platform')
@@ -121,8 +122,9 @@ export class PlatformBillingController {
   paymentNotFound(
     @Param('invoiceId') invoiceId: string,
     @CurrentUser() user: AuthUser,
+    @Body() dto: RejectInvoicePaymentDto,
   ) {
-    return this.invoices.markPaymentNotFound(invoiceId, user.id);
+    return this.invoices.markPaymentNotFound(invoiceId, user.id, dto.reason);
   }
 
   @Post('invoices/:invoiceId/activate')

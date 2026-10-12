@@ -102,6 +102,10 @@ enum InvoiceStatus {
   ISSUED
   PAYMENT_REPORTED
   PAID
+  REFUND_PENDING
+  PARTIALLY_REFUNDED
+  REFUNDED
+  DISPUTED
   VOID
   OVERDUE
 }
@@ -655,13 +659,24 @@ model Invoice {
 
 /// Idempotency ledger for verified Paddle webhook deliveries.
 model PaddleWebhookEvent {
-  id          String   @id @default(uuid()) @db.Uuid
-  eventId     String   @unique
-  eventType   String
-  processedAt DateTime @default(now()) @db.Timestamptz
-  createdAt   DateTime @default(now()) @db.Timestamptz
+  id                    String   @id @default(uuid()) @db.Uuid
+  eventId               String   @unique
+  eventType             String
+  organizationId        String?  @db.Uuid
+  invoiceId             String?  @db.Uuid
+  transactionId         String?
+  paddleSubscriptionId  String?
+  eventStatus           String?
+  amountCents           Int?
+  currency              String?
+  billingPeriodStart    DateTime? @db.Timestamptz
+  billingPeriodEnd      DateTime? @db.Timestamptz
+  processedAt           DateTime @default(now()) @db.Timestamptz
+  createdAt             DateTime @default(now()) @db.Timestamptz
 
   @@index([eventType, processedAt])
+  @@index([organizationId, eventType, createdAt])
+  @@index([transactionId])
 }
 model InvoicePaymentNotice {
   id               String   @id @default(uuid()) @db.Uuid

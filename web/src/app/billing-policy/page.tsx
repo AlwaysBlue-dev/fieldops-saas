@@ -24,22 +24,26 @@ export default async function BillingPolicyPage() {
           FieldKeel issues organization invoices with a FieldKeel invoice
           number, plan, amount, currency, billing period, issued date, and due
           date. When an invoice is ready, Owners (and Admins where permitted)
-          see it in Settings → Billing with a Pay Invoice action that opens a
-          secure payment page.
+          see it in Settings → Billing. Eligible Starter and Professional
+          invoices can be paid by card through Paddle or by manual invoice/bank
+          transfer using the listed instructions.
         </p>
         <p>
-          FieldKeel does not currently automatically charge a stored card.
-          Opening a payment link does not by itself activate or renew a
-          subscription.
+          A card purchase creates an annual Paddle subscription that renews
+          automatically each year. The next billing date is shown in Billing
+          when available. Manual invoice subscriptions do not auto-renew and
+          require a new invoice and payment verification for each period. The
+          Professional trial requires no card and never auto-charges when it ends.
         </p>
       </LegalSection>
       <LegalSection title="Payment verification and activation">
         <p>
           Payments are verified before a subscription is activated or renewed.
-          Customers may optionally report “I’ve Sent Payment”; that notice does
-          not mark the invoice paid and does not change subscription access.
-          After payment is confirmed, FieldKeel updates the subscription and
-          notifies the Owner.
+          For manual invoice payments, select “I’ve Sent Payment” after paying.
+          The notice does not mark the invoice paid or change access. Allow up
+          to 2 business days for platform review. FieldKeel updates the
+          subscription and notifies the Owner and Admin billing contacts only
+          after payment is verified.
         </p>
         <p>
           FieldKeel subscriptions are business services. Please complete
@@ -49,11 +53,11 @@ export default async function BillingPolicyPage() {
       </LegalSection>
       <LegalSection title="Renewal">
         <p>
-          Reminders are sent before a paid period ends. A renewal invoice
-          becomes available in Billing. After payment confirmation, the
-          subscription renews for the next billing period without shortening
-          time already paid. If payment remains outstanding after the applicable
-          renewal grace period, the workspace may become read-only.
+          Paddle card subscriptions renew automatically each year. A manual
+          invoice subscription does not auto-renew; a new invoice must be issued
+          and payment verified. Confirmed renewal updates the next paid period
+          without shortening time already paid. If payment remains outstanding
+          after the applicable renewal grace period, the workspace may become read-only.
         </p>
       </LegalSection>
       <LegalSection title="Anti-fraud">

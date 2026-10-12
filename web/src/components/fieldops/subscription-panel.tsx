@@ -7,8 +7,8 @@ import {
 } from "@/lib/subscription";
 import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
 import {
+  PayNowButton,
   RenewalActionButton,
-  RequestActivationButton,
   RequestPlanChangeButton,
 } from "./subscription-banners";
 import { useSubscription } from "./subscription-provider";
@@ -55,14 +55,12 @@ export function SubscriptionPanel({
   const supportEmail = subscription.supportEmail ?? FIELDKEEL_SUPPORT_EMAIL;
   const users = subscription.usage?.users;
   const storage = subscription.usage?.storage;
-  const nearExpiry = isNearExpiry(subscription);
-  const activationState = subscription.activationProgress?.state ?? "none";
   const showActivationControl =
-    canManage &&
-    activationState !== "none";
+    canManage && !["ACTIVE", "PAID_GRACE"].includes(subscription.effectiveStatus);
   const showRenewal =
-    canManage &&
-    (subscription.availableActions.requestRenewal ||
+    canManage && subscription.paymentMethod !== "PADDLE_CARD" &&
+    (isNearExpiry(subscription) ||
+      ["PAID_GRACE", "EXPIRED"].includes(subscription.effectiveStatus) ||
       ["request_sent", "invoice_preparing", "view_invoice", "pay_invoice", "awaiting_verification"].includes(
         subscription.renewalProgress?.state ?? "none",
       ) ||
@@ -144,19 +142,10 @@ export function SubscriptionPanel({
       {canManage ? (
         <div className="flex flex-wrap items-center gap-2">
           {showActivationControl ? (
-            <RequestActivationButton
-              organizationId={organizationId}
-              orgSlug={orgSlug}
-            />
+            <PayNowButton orgSlug={orgSlug} />
           ) : null}
           {showRenewal ? (
-            <RenewalActionButton
-              organizationId={organizationId}
-              orgSlug={orgSlug}
-              preferRequestLabel={
-                nearExpiry ? "Renew Subscription" : "Request Renewal"
-              }
-            />
+            <RenewalActionButton orgSlug={orgSlug} />
           ) : null}
           {showPlanChange ? (
             <RequestPlanChangeButton

@@ -5,9 +5,7 @@ import { ApiError } from "@/lib/api";
 import {
   isNearExpiry,
   isTrialEndingSoon,
-  requestActivation,
   requestPlanChange,
-  requestRenewal,
   type OrganizationSubscription,
 } from "@/lib/subscription";
 import { cn } from "cn";
@@ -52,7 +50,7 @@ function activationCopy(
         return {
           title: ends,
           description:
-            "Your activation request has been sent. We'll prepare your invoice before your trial or grace period ends.",
+            "Your billing options are in progress. The invoice will appear in Billing when it is ready.",
         };
       case "invoice_preparing":
         return {
@@ -71,13 +69,13 @@ function activationCopy(
         return {
           title: ends,
           description:
-            "Your payment is awaiting verification. Your subscription will be activated after payment is confirmed.",
+            "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
         };
       default:
         return {
           title: ends,
           description:
-            "Request activation before your trial ends to avoid read-only access.",
+            "Open Billing to review payment options before your trial ends.",
         };
     }
   }
@@ -92,7 +90,7 @@ function activationCopy(
         return {
           title,
           description:
-            "Your trial has ended. Your activation request is in progress.",
+            "Open Billing to review payment options. Contact FieldKeel if an invoice has not yet been issued.",
         };
       case "invoice_preparing":
         return {
@@ -111,13 +109,13 @@ function activationCopy(
         return {
           title,
           description:
-            "Your payment is awaiting verification. Your subscription will be activated after payment is confirmed.",
+            "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
         };
       default:
         return {
           title,
           description:
-            "Your trial has ended. Request activation before the grace period ends to avoid read-only access.",
+            "Open Billing to review payment options before the grace period ends.",
         };
     }
   }
@@ -129,7 +127,7 @@ function activationCopy(
       return {
         title,
         description:
-          "Your activation request is in progress. Billing and documentation stay available.",
+          "Open Billing to review payment options. Billing and documentation stay available.",
       };
     case "invoice_preparing":
       return {
@@ -148,13 +146,13 @@ function activationCopy(
       return {
         title,
         description:
-          "Your payment is awaiting verification. Your subscription will be activated after payment is confirmed.",
+          "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
       };
     default:
       return {
         title,
         description:
-          "Reactivate your workspace from Billing to restore full field operations access.",
+          "Review payment options in Billing to restore full field operations access after payment is confirmed.",
       };
   }
 }
@@ -169,7 +167,7 @@ function neverActivatedCopy(
       return {
         title,
         description:
-          "Your activation request is in progress. Billing stays available.",
+          "Open Billing to review payment options. Billing stays available.",
       };
     case "invoice_preparing":
       return {
@@ -188,13 +186,13 @@ function neverActivatedCopy(
       return {
         title,
         description:
-          "Your payment is awaiting verification. Full access unlocks after payment is confirmed.",
+          "Payment under review. Please allow up to 2 business days for review. Full access returns once payment is confirmed.",
       };
     default:
       return {
         title,
         description:
-          "Activate your subscription to start creating and managing field operations.",
+          "Open Billing to review payment options and activate this workspace.",
       };
   }
 }
@@ -217,7 +215,7 @@ function renewalCopy(
         return {
           title,
           description:
-            "Your renewal request has been sent. Your renewal invoice will be available in Billing.",
+            "Your renewal invoice is being prepared and will appear in Billing when ready.",
         };
       case "invoice_preparing":
         return {
@@ -235,7 +233,7 @@ function renewalCopy(
       case "awaiting_verification":
         return {
           title,
-          description: "Your renewal payment is awaiting verification.",
+          description: "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
         };
       default:
         return {
@@ -256,7 +254,7 @@ function renewalCopy(
         return {
           title,
           description:
-            "Your renewal request is in progress. Existing work continues for now.",
+            "Your renewal invoice is being prepared. Existing work continues during the grace period.",
         };
       case "invoice_preparing":
         return {
@@ -274,13 +272,13 @@ function renewalCopy(
       case "awaiting_verification":
         return {
           title,
-          description: "Your renewal payment is awaiting verification.",
+          description: "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
         };
       default:
         return {
           title,
           description:
-            "Request renewal or open Billing when your invoice is ready. Existing work continues for now.",
+            "Open Billing to review payment options. Existing work continues during the grace period.",
         };
     }
   }
@@ -291,7 +289,7 @@ function renewalCopy(
       return {
         title,
         description:
-          "Your renewal request is in progress. Billing stays available.",
+          "Open Billing to review payment options. Billing stays available.",
       };
     case "invoice_preparing":
       return {
@@ -309,13 +307,13 @@ function renewalCopy(
     case "awaiting_verification":
       return {
         title,
-        description: "Your renewal payment is awaiting verification.",
+        description: "Payment under review. Please allow up to 2 business days for review. Your subscription will be updated once your payment is confirmed.",
       };
     default:
       return {
         title,
         description:
-          "Reactivate your workspace from Billing to restore full field operations access.",
+          "Review payment options in Billing to restore full field operations access after payment is confirmed.",
       };
   }
 }
@@ -356,8 +354,7 @@ export function SubscriptionBanners({
           description={copy.description}
           action={
             canManage ? (
-              <RequestActivationButton
-                organizationId={organizationId}
+              <PayNowButton
                 orgSlug={orgSlug}
               />
             ) : null
@@ -382,8 +379,7 @@ export function SubscriptionBanners({
         description={copy.description}
         action={
           canManage ? (
-            <RequestActivationButton
-              organizationId={organizationId}
+            <PayNowButton
               orgSlug={orgSlug}
             />
           ) : null
@@ -402,7 +398,6 @@ export function SubscriptionBanners({
         action={
           canManage ? (
             <RenewalActionButton
-              organizationId={organizationId}
               orgSlug={orgSlug}
             />
           ) : null
@@ -412,6 +407,15 @@ export function SubscriptionBanners({
   }
 
   if (subscription.effectiveStatus === "ACTIVE" && isNearExpiry(subscription)) {
+    if (subscription.paymentMethod === "PADDLE_CARD") {
+      return (
+        <Banner
+          tone="warning"
+          title={subscription.daysUntilExpiration === 1 ? "Your subscription renews in 1 day." : `Your subscription renews in ${subscription.daysUntilExpiration} days.`}
+          description="Your annual card subscription is set to renew automatically through Paddle. Contact FieldKeel support to manage cancellation before the next annual renewal."
+        />
+      );
+    }
     const copy = renewalCopy(subscription, "upcoming");
     return (
       <Banner
@@ -420,11 +424,7 @@ export function SubscriptionBanners({
         description={copy.description}
         action={
           canManage ? (
-            <RenewalActionButton
-              organizationId={organizationId}
-              orgSlug={orgSlug}
-              preferRequestLabel="Renew Subscription"
-            />
+            <RenewalActionButton orgSlug={orgSlug} />
           ) : null
         }
       />
@@ -446,7 +446,6 @@ export function SubscriptionBanners({
           <div className="flex flex-wrap gap-2">
             {canManage ? (
               <WorkspaceBillingCta
-                organizationId={organizationId}
                 orgSlug={orgSlug}
                 mode="activate"
               />
@@ -477,7 +476,6 @@ export function SubscriptionBanners({
           <div className="flex flex-wrap gap-2">
             {canManage ? (
               <WorkspaceBillingCta
-                organizationId={organizationId}
                 orgSlug={orgSlug}
                 mode="reactivate"
               />
@@ -508,7 +506,6 @@ export function SubscriptionBanners({
           <div className="flex flex-wrap gap-2">
             {canManage ? (
               <WorkspaceBillingCta
-                organizationId={organizationId}
                 orgSlug={orgSlug}
                 mode="reactivate"
                 kind="renewal"
@@ -613,370 +610,61 @@ function progressFromSubscription(
   );
 }
 
-/** Banner CTA: Activate Workspace vs Reactivate Workspace → Billing workflow. */
-export function WorkspaceBillingCta({
-  organizationId,
-  orgSlug,
-  mode,
-  kind = "activation",
-}: {
+/** Customer-facing activation and renewal actions continue in Billing. */
+export function WorkspaceBillingCta({ orgSlug }: {
   organizationId: string;
   orgSlug: string;
   mode: "activate" | "reactivate";
   kind?: "activation" | "renewal";
 }) {
-  const { subscription, refresh } = useSubscription();
-  const progress = progressFromSubscription(subscription, kind);
-  const [pending, setPending] = useState(false);
-  const billingHref = `/app/${orgSlug}/settings/billing`;
-  const idleLabel =
-    mode === "activate" ? "Activate Workspace" : "Reactivate Workspace";
-
-  if (progress.state === "active") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Subscription active"
-      >
-        <Check className="size-3.5" aria-hidden />
-        Active
-      </Button>
-    );
-  }
-
-  if (progress.state === "awaiting_verification") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Payment awaiting verification"
-      >
-        Payment Awaiting Verification
-      </Button>
-    );
-  }
-
-  if (progress.state === "invoice_preparing") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Invoice being prepared"
-      >
-        Invoice Being Prepared
-      </Button>
-    );
-  }
-
-  if (progress.state === "pay_invoice" || progress.state === "view_invoice") {
-    return (
-      <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
-        <Link href={billingHref}>{progress.label}</Link>
-      </Button>
-    );
-  }
-
-  if (progress.state === "request_sent") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Request sent"
-      >
-        <Check className="size-3.5" aria-hidden />
-        Request Sent
-      </Button>
-    );
-  }
-
-  if (progress.state === "can_request") {
-    return (
-      <Button
-        type="button"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled={pending}
-        aria-busy={pending}
-        aria-label={pending ? "Opening billing" : idleLabel}
-        onClick={async () => {
-          if (pending) return;
-          setPending(true);
-          try {
-            if (kind === "activation") {
-              const result = await requestActivation(
-                organizationId,
-                mode === "activate"
-                  ? "Please activate this FieldKeel workspace."
-                  : "Please reactivate this FieldKeel workspace.",
-              );
-              if (!result.alreadyOpen) {
-                toast.success(
-                  mode === "activate"
-                    ? "Activation request sent."
-                    : "Reactivation request sent.",
-                );
-              }
-            } else {
-              const result = await requestRenewal(
-                organizationId,
-                "Please renew this FieldKeel workspace.",
-              );
-              if (!result.alreadyOpen) {
-                toast.success("Renewal request sent.");
-              }
-            }
-            await refresh();
-          } catch (error) {
-            toast.error(
-              error instanceof ApiError
-                ? error.message
-                : "Could not send the request.",
-            );
-          } finally {
-            setPending(false);
-          }
-        }}
-      >
-        {pending ? (
-          <>
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            Requesting...
-          </>
-        ) : (
-          idleLabel
-        )}
-      </Button>
-    );
-  }
-
   return (
     <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
-      <Link href={billingHref}>{idleLabel}</Link>
+      <Link href={`/app/${orgSlug}/settings/billing`}>Pay Now</Link>
     </Button>
   );
 }
 
-export function RequestActivationButton({
-  organizationId,
+export function PayNowButton({
   orgSlug,
 }: {
-  organizationId: string;
-  orgSlug?: string;
+  orgSlug: string;
 }) {
-  const { subscription, refresh } = useSubscription();
-  const progress = progressFromSubscription(subscription, "activation");
-  const [pending, setPending] = useState(false);
-  const billingHref = `/app/${orgSlug ?? "workspace"}/settings/billing`;
-
-  if (progress.state === "none") {
-    return null;
-  }
-
-  if (progress.state === "active") {
+  const { subscription } = useSubscription();
+  const progress = progressFromSubscription(subscription, 'activation');
+  const billingHref = `/app/${orgSlug}/settings/billing`;
+  if (progress.state === 'awaiting_verification') {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Subscription active"
-      >
-        <Check className="size-3.5" aria-hidden />
-        Active
+      <Button type="button" variant="outline" className={ACTIVATION_CONTROL_CLASS} disabled>
+        Payment under review
       </Button>
     );
   }
-
-  if (progress.state === "awaiting_verification") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Payment awaiting verification"
-      >
-        Payment Awaiting Verification
-      </Button>
-    );
-  }
-
-  if (progress.state === "invoice_preparing") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Invoice being prepared"
-      >
-        Invoice Being Prepared
-      </Button>
-    );
-  }
-
-  if (progress.state === "pay_invoice" || progress.state === "view_invoice") {
-    return (
-      <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
-        <Link href={billingHref}>{progress.label}</Link>
-      </Button>
-    );
-  }
-
-  if (progress.state === "request_sent") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Activation request sent"
-      >
-        <Check className="size-3.5" aria-hidden />
-        Request Sent
-      </Button>
-    );
-  }
-
   return (
-    <Button
-      type="button"
-      className={ACTIVATION_CONTROL_CLASS}
-      disabled={pending}
-      aria-busy={pending}
-      aria-label={pending ? "Requesting activation" : "Request activation"}
-      onClick={async () => {
-        if (pending) return;
-        setPending(true);
-        try {
-          const result = await requestActivation(
-            organizationId,
-            "Please activate this FieldKeel workspace.",
-          );
-          if (!result.alreadyOpen) {
-            toast.success("Activation request sent.");
-          }
-          await refresh();
-        } catch (error) {
-          toast.error(
-            error instanceof ApiError
-              ? error.message
-              : "Could not send the activation request.",
-          );
-        } finally {
-          setPending(false);
-        }
-      }}
-    >
-      {pending ? (
-        <>
-          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          Requesting...
-        </>
-      ) : (
-        "Request Activation"
-      )}
+    <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
+      <Link href={billingHref}>Pay Now</Link>
     </Button>
   );
 }
 
 export function RenewalActionButton({
-  organizationId,
   orgSlug,
-  preferRequestLabel = "Request Renewal",
 }: {
-  organizationId: string;
   orgSlug: string;
-  preferRequestLabel?: string;
 }) {
   const { subscription } = useSubscription();
-  const progress = progressFromSubscription(subscription, "renewal");
+  const progress = progressFromSubscription(subscription, 'renewal');
   const billingHref = `/app/${orgSlug}/settings/billing`;
-
-  if (progress.state === "awaiting_verification") {
+  if (progress.state === 'awaiting_verification') {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Payment awaiting verification"
-      >
-        Payment Awaiting Verification
+      <Button type="button" variant="outline" className={ACTIVATION_CONTROL_CLASS} disabled>
+        Payment under review
       </Button>
     );
   }
-
-  if (progress.state === "invoice_preparing") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Invoice being prepared"
-      >
-        Invoice Being Prepared
-      </Button>
-    );
-  }
-
-  if (progress.state === "pay_invoice" || progress.state === "view_invoice") {
-    return (
-      <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
-        <Link href={billingHref}>{progress.label}</Link>
-      </Button>
-    );
-  }
-
-  if (progress.state === "request_sent") {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        className={ACTIVATION_CONTROL_CLASS}
-        disabled
-        aria-label="Renewal request sent"
-      >
-        <Check className="size-3.5" aria-hidden />
-        Request Sent
-      </Button>
-    );
-  }
-
   return (
-    <RequestRenewalButton
-      organizationId={organizationId}
-      label={preferRequestLabel}
-    />
-  );
-}
-
-export function RequestRenewalButton({
-  organizationId,
-  label = "Request Renewal",
-}: {
-  organizationId: string;
-  label?: string;
-}) {
-  return (
-    <CommercialRequestButton
-      organizationId={organizationId}
-      action={requestRenewal}
-      idleLabel={label}
-      successLabel="Request Sent"
-      toastSuccess="Renewal request sent."
-      defaultMessage="Please renew this FieldKeel workspace."
-      openRequestType="RENEWAL"
-    />
+    <Button asChild variant="default" className={ACTIVATION_CONTROL_CLASS}>
+      <Link href={billingHref}>Pay Now</Link>
+    </Button>
   );
 }
 

@@ -67,6 +67,19 @@ const PREPARABLE_STATUSES: InvoiceStatus[] = [
   InvoiceStatus.PREPARING,
 ];
 
+const ACTIVE_INVOICE_STATUSES_FOR_CREATE: InvoiceStatus[] = [
+  InvoiceStatus.DRAFT,
+  InvoiceStatus.PREPARING,
+  InvoiceStatus.ISSUED,
+  InvoiceStatus.PAYMENT_REPORTED,
+  InvoiceStatus.OVERDUE,
+  InvoiceStatus.PAID,
+  'REFUND_PENDING' as InvoiceStatus,
+  'PARTIALLY_REFUNDED' as InvoiceStatus,
+  'REFUNDED' as InvoiceStatus,
+  'DISPUTED' as InvoiceStatus,
+];
+
 @Injectable()
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
@@ -95,6 +108,9 @@ export class InvoiceService {
     const now = this.clock.now();
     const amountCents = dto.amountCents ?? plan.annualPriceCents ?? 0;
     const subscription = organization.subscription;
+    if (dto.type === InvoiceType.RENEWAL && subscription?.externalSubscriptionId) {
+      throw new BadRequestException('This workspace renews automatically by card; do not create a second manual renewal invoice.');
+    }
 
     let period: { currentPeriodStart: Date; currentPeriodEnd: Date };
     if (dto.type === InvoiceType.RENEWAL && subscription) {
@@ -120,6 +136,18 @@ export class InvoiceService {
     const owner = await this.resolveOrganizationOwner(organization.id);
 
     const invoice = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`invoice:${organization.id}:${dto.type}`}))`;
+      const existing = await tx.invoice.findFirst({
+        where: {
+          organizationId: organization.id, planId: plan.id, type: dto.type,
+          status: { in: ACTIVE_INVOICE_STATUSES_FOR_CREATE },
+          billingPeriodStart: period.currentPeriodStart,
+          billingPeriodEnd: period.currentPeriodEnd,
+        },
+        include: this.include(),
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) return existing;
       const invoiceNumber = await nextInvoiceNumber(tx, now);
       const created = await tx.invoice.create({
         data: {
@@ -264,17 +292,24 @@ export class InvoiceService {
         'Only preparing invoices can be issued',
       );
     }
-    if (!invoice.paymentUrl) {
+    const paddleCardInvoice =
+      ['starter', 'professional'].includes(invoice.plan.code) &&
+      invoice.currency === 'USD' &&
+      invoice.plan.annualPriceCents != null &&
+      invoice.totalCents === invoice.plan.annualPriceCents;
+    if (!invoice.paymentUrl && !paddleCardInvoice) {
       throw new BadRequestException(
-        'Add a secure payment URL before issuing the invoice',
+        'Add a secure manual payment URL before issuing this invoice; Paddle card checkout is available only for correctly priced Starter and Professional invoices.',
       );
     }
-    try {
-      assertHttpsPaymentUrl(invoice.paymentUrl);
-    } catch (error) {
-      throw new BadRequestException(
-        error instanceof Error ? error.message : 'Invalid payment URL',
-      );
+    if (invoice.paymentUrl) {
+      try {
+        assertHttpsPaymentUrl(invoice.paymentUrl);
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error ? error.message : 'Invalid payment URL',
+        );
+      }
     }
 
     if (invoice.status === InvoiceStatus.ISSUED) {
@@ -305,37 +340,19 @@ export class InvoiceService {
         },
         tx,
       );
+      await this.subscriptionNotifications.queueInvoiceIssued(tx, {
+        organizationId: row.organizationId,
+        invoiceId: row.id,
+        invoiceNumber: row.invoiceNumber,
+        planName: row.plan.name,
+        amount: `${formatCentsUsd(row.totalCents)} ${row.currency}`,
+        dueAt: row.dueAt,
+        slug: row.organization.slug,
+      });
       return row;
     });
 
-    const appUrl = this.billingLink(updated.organization.slug);
-    const amount = `${formatCentsUsd(updated.totalCents)} ${updated.currency}`;
-    await this.mail.sendText({
-      to: updated.customerBillingEmail,
-      subject: 'Your FieldKeel invoice is ready',
-      text: [
-        `Invoice ${updated.invoiceNumber} is ready.`,
-        '',
-        `Plan: ${updated.plan.name}`,
-        `Amount: ${amount}`,
-        `Due: ${updated.dueAt?.toISOString().slice(0, 10) ?? '—'}`,
-        '',
-        'Sign in to Billing and select Pay Invoice to open the secure payment page.',
-        appUrl,
-        '',
-        'FieldKeel subscriptions are business services. Please complete payment using an eligible business/commercial payment method available on the secure payment page.',
-        '',
-        'Use only the payment link shown in your authenticated FieldKeel Billing area or provided through an official FieldKeel communication.',
-        'FieldKeel will never ask for your password, authentication code, full card number, or CVV through support messages.',
-      ].join('\n'),
-    });
 
-    await this.notifyOwners(updated.organizationId, {
-      type: 'INVOICE_READY',
-      title: 'Invoice ready',
-      message: `Invoice ${updated.invoiceNumber} is ready in Billing.`,
-      organizationSlug: updated.organization.slug,
-    });
 
     return this.present(updated, { includeInstructions: true, includeInternal: true });
   }
@@ -345,12 +362,29 @@ export class InvoiceService {
     return this.markPaidOnly(invoiceId, actorUserId);
   }
 
-  async markPaidAndActivate(invoiceId: string, actorUserId: string) {
-    return this.confirmPaidAndApply(invoiceId, actorUserId, 'activate');
+  async markPaidAndActivate(
+    invoiceId: string,
+    actorUserId: string,
+    paddlePeriod?: { start: Date; end: Date },
+  ) {
+    return this.confirmPaidAndApply(invoiceId, actorUserId, 'activate', paddlePeriod);
   }
 
-  async markPaidAndRenew(invoiceId: string, actorUserId: string) {
-    return this.confirmPaidAndApply(invoiceId, actorUserId, 'renew');
+  async markPaidAndRenew(
+    invoiceId: string,
+    actorUserId: string,
+    paddlePeriod?: { start: Date; end: Date },
+  ) {
+    return this.confirmPaidAndApply(invoiceId, actorUserId, 'renew', paddlePeriod);
+  }
+
+  async markPaddlePaidAndApply(
+    invoiceId: string,
+    checkoutOwnerUserId: string,
+    mode: 'activate' | 'renew',
+    paddlePeriod: { start: Date; end: Date },
+  ) {
+    return this.confirmPaidAndApply(invoiceId, checkoutOwnerUserId, mode, paddlePeriod, 'PADDLE');
   }
 
   /** Legacy two-step activate after mark-paid. Prefer markPaidAndActivate/Renew. */
@@ -406,7 +440,8 @@ export class InvoiceService {
    * Preserves paymentReportedAt and payment notices for history.
    * Does not activate, renew, set paidAt, or change billing period.
    */
-  async markPaymentNotFound(invoiceId: string, actorUserId: string) {
+  async markPaymentNotFound(invoiceId: string, actorUserId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('A rejection reason is required');
     const invoice = await this.requireInvoice(invoiceId);
     if (invoice.status !== InvoiceStatus.PAYMENT_REPORTED) {
       if (invoice.status === InvoiceStatus.ISSUED) {
@@ -436,6 +471,15 @@ export class InvoiceService {
           'Invoice is no longer awaiting payment verification',
         );
       }
+      const latestNotice = await tx.invoicePaymentNotice.findFirst({
+        where: { invoiceId: invoice.id }, orderBy: { createdAt: 'desc' },
+      });
+      if (latestNotice) {
+        await tx.invoicePaymentNotice.update({
+          where: { id: latestNotice.id },
+          data: { message: [latestNotice.message, `Payment rejected: ${reason.trim()}`].filter(Boolean).join('\n\n') },
+        });
+      }
       const row = await tx.invoice.findFirstOrThrow({
         where: { id: invoice.id },
         include: this.include(),
@@ -450,34 +494,25 @@ export class InvoiceService {
           oldValues: { status: InvoiceStatus.PAYMENT_REPORTED },
           newValues: {
             status: InvoiceStatus.ISSUED,
-            paymentReportedAt:
-              invoice.paymentReportedAt?.toISOString() ?? null,
+            paymentReportedAt: invoice.paymentReportedAt?.toISOString() ?? null,
+            rejectionReason: reason.trim(),
           },
         },
         tx,
       );
+      if (latestNotice) {
+        await this.subscriptionNotifications.queueManualPaymentRejected(tx, {
+          organizationId: row.organizationId,
+          invoiceId: row.id,
+          noticeId: latestNotice.id,
+          invoiceNumber: row.invoiceNumber,
+          reason: reason.trim(),
+        });
+      }
       return row;
     });
 
-    const billingUrl = this.billingLink(updated.organization.slug);
-    await this.mail.sendText({
-      to: updated.customerBillingEmail,
-      subject: 'Payment could not be confirmed',
-      text: [
-        `We could not confirm payment for invoice ${updated.invoiceNumber}.`,
-        'The invoice has been returned to Payment Due.',
-        'Please review the payment details and try again.',
-        '',
-        billingUrl,
-      ].join('\n'),
-    });
 
-    await this.notifyOwners(updated.organizationId, {
-      type: 'INVOICE_PAYMENT_NOT_FOUND',
-      title: 'Payment could not be confirmed',
-      message: `Payment for invoice ${updated.invoiceNumber} could not be confirmed. The invoice is back to Payment Due.`,
-      organizationSlug: updated.organization.slug,
-    });
 
     return this.present(updated, {
       includeInstructions: true,
@@ -530,10 +565,30 @@ export class InvoiceService {
   }
 
   async listForOrganization(organizationId: string, query: ListInvoicesQueryDto = {}) {
-    return this.listInvoices(
+    const invoices = await this.listInvoices(
       { ...query, organizationId },
       { includeInternal: false },
     );
+    const paddlePayments = await this.prisma.$queryRaw<Array<{
+      eventType: string; eventStatus: string | null; transactionId: string | null;
+      amountCents: number | null; currency: string | null;
+      billingPeriodStart: Date | null; billingPeriodEnd: Date | null; createdAt: Date;
+    }>>`SELECT "eventType", "eventStatus", "transactionId", "amountCents", "currency",
+      "billingPeriodStart", "billingPeriodEnd", "createdAt"
+      FROM "PaddleWebhookEvent"
+      WHERE "organizationId" = ${organizationId}::uuid AND "invoiceId" IS NULL
+        AND ("invoiceId" IS NULL OR "eventType" <> 'transaction.completed')
+        AND "eventType" IN ('transaction.completed', 'transaction.payment_failed', 'adjustment.created', 'adjustment.updated')
+      ORDER BY "createdAt" DESC LIMIT 50`;
+    return {
+      ...invoices,
+      paddlePayments: paddlePayments.map((event) => ({
+        ...event,
+        billingPeriodStart: event.billingPeriodStart?.toISOString() ?? null,
+        billingPeriodEnd: event.billingPeriodEnd?.toISOString() ?? null,
+        createdAt: event.createdAt.toISOString(),
+      })),
+    };
   }
 
   async getForOrganization(organizationId: string, invoiceId: string) {
@@ -653,38 +708,19 @@ export class InvoiceService {
         },
         tx,
       );
+      await this.subscriptionNotifications.queueManualPaymentSubmitted(tx, {
+        organizationId: organization.organizationId,
+        invoiceId: invoice.id,
+        noticeId: created.id,
+        invoiceNumber: invoice.invoiceNumber,
+        planName: invoice.plan.name,
+        amount: `${formatCentsUsd(invoice.totalCents)} ${invoice.currency}`,
+        submittedBy: `${user.fullName} <${user.email}>`,
+        reference: created.reference,
+      });
       return created;
     });
 
-    await this.mail.sendText({
-      to: this.legal.salesEmail(),
-      subject: `${organization.name} reported payment for ${invoice.invoiceNumber}`,
-      text: [
-        `${organization.name} reported payment for ${invoice.invoiceNumber}.`,
-        `Reported by: ${user.fullName} <${user.email}>`,
-        `Amount: ${formatCentsUsd(invoice.totalCents)} ${invoice.currency}`,
-        '',
-        'This does not mark the invoice paid or activate the subscription.',
-        'Verify payment externally, then use Mark Paid & Activate or Mark Paid & Renew.',
-        dto.reference ? `Customer reference: ${dto.reference}` : '',
-        dto.message ? `Message: ${dto.message}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-    });
-
-    await this.mail.sendText({
-      to: invoice.customerBillingEmail,
-      subject: "We've received your payment notification",
-      text: [
-        `We've received your payment notification for invoice ${invoice.invoiceNumber}.`,
-        '',
-        'Your payment is awaiting verification.',
-        "We'll update your subscription after payment has been confirmed.",
-        '',
-        this.billingLink(organization.slug),
-      ].join('\n'),
-    });
 
     return {
       id: notice.id,
@@ -700,6 +736,8 @@ export class InvoiceService {
     invoiceId: string,
     actorUserId: string,
     mode: 'activate' | 'renew',
+    paddlePeriod?: { start: Date; end: Date },
+    verificationProvider: 'PLATFORM_ADMIN' | 'PADDLE' = 'PLATFORM_ADMIN',
   ) {
     const invoice = await this.requireInvoice(invoiceId);
     if (invoice.status === InvoiceStatus.VOID) {
@@ -719,18 +757,23 @@ export class InvoiceService {
       invoice.type === InvoiceType.RENEWAL ||
       Boolean(subscription.activatedAt);
 
-    const period = isRenewal
-      ? resolveRenewalPeriod(
-          now,
-          subscription.currentPeriodEnd,
-          subscription.currentPeriodStart,
-          invoice.billingPeriodStart.toISOString(),
-          invoice.billingPeriodEnd.toISOString(),
-        )
-      : {
-          currentPeriodStart: invoice.billingPeriodStart,
-          currentPeriodEnd: invoice.billingPeriodEnd,
-        };
+    const period = paddlePeriod
+      ? { currentPeriodStart: paddlePeriod.start, currentPeriodEnd: paddlePeriod.end }
+      : isRenewal
+        ? resolveRenewalPeriod(
+            now,
+            subscription.currentPeriodEnd,
+            subscription.currentPeriodStart,
+            invoice.billingPeriodStart.toISOString(),
+            invoice.billingPeriodEnd.toISOString(),
+          )
+        : {
+            currentPeriodStart: invoice.billingPeriodStart,
+            currentPeriodEnd: invoice.billingPeriodEnd,
+          };
+    if (period.currentPeriodEnd <= period.currentPeriodStart) {
+      throw new BadRequestException('Subscription period is invalid');
+    }
 
     const alreadyPaid = invoice.status === InvoiceStatus.PAID;
     if (alreadyPaid) {
@@ -763,7 +806,7 @@ export class InvoiceService {
             status: InvoiceStatus.PAID,
             paidAt: now,
             paymentVerifiedAt: now,
-            verifiedByUserId: actorUserId,
+            verifiedByUserId: verificationProvider === 'PLATFORM_ADMIN' ? actorUserId : null,
           },
         });
         if (claimed.count === 0) {
@@ -778,11 +821,12 @@ export class InvoiceService {
               entityType: 'Invoice',
               entityId: invoice.id,
               organizationId: invoice.organizationId,
-              actorUserId,
+              actorUserId: verificationProvider === 'PLATFORM_ADMIN' ? actorUserId : null,
               oldValues: { status: invoice.status },
               newValues: {
                 status: InvoiceStatus.PAID,
                 paymentVerifiedAt: now.toISOString(),
+                verificationProvider,
               },
             },
             tx,
@@ -833,6 +877,7 @@ export class InvoiceService {
             status: SubscriptionStatus.ACTIVE,
             planId: invoice.planId,
             invoiceId: invoice.id,
+            ...(verificationProvider === 'PADDLE' ? { provider: 'paddle_sandbox' } : {}),
             currentPeriodStart: period.currentPeriodStart.toISOString(),
             currentPeriodEnd: period.currentPeriodEnd.toISOString(),
           },
@@ -1117,7 +1162,7 @@ export class InvoiceService {
 
   private include() {
     return {
-      plan: { select: { id: true, code: true, name: true } },
+      plan: { select: { id: true, code: true, name: true, annualPriceCents: true, currency: true, billingInterval: true } },
       organization: {
         select: {
           id: true,
@@ -1143,6 +1188,7 @@ export class InvoiceService {
         include: { submittedBy: { select: { fullName: true, email: true } } },
         orderBy: { createdAt: 'desc' as const },
       },
+      verifiedBy: { select: { id: true, fullName: true, email: true } },
     };
   }
 
