@@ -27,7 +27,7 @@ export const understandingSubscription: DocArticle = {
       heading: "Common statuses",
       paragraphs: [
         "During the Professional trial your workspace is fully writable. After the trial, a short grace window keeps writes available while you complete activation. After grace, the workspace becomes read-only until payment is confirmed.",
-        "Paid annual subscriptions remain active through the current billing period, then enter a renewal grace window before becoming read-only if payment remains outstanding.",
+        "Paid subscriptions remain active through the selected billing period, then enter a renewal grace window before becoming read-only if payment remains outstanding.",
       ],
     },
   ],
@@ -83,7 +83,7 @@ export const payingAnInvoice: DocArticle = {
       id: "how",
       heading: "How to pay",
       paragraphs: [
-        "For an issued Starter or Professional invoice, choose Pay by Card to open Paddle checkout for an annual subscription that automatically renews, or follow the manual invoice/bank-transfer instructions. The no-card trial does not automatically convert to a paid subscription.",
+        "For an issued Starter or Professional invoice, choose a 1–5-year prepaid term and select Pay by Card to open Paddle checkout. Terms of 2, 3, 4, and 5 years receive 5%, 7%, 10%, and 15% discounts. Paddle renews at the end of the selected term unless canceled. Manual invoice/bank-transfer instructions remain separate. The no-card trial does not automatically convert to a paid subscription.",
         "FieldKeel subscriptions are business services. Please use an eligible business/commercial payment method.",
         "Opening Pay Invoice does not mark the invoice paid and does not activate or renew your subscription by itself.",
       ],
@@ -152,7 +152,7 @@ export const activatingSubscription: DocArticle = {
       paragraphs: [
         "1. Open Billing from the trial banner or Settings.",
         "2. Review the issued invoice and choose Pay by Card or manual invoice/bank transfer.",
-        "3. Card checkout creates an annual subscription that renews through Paddle. Manual invoice payment requires a new invoice each period.",
+        "3. Card checkout creates a prepaid subscription for the selected 1–5-year term and renews through Paddle at the end of that term. Manual invoice payment requires a new invoice each period.",
         "4. After a manual payment, select I’ve Sent Payment and allow up to 2 business days for platform verification.",
         "5. Your subscription becomes active only after Paddle confirms card payment or an authorized platform admin verifies manual payment.",
       ],

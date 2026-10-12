@@ -1,4 +1,5 @@
-import { Controller, Headers, Post, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Headers, Post, Req, UseGuards, BadRequestException } from '@nestjs/common';
+import { IsInt, Max, Min } from 'class-validator';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { CurrentOrganization } from '../tenancy/current-organization.decorator.js';
@@ -9,6 +10,13 @@ import { OrganizationRolesGuard } from '../tenancy/organization-roles.guard.js';
 import { OrganizationRole } from '../generated/prisma/client.js';
 import type { AuthUser, OrganizationContext } from '../tenancy/request-context.js';
 import { PaddleService } from './paddle.service.js';
+
+class PaddleCheckoutDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  termYears!: number;
+}
 
 @Controller()
 export class PaddleController {
@@ -21,10 +29,11 @@ export class PaddleController {
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
     @Req() request: Request,
+    @Body() body: PaddleCheckoutDto,
   ) {
     const invoiceId = request.params.invoiceId;
     if (typeof invoiceId !== 'string') throw new BadRequestException();
-    return this.paddle.createInvoiceCheckout(organization.organizationId, invoiceId, user.id);
+    return this.paddle.createInvoiceCheckout(organization.organizationId, invoiceId, user.id, body.termYears);
   }
 
   @Post('organizations/:organizationId/paddle-portal')

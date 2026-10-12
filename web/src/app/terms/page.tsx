@@ -50,7 +50,7 @@ export default async function TermsPage() {
           published Professional plan. No credit card is collected in the
           application. After the trial and any published grace period, the
           workspace becomes read-only until FieldKeel manually activates an
-          annual subscription following confirmed payment of a FieldKeel invoice.
+          prepaid subscription for the selected term after Paddle confirms payment of a FieldKeel invoice. Card subscriptions renew automatically at the end of that term unless canceled.
         </p>
         <p>
           Renewals use the same invoice-and-manual-activation process. Payment

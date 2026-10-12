@@ -8,7 +8,7 @@ This integration is sandbox-only. Configure the following variables in the **sta
 - `PADDLE_SANDBOX_STARTER_PRICE_ID`: Sandbox recurring annual USD price ID for Starter, amount `29900` (USD cents).
 - `PADDLE_SANDBOX_PROFESSIONAL_PRICE_ID`: Sandbox recurring annual USD price ID for Professional, amount `49900` (USD cents).
 
-Create separate Paddle Sandbox products/prices with a one-year recurring billing cycle. Set a default payment link in the Paddle Sandbox account so Paddle can open the hosted checkout. Keep Business as Contact Sales. Checkout also checks that the configured price is USD, annual, and matches the current plan catalog before it creates a transaction. All five variables are optional at application startup; online checkout and webhooks are unavailable until all five are configured.
+Create separate Paddle Sandbox products/prices for Starter and Professional with one-year recurring USD prices matching the plan catalog. Set each catalog price quantity minimum and maximum to `1`; FieldKeel uses these prices to verify the plan and retrieve its product ID. At checkout, FieldKeel creates a transaction-specific recurring price for the selected 1–5-year term (the configured discount is 0%, 5%, 7%, 10%, or 15%) and sends it to Paddle with quantity `1`. The recurring billing cycle is set to the chosen number of years, so the full discounted amount is collected now and the next charge happens at the end of that term. No extra product or price IDs are needed. Set a default payment link in the Paddle Sandbox account so Paddle can open hosted checkout. Keep Business as Contact Sales. All five variables are optional at application startup; online checkout and webhooks are unavailable until all five are configured.
 
 Apply the new migration `20261012090000_paddle_adjustment_states` before deploying the webhook/history updates. Do not use production credentials or a production webhook destination.
 
@@ -30,7 +30,7 @@ Subscribe it to these events:
 
 The endpoint verifies the `Paddle-Signature` against the raw request body. Paddle retries are deduplicated by event ID. Subscription lifecycle events synchronize cancellation and past-due state but never independently activate an unpaid invoice. Refund and chargeback events update linked invoice status and notify the organization Owner/Admin and platform team. Event IDs are claimed transactionally before notifications are queued. The existing lifecycle notification queue remains responsible for customer notifications.
 
-A workspace Owner opens an issued or overdue Starter/Professional invoice under Billing and selects **Pay by Card**. Card checkout opens Paddle Sandbox and annual recurring billing begins only after a verified `transaction.completed` webhook. Manual invoice/bank transfer remains separate and requires platform verification. Free-trial signup remains cardless and does not open a Paddle checkout.
+A workspace Owner opens an issued or overdue Starter/Professional invoice under Billing, chooses a 1–5-year prepaid term, and selects **Pay by Card**. Multi-year discounts are 5% for 2 years, 7% for 3 years, 10% for 4 years, and 15% for 5 years. The full selected term is charged upfront; Paddle renews at the end of the selected term unless canceled. The subscription and invoice period update only after a verified `transaction.completed` webhook. Manual invoice/bank transfer remains separate and requires platform verification. Free-trial signup remains cardless and does not open a Paddle checkout.
 
 
 ## Owner billing portal

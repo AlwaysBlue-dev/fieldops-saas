@@ -6,6 +6,8 @@ import {
   annualPriceParts,
   catalogPlan,
   getPublicCatalog,
+  multiYearPriceCents,
+  MULTI_YEAR_TERM_DISCOUNTS,
   type PublicPlan,
 } from "@/lib/pricing";
 import { FIELDKEEL_SUPPORT_EMAIL } from "@/lib/brand";
@@ -242,14 +244,51 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
   );
 }
 
+function MultiYearPricing({ plans }: { plans: PublicPlan[] }) {
+  const starter = plans.find((plan) => plan.code === "starter");
+  const professional = plans.find((plan) => plan.code === "professional");
+  if (!starter?.annualPriceCents || !professional?.annualPriceCents) return null;
+  const money = (cents: number) => new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD", maximumFractionDigits: 2,
+  }).format(cents / 100);
+
+  return (
+    <section className="mt-12 rounded-lg border border-border bg-card p-5 sm:p-6">
+      <h2 className="text-xl font-semibold tracking-tight">Save when you prepay for multiple years</h2>
+      <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+        Choose a 1–5 year term when paying an issued Starter or Professional invoice. The full term is charged upfront; Paddle renews automatically at the end of that term unless you cancel.
+      </p>
+      <div className="mt-5 overflow-x-auto">
+        <table className="w-full min-w-[34rem] text-left text-sm">
+          <thead><tr className="border-b border-border text-muted-foreground"><th className="py-2 pr-4 font-medium">Prepay term</th><th className="px-3 py-2 font-medium">Starter</th><th className="px-3 py-2 font-medium">Professional</th></tr></thead>
+          <tbody>
+            {MULTI_YEAR_TERM_DISCOUNTS.map((discount, index) => {
+              const years = index + 1;
+              const starterTotal = multiYearPriceCents(starter.annualPriceCents!, years)!;
+              const professionalTotal = multiYearPriceCents(professional.annualPriceCents!, years)!;
+              return (
+                <tr key={years} className="border-b border-border/70 last:border-0">
+                  <th className="py-3 pr-4 font-medium">{years} {years === 1 ? "year" : "years"}{discount ? <span className="block text-xs font-normal text-muted-foreground">Save {discount}%</span> : null}</th>
+                  <td className="px-3 py-3">{money(starterTotal)} total</td>
+                  <td className="px-3 py-3">{money(professionalTotal)} total</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 const FAQ_ITEMS = [
   {
     q: "How do I pay for FieldKeel?",
-    a: "Pay by card through Paddle for an annual Starter or Professional subscription with automatic annual renewal. Or pay by manual invoice/bank transfer, select I’ve Sent Payment, and allow up to 2 business days for platform verification.",
+    a: "Pay by card through Paddle for 1–5 years upfront. Multi-year terms receive 5% off for 2 years, 7% for 3 years, 10% for 4 years, and 15% for 5 years. The subscription renews at the end of the selected term unless canceled. Manual invoices remain available for the invoice period shown.",
   },
   {
     q: "Do you automatically charge my card?",
-    a: "The no-card Professional trial never automatically charges you. If you later pay by card, the Starter or Professional plan renews annually through Paddle. Manual invoice payments never auto-renew; each period needs a new invoice and verification.",
+    a: "The no-card Professional trial never automatically charges you. When paying an issued Starter or Professional invoice by card, choose 1–5 years and pay the full term upfront. Paddle renews at the end of that term unless you cancel. Manual invoice payments do not auto-renew.",
   },
   {
     q: "What happens after I pay?",
@@ -358,6 +397,7 @@ export default async function PricingPage() {
       </p>
 
       <ComparisonSection plans={plans} />
+      <MultiYearPricing plans={plans} />
 
       <section className="mt-16 max-w-2xl">
         <h2 className="text-xl font-semibold tracking-tight">FAQ</h2>

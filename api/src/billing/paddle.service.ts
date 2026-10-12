@@ -26,6 +26,30 @@ type PaddleConfig = {
 };
 type PaddleRecord = Record<string, unknown>;
 
+const TERM_DISCOUNT_PERCENT: Record<number, number> = {
+  1: 0,
+  2: 5,
+  3: 7,
+  4: 10,
+  5: 15,
+};
+
+function termPriceCents(annualPriceCents: number, years: number) {
+  const discount = TERM_DISCOUNT_PERCENT[years];
+  if (!Number.isInteger(years) || discount === undefined) {
+    throw new BadRequestException('Choose a billing term from 1 to 5 years');
+  }
+  return Math.round((annualPriceCents * years * (100 - discount)) / 100);
+}
+
+function termYearsFromCustomData(value: unknown) {
+  const customData = value && typeof value === 'object' ? value as PaddleRecord : {};
+  const years = customData.fieldkeelTermYears;
+  return Number.isInteger(years) && Number(years) >= 1 && Number(years) <= 5
+    ? Number(years)
+    : 1;
+}
+
 @Injectable()
 export class PaddleService {
   private readonly config: PaddleConfig | null;
@@ -67,9 +91,11 @@ export class PaddleService {
     return { url: session.urls.general.overview };
   }
 
-  async createInvoiceCheckout(organizationId: string, invoiceId: string, ownerUserId: string) {
+  async createInvoiceCheckout(organizationId: string, invoiceId: string, ownerUserId: string, termYears: number) {
     const config = this.requireConfig();
     const client = this.client!;
+    const selectedTermYears = Number(termYears);
+    termPriceCents(1, selectedTermYears);
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: invoiceId, organizationId },
       include: { plan: true },
@@ -89,14 +115,6 @@ export class PaddleService {
       throw new BadRequestException('This workspace already has a Paddle subscription; manage its recurring billing instead of starting a second one.');
     }
     const priceId = invoice.plan.code === 'starter' ? config.starterPriceId : config.professionalPriceId;
-    if (invoice.paddleTransactionId) {
-      return {
-        transactionId: invoice.paddleTransactionId,
-        clientToken: config.clientToken,
-        customerEmail: invoice.customerBillingEmail,
-        environment: 'sandbox' as const,
-      };
-    }
     const expectedAmount = invoice.plan.annualPriceCents;
     if (expectedAmount == null || invoice.currency !== 'USD' || invoice.totalCents !== expectedAmount) {
       throw new BadRequestException('Invoice amount does not match the configured annual plan');
@@ -110,14 +128,47 @@ export class PaddleService {
     ) {
       throw new ServiceUnavailableException('Configured Paddle sandbox price does not match the plan catalog');
     }
+    const quantityLimits = (paddlePrice as unknown as {
+      quantity?: { minimum?: number; maximum?: number };
+    }).quantity;
+    if (quantityLimits?.minimum !== 1 || quantityLimits.maximum !== 1) {
+      throw new ServiceUnavailableException(
+        'Paddle price quantity must be limited to exactly one. Set the Sandbox price minimum and maximum quantity to 1.',
+      );
+    }
+    if (invoice.paddleTransactionId) {
+      const existing = await client.transactions.get(invoice.paddleTransactionId);
+      const existingYears = termYearsFromCustomData(existing.customData);
+      if (existingYears !== selectedTermYears) {
+        throw new BadRequestException(`A ${existingYears}-year checkout is already open for this invoice. Finish it or wait for it to expire before choosing another term.`);
+      }
+      return {
+        transactionId: invoice.paddleTransactionId,
+        clientToken: config.clientToken,
+        customerEmail: invoice.customerBillingEmail,
+        environment: 'sandbox' as const,
+      };
+    }
 
+    const selectedAmountCents = termPriceCents(expectedAmount, selectedTermYears);
     const transaction = await client.transactions.create({
-      items: [{ priceId, quantity: 1 }],
+      items: [{
+        quantity: 1,
+        price: {
+          productId: paddlePrice.productId,
+          description: `FieldKeel ${invoice.plan.name} ${selectedTermYears}-year term`,
+          name: `${invoice.plan.name} - every ${selectedTermYears} ${selectedTermYears === 1 ? 'year' : 'years'}`,
+          billingCycle: { interval: 'year', frequency: selectedTermYears },
+          unitPrice: { amount: String(selectedAmountCents), currencyCode: 'USD' },
+        },
+      }] as never,
       collectionMode: 'automatic',
       customData: {
         fieldkeelInvoiceId: invoice.id,
         fieldkeelOrganizationId: organizationId,
         fieldkeelOwnerUserId: ownerUserId,
+        fieldkeelTermYears: selectedTermYears,
+        fieldkeelDiscountPercent: TERM_DISCOUNT_PERCENT[selectedTermYears],
       },
     });
     const claim = await this.prisma.invoice.updateMany({
@@ -204,7 +255,14 @@ export class PaddleService {
     if (!invoice || !['starter', 'professional'].includes(invoice.plan.code)) {
       throw new BadRequestException('Paddle transaction does not match an eligible FieldKeel invoice');
     }
-    this.assertTransactionMatchesPlan(data, invoice.plan.code, invoice.plan.annualPriceCents, invoice.currency, invoice.totalCents);
+    const termYears = termYearsFromCustomData(customData);
+    const selectedAmountCents = invoice.plan.annualPriceCents == null
+      ? -1
+      : termPriceCents(invoice.plan.annualPriceCents, termYears);
+    await this.assertTransactionMatchesPlan(
+      data, invoice.plan.code, invoice.plan.annualPriceCents, invoice.currency,
+      selectedAmountCents, termYears,
+    );
     // InvoiceService owns its transaction and performs an idempotent invoice+subscription
     // transition. Keep event claiming separate so a retry can finish if a worker stops between them.
     const active = await this.prisma.subscription.findUnique({ where: { organizationId }, select: { activatedAt: true } });
@@ -219,6 +277,23 @@ export class PaddleService {
       throw new BadRequestException('Completed Paddle transaction is missing its authoritative billing period');
     }
     if (invoice.status !== InvoiceStatus.PAID) {
+      const updatedInvoice = await this.prisma.invoice.updateMany({
+        where: {
+          id: invoice.id,
+          organizationId,
+          paddleTransactionId: transactionId,
+          status: { in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE] },
+        },
+        data: {
+          subtotalCents: selectedAmountCents,
+          totalCents: selectedAmountCents,
+          billingPeriodStart: validPaddlePeriod.start,
+          billingPeriodEnd: validPaddlePeriod.end,
+        },
+      });
+      if (updatedInvoice.count !== 1) {
+        throw new BadRequestException('Paddle payment no longer matches an issued FieldKeel invoice');
+      }
       if (invoice.type === 'RENEWAL' || active?.activatedAt) {
         await this.invoices.markPaddlePaidAndApply(invoiceId, ownerUserId, 'renew', validPaddlePeriod);
       } else {
@@ -345,17 +420,21 @@ export class PaddleService {
       : {};
     const start = typeof period.startsAt === 'string' ? new Date(period.startsAt) : null;
     const end = typeof period.endsAt === 'string' ? new Date(period.endsAt) : null;
-    const amount = subscription.plan.annualPriceCents;
+    const termYears = termYearsFromCustomData(data.customData);
+    const amount = subscription.plan.annualPriceCents == null
+      ? null
+      : termPriceCents(subscription.plan.annualPriceCents, termYears);
     if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) ||
       (subscription.currentPeriodEnd && end <= subscription.currentPeriodEnd)) {
       throw new BadRequestException('Paddle renewal period is invalid or already applied');
     }
-    this.assertTransactionMatchesPlan(
+    await this.assertTransactionMatchesPlan(
       data,
       subscription.plan.code,
-      amount,
+      subscription.plan.annualPriceCents,
       subscription.plan.currency,
       amount ?? -1,
+      termYears,
     );
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
@@ -395,28 +474,51 @@ export class PaddleService {
     });
   }
 
-  private assertTransactionMatchesPlan(
+  private async assertTransactionMatchesPlan(
     data: PaddleRecord,
     planCode: string,
     annualPriceCents: number | null,
     currency: string,
-    invoiceTotalCents: number,
+    expectedAmountCents: number,
+    termYears: number,
   ) {
     const config = this.requireConfig();
     const expectedPriceId = planCode === 'starter' ? config.starterPriceId
       : planCode === 'professional' ? config.professionalPriceId : null;
     const items = Array.isArray(data.items) ? data.items as PaddleRecord[] : [];
-    const firstPrice = items[0]?.price && typeof items[0].price === 'object'
-      ? items[0].price as PaddleRecord
+    const item = items[0] ?? {};
+    const price = item.price && typeof item.price === 'object'
+      ? item.price as PaddleRecord
       : {};
+    const customData = data.customData && typeof data.customData === 'object'
+      ? data.customData as PaddleRecord
+      : {};
+    const hasTermMetadata = Object.hasOwn(customData, 'fieldkeelTermYears');
     const totals = data.details && typeof data.details === 'object'
       ? (data.details as PaddleRecord).totals as PaddleRecord | undefined
       : undefined;
+    const configuredPrice = expectedPriceId ? await this.client!.prices.get(expectedPriceId) : null;
+    const billingCycle = price.billingCycle && typeof price.billingCycle === 'object'
+      ? price.billingCycle as PaddleRecord
+      : {};
+    const unitPrice = price.unitPrice && typeof price.unitPrice === 'object'
+      ? price.unitPrice as PaddleRecord
+      : {};
+    const catalogPriceMatches = !hasTermMetadata &&
+      (item.priceId === expectedPriceId || price.id === expectedPriceId);
+    const customTermPriceMatches = hasTermMetadata && configuredPrice &&
+      price.productId === configuredPrice.productId &&
+      billingCycle.interval === 'year' && Number(billingCycle.frequency) === termYears &&
+      unitPrice.amount === String(expectedAmountCents) &&
+      unitPrice.currencyCode === currency &&
+      termYearsFromCustomData(customData) === termYears;
     if (!expectedPriceId || annualPriceCents == null || items.length !== 1 ||
-      (items[0].priceId !== expectedPriceId && firstPrice.id !== expectedPriceId) || Number(items[0].quantity) !== 1 ||
-      String(totals?.subtotal) !== String(invoiceTotalCents) ||
-      data.currencyCode !== currency || invoiceTotalCents !== annualPriceCents) {
-      throw new BadRequestException('Completed Paddle transaction does not match the FieldKeel invoice and plan');
+      Number(item.quantity) !== 1 ||
+      (!catalogPriceMatches && !customTermPriceMatches) ||
+      String(totals?.subtotal) !== String(expectedAmountCents) ||
+      data.currencyCode !== currency || expectedAmountCents <= 0 ||
+      (!hasTermMetadata && (termYears !== 1 || annualPriceCents !== expectedAmountCents))) {
+      throw new BadRequestException('Completed Paddle transaction does not match the FieldKeel invoice, plan, and selected term');
     }
   }
 

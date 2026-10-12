@@ -3,6 +3,8 @@
 import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { multiYearPriceCents, MULTI_YEAR_TERM_DISCOUNTS } from "@/lib/pricing";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
 import {
@@ -198,7 +200,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
             </div>
             <div>
               <dt className="text-muted-foreground">Payment method</dt>
-              <dd>{subscription.paymentMethod === "PADDLE_CARD" ? "Card - automatic annual renewal" : subscription.paymentMethod === "MANUAL_INVOICE" ? "Manual invoice - renewal requires a new invoice" : "Professional trial - no card required"}</dd>
+              <dd>{subscription.paymentMethod === "PADDLE_CARD" ? "Card - automatic renewal" : subscription.paymentMethod === "MANUAL_INVOICE" ? "Manual invoice - renewal requires a new invoice" : "Professional trial - no card required"}</dd>
             </div>
           </dl>
           {readOnly ? (
@@ -223,7 +225,7 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
           {subscription.paymentMethod === "TRIAL" ? (
             <p className="mt-2 text-muted-foreground">Your 14-day Professional trial does not require a card and will not automatically charge you when it ends. A paid activation invoice must be prepared and issued before you can pay by card or follow manual invoice instructions. Contact FieldKeel if an invoice is needed.</p>
           ) : subscription.paymentMethod === "PADDLE_CARD" ? (
-            <p className="mt-2 text-muted-foreground">Your annual card subscription renews automatically through Paddle. The next billing date is {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "not yet available"}. Manage your payment method, cancellation, payment history, and downloadable Paddle invoices through Paddle. A second manual renewal invoice is not used for this subscription.</p>
+            <p className="mt-2 text-muted-foreground">Your card subscription renews automatically through Paddle at the end of its selected prepaid term. The next billing date is {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "not yet available"}. Manage your payment method, cancellation, payment history, and downloadable Paddle invoices through Paddle. A second manual renewal invoice is not used for this subscription.</p>
           ) : (
             <p className="mt-2 text-muted-foreground">Manual invoice subscriptions do not renew automatically. The FieldKeel team must prepare and issue the next invoice before you can pay. If your renewal is approaching and no invoice appears, contact FieldKeel support.</p>
           )}
@@ -408,19 +410,30 @@ function InvoiceDetail({
 }) {
   const [reference, setReference] = useState("");
   const [paddleBusy, setPaddleBusy] = useState(false);
+  const [termYears, setTermYears] = useState(1);
   const [paddleError, setPaddleError] = useState<string | null>(null);
   const label = invoiceStatusLabel(invoice.status, invoice.statusLabel);
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem(`fieldkeel:paddle-term:${invoice.id}`));
+    if (Number.isInteger(saved) && saved >= 1 && saved <= 5) setTermYears(saved);
+    else setTermYears(1);
+  }, [invoice.id]);
   const isPreparing = invoice.status === "PREPARING" || invoice.status === "DRAFT";
   const awaiting = invoice.status === "PAYMENT_REPORTED";
   const paymentNotConfirmed =
     (invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
     Boolean(invoice.paymentReportedAt);
+  const discountPercent = MULTI_YEAR_TERM_DISCOUNTS[termYears - 1] ?? 0;
+  const termAmountCents = multiYearPriceCents(invoice.totalCents, termYears) ?? invoice.totalCents;
+  const formattedTermAmount = new Intl.NumberFormat("en-US", {
+    style: "currency", currency: invoice.currency,
+  }).format(termAmountCents / 100);
 
   async function startPaddleCheckout() {
     setPaddleBusy(true);
     setPaddleError(null);
     try {
-      const session = await createPaddleInvoiceCheckout(organizationId, invoice.id);
+      const session = await createPaddleInvoiceCheckout(organizationId, invoice.id, termYears);
       const { initializePaddle } = await import("@paddle/paddle-js");
       const paddle = await initializePaddle({ environment: "sandbox", token: session.clientToken });
       if (!paddle) throw new Error("Paddle checkout could not be initialized.");
@@ -519,9 +532,31 @@ function InvoiceDetail({
 
       {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
       (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
-        <p className="rounded-md bg-muted/50 px-3 py-3 text-muted-foreground">
-          Pay by Card starts an annual subscription with automatic renewal through Paddle. The next renewal date is {new Date(invoice.billingPeriodEnd).toLocaleDateString()}. Payment methods, cancellation, payment history, and downloadable Paddle invoices are available through the billing portal after activation. Manual invoice payments require a new invoice and platform verification.
-        </p>
+        <div className="space-y-3 rounded-md bg-muted/50 px-3 py-3">
+          <p className="text-muted-foreground">
+            Choose 1–5 years. The full discounted amount is charged now, and Paddle renews automatically at the end of the selected term. Manage or cancel the subscription through the Paddle billing portal.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-[minmax(12rem,18rem)_1fr] sm:items-end">
+            <label className="space-y-1.5">
+              <span className="block text-xs font-medium text-foreground">Prepay term</span>
+              <Select value={String(termYears)} onValueChange={(value) => { const years = Number(value); setTermYears(years); window.localStorage.setItem(`fieldkeel:paddle-term:${invoice.id}`, String(years)); }}>
+                <SelectTrigger className="h-10 w-full bg-background"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MULTI_YEAR_TERM_DISCOUNTS.map((discount, index) => {
+                    const years = index + 1;
+                    return <SelectItem key={years} value={String(years)}>{years} {years === 1 ? "year" : "years"}{discount ? ` · Save ${discount}%` : ""}</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+            </label>
+            <p className="text-foreground">
+              Due today: <strong>{formattedTermAmount}</strong>{discountPercent ? ` · ${discountPercent}% off` : ""}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Manual invoice payment remains available for the invoice amount and period shown above.
+          </p>
+        </div>
       ) : null}
 
       {invoice.paymentInstructions &&
@@ -530,7 +565,7 @@ function InvoiceDetail({
         invoice.status === "PAYMENT_REPORTED" ||
         invoice.status === "PAID") ? (
         <div className="rounded-md bg-muted/50 px-3 py-3">
-          <p className="font-medium">Invoice / bank-transfer instructions</p>
+          <p className="font-medium">Invoice</p>
           <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
             {invoice.paymentInstructions}
           </p>
@@ -541,7 +576,7 @@ function InvoiceDetail({
         {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
         (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
           <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
-            {paddleBusy ? "Opening checkout…" : "Pay by Card"}
+            {paddleBusy ? "Opening checkout…" : `Pay ${formattedTermAmount} for ${termYears} ${termYears === 1 ? "year" : "years"}`}
           </Button>
         ) : null}
         {paddleError ? <p className="w-full text-sm text-destructive">{paddleError}</p> : null}

@@ -273,9 +273,9 @@ export type PaddleCheckoutSession = {
   environment: "sandbox";
 };
 
-export function createPaddleInvoiceCheckout(organizationId: string, invoiceId: string) {
+export function createPaddleInvoiceCheckout(organizationId: string, invoiceId: string, termYears: number) {
   return apiRequest<PaddleCheckoutSession>(
     `/organizations/${organizationId}/invoices/${invoiceId}/paddle-checkout`,
-    { method: "POST", body: {} },
+    { method: "POST", body: { termYears } },
   );
 }

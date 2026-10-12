@@ -51,7 +51,7 @@ export const billingPlans: DocArticle = {
       id: "how-pay",
       heading: "How payment works",
       paragraphs: [
-        "For Starter and Professional, an issued invoice can be paid by card through Paddle or by manual invoice/bank transfer. Card payment creates an annual subscription with automatic renewal. Manual invoice subscriptions require a new invoice and verification each period. The no-card Professional trial never auto-charges.",
+        "For Starter and Professional, an issued invoice can be paid by card through Paddle or by manual invoice/bank transfer. Card checkout offers 1–5 years prepaid, with 5%, 7%, 10%, and 15% discounts for terms of 2, 3, 4, and 5 years. The subscription renews at the selected term unless canceled. Manual invoice subscriptions require a new invoice and verification each period. The no-card Professional trial never auto-charges.",
         "Owners open Billing and select Pay Now to review the current invoice and available payment methods. If no invoice has been issued, contact FieldKeel support or the platform billing team. A payment attempt does not activate the workspace; payment must be confirmed first.",
         "Renewal and plan-change requests from Plan & Subscription also block duplicates while a request is already open or being handled.",
       ],

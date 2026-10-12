@@ -88,7 +88,7 @@ export default async function BillingPolicyPage() {
           The trial begins when the first trial workspace is successfully
           created after email verification. A {catalog?.trialGraceDays ?? 3}-day
           trial grace follows.           Additional workspaces can be created immediately after your free trial has been used; they remain read-only until activated through Billing. Trial eligibility does not reset when a
-          workspace is deleted. Paid annual subscriptions receive a 7-day
+          workspace is deleted. Paid subscriptions receive a 7-day
           renewal grace after the paid period ends. After the applicable grace,
           the workspace becomes read-only.
         </p>

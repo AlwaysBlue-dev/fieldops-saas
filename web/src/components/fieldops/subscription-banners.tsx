@@ -412,7 +412,7 @@ export function SubscriptionBanners({
         <Banner
           tone="warning"
           title={subscription.daysUntilExpiration === 1 ? "Your subscription renews in 1 day." : `Your subscription renews in ${subscription.daysUntilExpiration} days.`}
-          description="Your annual card subscription is set to renew automatically through Paddle. Contact FieldKeel support to manage cancellation before the next annual renewal."
+          description="Your card subscription is set to renew automatically through Paddle at the end of the prepaid term. Manage or cancel it through the billing portal before renewal."
         />
       );
     }

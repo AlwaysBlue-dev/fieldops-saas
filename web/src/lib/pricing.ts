@@ -69,3 +69,12 @@ export function annualPriceParts(plan: PublicPlan | null) {
   const [amount, period] = plan.priceLabel.split("/");
   return { amount: amount || plan.priceLabel, period: period ?? "year" };
 }
+
+
+export const MULTI_YEAR_TERM_DISCOUNTS = [0, 5, 7, 10, 15] as const;
+
+export function multiYearPriceCents(annualPriceCents: number, years: number) {
+  const discountPercent = MULTI_YEAR_TERM_DISCOUNTS[years - 1];
+  if (!Number.isInteger(years) || discountPercent === undefined) return null;
+  return Math.round((annualPriceCents * years * (100 - discountPercent)) / 100);
+}
