@@ -112,14 +112,45 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
     if (nextSelected) setSelected(nextSelected);
   });
 
+  useEffect(() => {
+    if (!organizationId || !canManage) return;
+    const refreshAfterPortal = () => {
+      if (document.visibilityState === "hidden") return;
+      void Promise.all([
+        getOrganizationSubscription(organizationId),
+        listOrganizationInvoices(organizationId, { page, pageSize: 20 }),
+        selected ? getOrganizationInvoice(organizationId, selected.id) : Promise.resolve(null),
+      ]).then(([nextSub, nextInvoices, nextSelected]) => {
+        setSubscription(nextSub);
+        setInvoices(nextInvoices.items);
+        setPaddlePayments(nextInvoices.paddlePayments ?? []);
+        setTotalPages(nextInvoices.totalPages);
+        if (nextSelected) setSelected(nextSelected);
+      }).catch(() => undefined);
+    };
+    window.addEventListener("focus", refreshAfterPortal);
+    document.addEventListener("visibilitychange", refreshAfterPortal);
+    return () => {
+      window.removeEventListener("focus", refreshAfterPortal);
+      document.removeEventListener("visibilitychange", refreshAfterPortal);
+    };
+  }, [canManage, organizationId, page, selected?.id]);
+
   async function openPaddlePortal() {
     if (!organizationId) return;
+    const portalTab = window.open("about:blank", "_blank");
+    if (!portalTab) {
+      setPortalError("Allow pop-ups for FieldKeel to open billing management in a new tab.");
+      return;
+    }
+    portalTab.opener = null;
     setPortalBusy(true);
     setPortalError(null);
     try {
       const session = await createPaddleCustomerPortalSession(organizationId);
-      window.location.assign(session.url);
+      portalTab.location.href = session.url;
     } catch (error) {
+      portalTab.close();
       setPortalError(error instanceof Error ? error.message : "Unable to open billing management.");
     } finally {
       setPortalBusy(false);
@@ -205,6 +236,11 @@ export function BillingWorkspace({ orgSlug }: { orgSlug: string }) {
           {readOnly ? (
             <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
               {billingReadOnlyNotice(subscription)}
+            </p>
+          ) : null}
+          {subscription.cancelAtPeriodEnd ? (
+            <p role="status" className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+              Subscription cancellation is scheduled. Automatic renewal is off. Your workspace remains active through {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "the end of the current paid period"}; the existing paid grace rules apply after that date.
             </p>
           ) : null}
           {subscription.paymentMethod === "PADDLE_CARD" ? (
