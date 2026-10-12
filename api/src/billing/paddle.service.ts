@@ -136,43 +136,60 @@ export class PaddleService {
         'Paddle price quantity must be limited to exactly one. Set the Sandbox price minimum and maximum quantity to 1.',
       );
     }
+    const selectedAmountCents = termPriceCents(expectedAmount, selectedTermYears);
+    const checkoutItem = [{
+      quantity: 1,
+      price: {
+        productId: paddlePrice.productId,
+        description: `FieldKeel ${invoice.plan.name} ${selectedTermYears}-year term`,
+        name: `${invoice.plan.name} - every ${selectedTermYears} ${selectedTermYears === 1 ? 'year' : 'years'}`,
+        billingCycle: { interval: 'year', frequency: selectedTermYears },
+        unitPrice: { amount: String(selectedAmountCents), currencyCode: 'USD' },
+      },
+    }];
+    const checkoutCustomData = {
+      fieldkeelInvoiceId: invoice.id,
+      fieldkeelOrganizationId: organizationId,
+      fieldkeelOwnerUserId: ownerUserId,
+      fieldkeelTermYears: selectedTermYears,
+      fieldkeelDiscountPercent: TERM_DISCOUNT_PERCENT[selectedTermYears],
+    };
+    let replaceCanceledTransactionId: string | null = null;
     if (invoice.paddleTransactionId) {
       const existing = await client.transactions.get(invoice.paddleTransactionId);
-      const existingYears = termYearsFromCustomData(existing.customData);
-      if (existingYears !== selectedTermYears) {
-        throw new BadRequestException(`A ${existingYears}-year checkout is already open for this invoice. Finish it or wait for it to expire before choosing another term.`);
+      if (existing.status === 'draft' || existing.status === 'ready') {
+        const existingYears = termYearsFromCustomData(existing.customData);
+        if (existingYears !== selectedTermYears) {
+          await client.transactions.update(invoice.paddleTransactionId, {
+            items: checkoutItem as never,
+            customData: checkoutCustomData,
+          });
+        }
+        return {
+          transactionId: invoice.paddleTransactionId,
+          clientToken: config.clientToken,
+          customerEmail: invoice.customerBillingEmail,
+          environment: 'sandbox' as const,
+        };
       }
-      return {
-        transactionId: invoice.paddleTransactionId,
-        clientToken: config.clientToken,
-        customerEmail: invoice.customerBillingEmail,
-        environment: 'sandbox' as const,
-      };
+      if (existing.status === 'canceled') {
+        replaceCanceledTransactionId = invoice.paddleTransactionId;
+      } else if (existing.status === 'completed' || existing.status === 'paid') {
+        throw new BadRequestException('Payment is complete or processing. Refresh Billing to see the updated subscription before starting another checkout.');
+      } else {
+        throw new BadRequestException(`The existing Paddle payment is ${existing.status}. Refresh Billing or contact FieldKeel support before trying again.`);
+      }
     }
 
-    const selectedAmountCents = termPriceCents(expectedAmount, selectedTermYears);
     const transaction = await client.transactions.create({
-      items: [{
-        quantity: 1,
-        price: {
-          productId: paddlePrice.productId,
-          description: `FieldKeel ${invoice.plan.name} ${selectedTermYears}-year term`,
-          name: `${invoice.plan.name} - every ${selectedTermYears} ${selectedTermYears === 1 ? 'year' : 'years'}`,
-          billingCycle: { interval: 'year', frequency: selectedTermYears },
-          unitPrice: { amount: String(selectedAmountCents), currencyCode: 'USD' },
-        },
-      }] as never,
+      items: checkoutItem as never,
       collectionMode: 'automatic',
-      customData: {
-        fieldkeelInvoiceId: invoice.id,
-        fieldkeelOrganizationId: organizationId,
-        fieldkeelOwnerUserId: ownerUserId,
-        fieldkeelTermYears: selectedTermYears,
-        fieldkeelDiscountPercent: TERM_DISCOUNT_PERCENT[selectedTermYears],
-      },
+      customData: checkoutCustomData,
     });
     const claim = await this.prisma.invoice.updateMany({
-      where: { id: invoice.id, paddleTransactionId: null },
+      where: replaceCanceledTransactionId
+        ? { id: invoice.id, paddleTransactionId: replaceCanceledTransactionId }
+        : { id: invoice.id, paddleTransactionId: null },
       data: { paddleTransactionId: transaction.id },
     });
     if (claim.count === 0) {

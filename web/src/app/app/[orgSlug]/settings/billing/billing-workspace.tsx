@@ -3,7 +3,6 @@
 import { useRefreshLoader } from "@/components/fieldops/data-refresh-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { multiYearPriceCents, MULTI_YEAR_TERM_DISCOUNTS } from "@/lib/pricing";
 import { ApiError } from "@/lib/api";
 import { getMyOrganizations } from "@/lib/auth";
@@ -16,7 +15,7 @@ import {
   reportInvoicePayment,
   type InvoiceSummary,
 } from "@/lib/billing";
-import { formatStorageBytes, getOrganizationSubscription } from "@/lib/subscription";
+import { formatStorageBytes, getOrganizationSubscription, requestPlanChange } from "@/lib/subscription";
 import { useSubscription } from "@/components/fieldops/subscription-provider";
 import type { OrganizationSubscription } from "@/lib/subscription";
 import { useEffect, useState } from "react";
@@ -411,6 +410,8 @@ function InvoiceDetail({
   const [reference, setReference] = useState("");
   const [paddleBusy, setPaddleBusy] = useState(false);
   const [termYears, setTermYears] = useState(1);
+  const [invoiceRequestBusy, setInvoiceRequestBusy] = useState(false);
+  const [invoiceRequestError, setInvoiceRequestError] = useState<string | null>(null);
   const [paddleError, setPaddleError] = useState<string | null>(null);
   const label = invoiceStatusLabel(invoice.status, invoice.statusLabel);
   useEffect(() => {
@@ -428,6 +429,20 @@ function InvoiceDetail({
   const formattedTermAmount = new Intl.NumberFormat("en-US", {
     style: "currency", currency: invoice.currency,
   }).format(termAmountCents / 100);
+
+  async function requestDiscountedInvoice() {
+    setInvoiceRequestBusy(true);
+    setInvoiceRequestError(null);
+    try {
+      const message = `Discounted invoice request for ${invoice.invoiceNumber}: ${invoice.plan?.name ?? "plan"}, ${termYears} ${termYears === 1 ? "year" : "years"}, ${discountPercent}% discount, ${formattedTermAmount} total. Please update and reissue the invoice for this term.`;
+      await requestPlanChange(organizationId, message);
+      onNotice("Request sent. The FieldKeel team will respond and update your invoice.");
+    } catch (error) {
+      setInvoiceRequestError(error instanceof Error ? error.message : "Could not send the invoice request.");
+    } finally {
+      setInvoiceRequestBusy(false);
+    }
+  }
 
   async function startPaddleCheckout() {
     setPaddleBusy(true);
@@ -539,22 +554,35 @@ function InvoiceDetail({
           <div className="grid gap-3 sm:grid-cols-[minmax(12rem,18rem)_1fr] sm:items-end">
             <label className="space-y-1.5">
               <span className="block text-xs font-medium text-foreground">Prepay term</span>
-              <Select value={String(termYears)} onValueChange={(value) => { const years = Number(value); setTermYears(years); window.localStorage.setItem(`fieldkeel:paddle-term:${invoice.id}`, String(years)); }}>
-                <SelectTrigger className="h-10 w-full bg-background"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MULTI_YEAR_TERM_DISCOUNTS.map((discount, index) => {
-                    const years = index + 1;
-                    return <SelectItem key={years} value={String(years)}>{years} {years === 1 ? "year" : "years"}{discount ? ` · Save ${discount}%` : ""}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
+              <select
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={termYears}
+                onChange={(event) => {
+                  const years = Number(event.target.value);
+                  setTermYears(years);
+                  window.localStorage.setItem(`fieldkeel:paddle-term:${invoice.id}`, String(years));
+                }}
+              >
+                {MULTI_YEAR_TERM_DISCOUNTS.map((discount, index) => {
+                  const years = index + 1;
+                  return <option key={years} value={years}>{years} {years === 1 ? "year" : "years"}{discount ? ` · Save ${discount}%` : ""}</option>;
+                })}
+              </select>
             </label>
             <p className="text-foreground">
               Due today: <strong>{formattedTermAmount}</strong>{discountPercent ? ` · ${discountPercent}% off` : ""}
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {termYears > 1 ? (
+              <Button type="button" variant="outline" disabled={invoiceRequestBusy} onClick={() => void requestDiscountedInvoice()}>
+                {invoiceRequestBusy ? "Sending request…" : "Request discounted invoice"}
+              </Button>
+            ) : null}
+            {invoiceRequestError ? <p className="text-sm text-destructive">{invoiceRequestError}</p> : null}
+          </div>
           <p className="text-xs text-muted-foreground">
-            Manual invoice payment remains available for the invoice amount and period shown above.
+            This invoice was issued for 1 year. Pay Now applies the selected multi-year discount immediately. To pay by invoice with a discount, request an updated invoice above; the team will respond and update it.
           </p>
         </div>
       ) : null}
@@ -576,7 +604,7 @@ function InvoiceDetail({
         {(invoice.status === "ISSUED" || invoice.status === "OVERDUE") &&
         (invoice.plan?.code === "starter" || invoice.plan?.code === "professional") ? (
           <Button className="h-11" disabled={paddleBusy} onClick={() => void startPaddleCheckout()}>
-            {paddleBusy ? "Opening checkout…" : `Pay ${formattedTermAmount} for ${termYears} ${termYears === 1 ? "year" : "years"}`}
+            {paddleBusy ? "Opening checkout…" : "Pay Now"}
           </Button>
         ) : null}
         {paddleError ? <p className="w-full text-sm text-destructive">{paddleError}</p> : null}
