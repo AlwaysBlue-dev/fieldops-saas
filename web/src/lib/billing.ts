@@ -227,7 +227,13 @@ export function getBillingSettings() {
 export function updateBillingSettings(body: BillingSettings) {
   return apiRequest<BillingSettings>("/platform/billing-settings", {
     method: "PUT",
-    body,
+    body: {
+      billingLegalName: body.billingLegalName,
+      billingAddress: body.billingAddress,
+      billingEmail: body.billingEmail,
+      billingInstructions: body.billingInstructions,
+      paymentReferenceInstructions: body.paymentReferenceInstructions,
+    },
   });
 }
 

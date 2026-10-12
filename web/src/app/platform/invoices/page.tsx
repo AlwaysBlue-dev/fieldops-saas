@@ -49,6 +49,7 @@ export default function PlatformInvoicesPage() {
   const [billingContactEmail, setBillingContactEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [preparingInvoice, setPreparingInvoice] = useState(false);
 
   async function refreshList() {
     const result = await listPlatformInvoices({
@@ -114,6 +115,29 @@ export default function PlatformInvoicesPage() {
       setMessage(label);
     } catch (error) {
       setMessage(error instanceof ApiError ? error.message : "Action failed.");
+    }
+  }
+
+  async function prepareInvoice() {
+    if (!organizationId) {
+      setMessage("Choose an organization before preparing an invoice.");
+      return;
+    }
+    setPreparingInvoice(true);
+    setMessage(null);
+    try {
+      const invoice = await createPlatformInvoice({ organizationId, planCode, type });
+      setSelected(invoice);
+      setPaymentUrl(invoice.paymentUrl ?? "");
+      setExternalReference(invoice.externalReference ?? "");
+      setBillingContactName(invoice.billingContactName ?? invoice.customerName);
+      setBillingContactEmail(invoice.billingContactEmail ?? invoice.customerBillingEmail);
+      await refreshList().catch(() => undefined);
+      setMessage(`Invoice ${invoice.invoiceNumber} is prepared. Review it below, then issue it when ready.`);
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : "Invoice could not be prepared.");
+    } finally {
+      setPreparingInvoice(false);
     }
   }
 
@@ -195,20 +219,12 @@ export default function PlatformInvoicesPage() {
             </select>
           </div>
         </div>
-        <Button
-          className="h-11"
-          onClick={() =>
-            run("Invoice prepared.", () =>
-              createPlatformInvoice({
-                organizationId,
-                planCode,
-                type,
-              }),
-            )
-          }
-        >
-          Prepare invoice
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button className="h-11" disabled={!organizationId || preparingInvoice} onClick={() => void prepareInvoice()}>
+            {preparingInvoice ? "Preparing invoice…" : "Prepare invoice"}
+          </Button>
+          <p className="text-sm text-muted-foreground">After preparation, review the invoice details below before issuing it.</p>
+        </div>
       </section>
 
       <section className="space-y-3 rounded-lg border border-border bg-card px-4 py-4">
@@ -606,7 +622,7 @@ export default function PlatformInvoicesPage() {
           </Button>
         </section>
       ) : null}
-      {message ? <p className="text-sm">{message}</p> : null}
+      {message ? <p role="status" aria-live="polite" className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{message}</p> : null}
     </div>
   );
 }

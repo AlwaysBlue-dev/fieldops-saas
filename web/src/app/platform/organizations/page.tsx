@@ -10,6 +10,7 @@ import {
 } from "@/lib/platform";
 import type { SubscriptionPlan } from "@/lib/subscription";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 const SUB_STATUSES = [
@@ -25,14 +26,15 @@ const SUB_STATUSES = [
 ] as const;
 
 export default function PlatformOrganizationsPage() {
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<PlatformOrganization[] | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [subscriptionStatus, setSubscriptionStatus] = useState("");
-  const [planCode, setPlanCode] = useState("");
-  const [createdFrom, setCreatedFrom] = useState("");
-  const [createdTo, setCreatedTo] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [status, setStatus] = useState(searchParams.get("status") ?? "");
+  const [subscriptionStatus, setSubscriptionStatus] = useState(searchParams.get("subscriptionStatus") ?? "");
+  const [planCode, setPlanCode] = useState(searchParams.get("planCode") ?? "");
+  const [createdFrom, setCreatedFrom] = useState(searchParams.get("createdFrom") ?? "");
+  const [createdTo, setCreatedTo] = useState(searchParams.get("createdTo") ?? "");
 
   const load = useCallback(() => {
     return listPlatformOrganizations({

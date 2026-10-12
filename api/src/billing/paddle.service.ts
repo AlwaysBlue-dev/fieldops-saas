@@ -226,7 +226,7 @@ export class PaddleService {
       }
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       await tx.subscription.update({
         where: { organizationId },
@@ -249,7 +249,7 @@ export class PaddleService {
       : null;
     const organizationId = invoice?.organizationId ?? subscription?.organizationId;
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       if (organizationId) {
         await this.subscriptionNotifications.queuePaddlePaymentFailed(tx, {
@@ -302,7 +302,7 @@ export class PaddleService {
       nextStatus = 'DISPUTED';
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       if (invoice && nextStatus) {
         await tx.$executeRaw`UPDATE "Invoice" SET "status" = ${nextStatus}::"InvoiceStatus", "updatedAt" = NOW() WHERE "id" = ${invoice.id}::uuid`;
@@ -358,7 +358,7 @@ export class PaddleService {
       amount ?? -1,
     );
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       const before = await this.subscriptionNotifications.lockSubscription(tx, subscription.organizationId);
       await tx.subscription.update({
@@ -457,7 +457,7 @@ export class PaddleService {
     if (!paddleSubscriptionId) throw new BadRequestException('Paddle subscription event is missing its ID');
     if (await this.prisma.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${eventId}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${eventId}))) SELECT TRUE AS acquired FROM lock_result`;
       if (await tx.paddleWebhookEvent.findUnique({ where: { eventId } })) return;
       const current = await tx.subscription.findFirst({ where: { externalSubscriptionId: paddleSubscriptionId } });
       if (current) {

@@ -60,12 +60,12 @@ export function PlatformLayoutClient({ children }: { children: ReactNode }) {
         className="border-b border-border bg-card"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:h-14 sm:flex-row sm:items-center sm:justify-between sm:py-0">
-          <Link href="/platform" className="flex min-h-11 items-center gap-2">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 xl:h-14 xl:flex-nowrap xl:justify-between xl:gap-3 xl:py-0">
+          <Link href="/platform" className="flex min-h-11 shrink-0 items-center gap-2">
             <BrandMark />
             <span className="text-sm font-semibold">FieldKeel Platform Admin</span>
           </Link>
-          <nav className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+          <nav className="order-3 flex w-full min-w-0 items-center gap-x-1 overflow-x-auto whitespace-nowrap text-sm [scrollbar-width:thin] xl:order-none xl:w-auto xl:flex-1 xl:justify-end">
             {NAV.map((item) => {
               const active = item.exact
                 ? pathname === item.href
@@ -76,25 +76,25 @@ export function PlatformLayoutClient({ children }: { children: ReactNode }) {
                   href={item.href}
                   className={
                     active
-                      ? "inline-flex min-h-11 items-center rounded-md px-3 font-medium text-foreground"
-                      : "inline-flex min-h-11 items-center rounded-md px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "inline-flex min-h-11 shrink-0 items-center rounded-md px-3 font-medium text-foreground"
+                      : "inline-flex min-h-11 shrink-0 items-center rounded-md px-3 text-muted-foreground hover:bg-muted hover:text-foreground"
                   }
                 >
                   {item.label}
                 </Link>
               );
             })}
-            <Button
-              variant="ghost"
-              className="h-11 sm:h-9"
-              onClick={async () => {
-                await logout();
-                router.replace("/login");
-              }}
-            >
-              Sign out
-            </Button>
           </nav>
+          <Button
+            variant="ghost"
+            className="order-2 ml-auto h-11 shrink-0 xl:order-none xl:ml-0 xl:h-9"
+            onClick={async () => {
+              await logout();
+              router.replace("/login");
+            }}
+          >
+            Sign out
+          </Button>
         </div>
       </header>
       <OfflineBanner message="You’re offline. Platform administration needs a network connection." />

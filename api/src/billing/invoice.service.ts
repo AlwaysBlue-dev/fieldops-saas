@@ -136,7 +136,7 @@ export class InvoiceService {
     const owner = await this.resolveOrganizationOwner(organization.id);
 
     const invoice = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`invoice:${organization.id}:${dto.type}`}))`;
+      await tx.$queryRaw`WITH lock_result AS MATERIALIZED (SELECT pg_advisory_xact_lock(hashtext(${`invoice:${organization.id}:${dto.type}`}))) SELECT TRUE AS acquired FROM lock_result`;
       const existing = await tx.invoice.findFirst({
         where: {
           organizationId: organization.id, planId: plan.id, type: dto.type,
