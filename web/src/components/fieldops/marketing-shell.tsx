@@ -50,6 +50,7 @@ const footer = {
     { href: "/privacy", label: "Privacy Policy" },
     { href: "/security", label: "Security" },
     { href: "/billing-policy", label: "Billing & Subscription Policy" },
+    { href: "/refund-policy", label: "Refund Policy" },
     { href: "/acceptable-use", label: "Acceptable Use" },
   ],
 };

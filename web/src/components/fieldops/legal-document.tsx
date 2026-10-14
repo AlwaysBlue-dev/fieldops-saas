@@ -8,7 +8,7 @@ export function LegalDocument({
   children,
 }: {
   title: string;
-  version: LegalVersion;
+  version?: LegalVersion;
   trust: PublicTrust;
   children: React.ReactNode;
 }) {
@@ -18,8 +18,12 @@ export function LegalDocument({
         <p className="type-label">Legal</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Version {version.version}. Effective {version.effectiveDate}. This is a
-          product template for legal review, not legal advice.
+          {version ? (
+            <>
+              Version {version.version}. Effective {version.effectiveDate}.{" "}
+            </>
+          ) : null}
+          This is a product template for legal review, not legal advice.
         </p>
         <div className="legal-prose mt-8 space-y-6 text-sm leading-6 text-foreground">
           {children}

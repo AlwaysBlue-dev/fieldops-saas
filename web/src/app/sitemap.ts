@@ -17,6 +17,7 @@ const legalPages = [
   "privacy",
   "terms",
   "billing-policy",
+  "refund-policy",
   "acceptable-use",
 ].map((path) => ({
   url: `${SITE_URL}/${path}`,
