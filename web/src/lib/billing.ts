@@ -276,7 +276,7 @@ export type PaddleCheckoutSession = {
   transactionId: string;
   clientToken: string;
   customerEmail: string;
-  environment: "sandbox";
+  environment: "sandbox" | "production";
 };
 
 export function createPaddleInvoiceCheckout(organizationId: string, invoiceId: string, termYears: number) {

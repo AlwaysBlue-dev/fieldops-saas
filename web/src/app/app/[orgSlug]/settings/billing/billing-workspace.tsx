@@ -502,7 +502,7 @@ function InvoiceDetail({
     try {
       const session = await createPaddleInvoiceCheckout(organizationId, invoice.id, termYears);
       const { initializePaddle } = await import("@paddle/paddle-js");
-      const paddle = await initializePaddle({ environment: "sandbox", token: session.clientToken });
+      const paddle = await initializePaddle({ environment: session.environment, token: session.clientToken });
       if (!paddle) throw new Error("Paddle checkout could not be initialized.");
       paddle.Checkout.open({ transactionId: session.transactionId, customer: { email: session.customerEmail } });
       onNotice("Checkout is open. This page updates after Paddle confirms payment.");

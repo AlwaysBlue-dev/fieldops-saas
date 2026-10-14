@@ -178,7 +178,12 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   LEGAL_EFFECTIVE_DATE?: string;
-  /** Sandbox-only Paddle Billing settings. Checkout is disabled until all are provided. */
+  /** Selects the Paddle account environment. Defaults to sandbox for existing deployments. */
+  @IsOptional()
+  @IsIn(['sandbox', 'production'])
+  PADDLE_ENVIRONMENT?: 'sandbox' | 'production';
+
+  /** Paddle Sandbox credentials. Keep these separate from live account credentials. */
   @IsOptional()
   @IsString()
   PADDLE_SANDBOX_API_KEY?: string;
@@ -198,4 +203,25 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PADDLE_SANDBOX_PROFESSIONAL_PRICE_ID?: string;
+
+  /** Paddle live account credentials. Only use on the production API deployment. */
+  @IsOptional()
+  @IsString()
+  PADDLE_LIVE_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_LIVE_CLIENT_TOKEN?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_LIVE_WEBHOOK_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_LIVE_STARTER_PRICE_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  PADDLE_LIVE_PROFESSIONAL_PRICE_ID?: string;
 }

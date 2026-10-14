@@ -18,6 +18,7 @@ import { SubscriptionNotificationService } from '../subscription/subscription-no
 import { InvoiceService } from './invoice.service.js';
 
 type PaddleConfig = {
+  environment: 'sandbox' | 'production';
   apiKey: string;
   clientToken: string;
   webhookSecret: string;
@@ -62,20 +63,43 @@ export class PaddleService {
     private readonly audit: AuditService,
     private readonly subscriptionNotifications: SubscriptionNotificationService,
   ) {
-    const apiKey = this.env.get('PADDLE_SANDBOX_API_KEY', { infer: true });
-    const clientToken = this.env.get('PADDLE_SANDBOX_CLIENT_TOKEN', { infer: true });
-    const webhookSecret = this.env.get('PADDLE_SANDBOX_WEBHOOK_SECRET', { infer: true });
-    const starterPriceId = this.env.get('PADDLE_SANDBOX_STARTER_PRICE_ID', { infer: true });
-    const professionalPriceId = this.env.get('PADDLE_SANDBOX_PROFESSIONAL_PRICE_ID', { infer: true });
-    this.config = apiKey && clientToken && webhookSecret && starterPriceId && professionalPriceId
-      ? { apiKey, clientToken, webhookSecret, starterPriceId, professionalPriceId }
+    const environment = this.env.get('PADDLE_ENVIRONMENT', { infer: true }) ?? 'sandbox';
+    const values = environment === 'production'
+      ? {
+          apiKey: this.env.get('PADDLE_LIVE_API_KEY', { infer: true }),
+          clientToken: this.env.get('PADDLE_LIVE_CLIENT_TOKEN', { infer: true }),
+          webhookSecret: this.env.get('PADDLE_LIVE_WEBHOOK_SECRET', { infer: true }),
+          starterPriceId: this.env.get('PADDLE_LIVE_STARTER_PRICE_ID', { infer: true }),
+          professionalPriceId: this.env.get('PADDLE_LIVE_PROFESSIONAL_PRICE_ID', { infer: true }),
+        }
+      : {
+          apiKey: this.env.get('PADDLE_SANDBOX_API_KEY', { infer: true }),
+          clientToken: this.env.get('PADDLE_SANDBOX_CLIENT_TOKEN', { infer: true }),
+          webhookSecret: this.env.get('PADDLE_SANDBOX_WEBHOOK_SECRET', { infer: true }),
+          starterPriceId: this.env.get('PADDLE_SANDBOX_STARTER_PRICE_ID', { infer: true }),
+          professionalPriceId: this.env.get('PADDLE_SANDBOX_PROFESSIONAL_PRICE_ID', { infer: true }),
+        };
+    const expectedTokenPrefix = environment === 'production' ? 'live_' : 'test_';
+    const tokenMatchesEnvironment = !!values.clientToken && values.clientToken.startsWith(expectedTokenPrefix);
+    this.config = values.apiKey && values.clientToken && values.webhookSecret && values.starterPriceId && values.professionalPriceId
+      && tokenMatchesEnvironment
+      ? {
+          environment,
+          apiKey: values.apiKey,
+          clientToken: values.clientToken,
+          webhookSecret: values.webhookSecret,
+          starterPriceId: values.starterPriceId,
+          professionalPriceId: values.professionalPriceId,
+        }
       : null;
-    this.client = apiKey ? new Paddle(apiKey, { environment: Environment.sandbox }) : null;
+    this.client = values.apiKey
+      ? new Paddle(values.apiKey, { environment: environment === 'production' ? Environment.production : Environment.sandbox })
+      : null;
   }
 
   async createCustomerPortalSession(organizationId: string) {
     if (!this.client) {
-      throw new ServiceUnavailableException('Paddle sandbox billing management is not configured');
+      throw new ServiceUnavailableException('Paddle billing management is not configured for the selected environment');
     }
     const subscription = await this.prisma.subscription.findUnique({
       where: { organizationId },
@@ -150,14 +174,14 @@ export class PaddleService {
       paddlePrice.billingCycle?.interval !== 'year' ||
       paddlePrice.billingCycle?.frequency !== 1
     ) {
-      throw new ServiceUnavailableException('Configured Paddle sandbox price does not match the plan catalog');
+      throw new ServiceUnavailableException('Configured Paddle price does not match the plan catalog for the selected environment');
     }
     const quantityLimits = (paddlePrice as unknown as {
       quantity?: { minimum?: number; maximum?: number };
     }).quantity;
     if (quantityLimits?.minimum !== 1 || quantityLimits.maximum !== 1) {
       throw new ServiceUnavailableException(
-        'Paddle price quantity must be limited to exactly one. Set the Sandbox price minimum and maximum quantity to 1.',
+        'Paddle price quantity must be limited to exactly one. Set the price minimum and maximum quantity to 1.',
       );
     }
     const selectedAmountCents = termPriceCents(expectedAmount, selectedTermYears);
@@ -193,7 +217,7 @@ export class PaddleService {
           transactionId: invoice.paddleTransactionId,
           clientToken: config.clientToken,
           customerEmail: invoice.customerBillingEmail,
-          environment: 'sandbox' as const,
+          environment: config.environment,
         };
       }
       if (existing.status === 'canceled') {
@@ -223,7 +247,7 @@ export class PaddleService {
       transactionId: transaction.id,
       clientToken: config.clientToken,
       customerEmail: invoice.customerBillingEmail,
-      environment: 'sandbox' as const,
+      environment: config.environment,
     };
   }
 
@@ -640,7 +664,7 @@ export class PaddleService {
 
   private requireConfig(): PaddleConfig {
     if (!this.config || !this.client) {
-      throw new ServiceUnavailableException('Paddle sandbox checkout is not configured');
+      throw new ServiceUnavailableException('Paddle checkout is not configured for the selected environment');
     }
     return this.config;
   }
