@@ -34,8 +34,8 @@ export const billingPlans: DocArticle = {
       id: "catalog",
       heading: "Public plans",
       paragraphs: [
-        "Published plans: Starter at $299 per year with 5 users and 5 GB storage; Professional at $499 per year with 10 users and 20 GB (Most Popular, trial default); Business is contact sales with up to 100 users and 250 GB. Prices and limits are catalog-driven — the marketing pages read the public plans API rather than inventing numbers in components.",
-        "CUSTOM_BRANDING (organization logo) is available on Professional and above. Advanced branding is a Business-oriented flag. Most field functionality is available across plans; seats and storage are the primary commercial limits.",
+        "Published plans: Starter at $299 per year with 5 users and 5 GB storage; Professional at $499 per year with 10 users and 20 GB (Most Popular, trial default); Business is contact sales with up to 100 users and 250 GB. Prices and limits come from the live plan catalog shown on Pricing.",
+        "Organization branding (logo upload) is available on Professional and above. Advanced branding options are Business-oriented. Most field functionality is available across plans; seats and storage are the primary commercial limits.",
       ],
     },
     {

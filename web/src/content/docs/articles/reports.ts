@@ -26,7 +26,7 @@ export const reports: DocArticle = {
       heading: "Summary KPIs",
       paragraphs: [
         "Open Reports from the workspace navigation. The summary strip shows organization-timezone “today” metrics: jobs today (scheduled start today), open jobs (not completed or cancelled), completed today, pending approval, overdue, labor minutes (total / normal / overtime), completion rate, average recorded duration, technicians active today, and time entries requiring review.",
-        "All aggregates are computed on the API against membership scope. The browser never aggregates raw job or time collections as a second source of truth.",
+        "All totals are calculated server-side against your membership scope. The browser does not rebuild reports from a second local copy of jobs or time.",
       ],
     },
     {

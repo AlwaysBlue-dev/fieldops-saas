@@ -56,7 +56,6 @@ import {
 } from "@/lib/location";
 import { formatDateTimeInZone, formatTimeInZone } from "@/lib/timezone";
 import { Camera, ClipboardPen, Navigation, Phone, Plus } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -232,7 +231,9 @@ export function MyDayWorkspace() {
   const effectivelyOnline = online && deviceOnline();
 
   const openJob = (job: MyDayJob) => {
-    if (!effectivelyOnline) {
+    // Never soft-navigate to job routes while offline — chunks/RSC are not
+    // guaranteed in the SW cache. Use the IndexedDB offline sheet instead.
+    if (!effectivelyOnline || !deviceOnline()) {
       setOfflineJobId(job.id);
       return;
     }
@@ -476,11 +477,9 @@ export function MyDayWorkspace() {
               <p className="type-label mb-2 text-muted-foreground">Current job</p>
               <JobCard
                 job={day.currentJob}
-                orgSlug={params.orgSlug}
                 timeZone={day.shift.timeZone}
                 current
                 blocked={blocked}
-                online={effectivelyOnline}
                 onOpenJob={() => openJob(day.currentJob!)}
                 onClockIn={() => void runClock("in", day.currentJob!.id)}
                 onClockOut={() => void runClock("out")}
@@ -496,10 +495,8 @@ export function MyDayWorkspace() {
                   <JobCard
                     key={job.id}
                     job={job}
-                    orgSlug={params.orgSlug}
                     timeZone={day.shift.timeZone}
                     blocked={blocked}
-                    online={effectivelyOnline}
                     onOpenJob={() => openJob(job)}
                     onClockIn={() => void runClock("in", job.id)}
                     onClockOut={() => void runClock("out")}
@@ -566,22 +563,18 @@ export function MyDayWorkspace() {
 
 function JobCard({
   job,
-  orgSlug,
   timeZone,
   current = false,
   blocked,
-  online,
   onOpenJob,
   onClockIn,
   onClockOut,
   onAction,
 }: {
   job: MyDayJob;
-  orgSlug: string;
   timeZone: string;
   current?: boolean;
   blocked: boolean;
-  online: boolean;
   onOpenJob: () => void;
   onClockIn: () => void;
   onClockOut: () => void;
@@ -649,10 +642,6 @@ function JobCard({
               Call
             </a>
           </Button>
-        ) : online ? (
-          <Button asChild variant="outline" className="h-11">
-            <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
-          </Button>
         ) : (
           <Button type="button" variant="outline" className="h-11" onClick={onOpenJob}>
             Open job
@@ -661,20 +650,14 @@ function JobCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {online ? (
-          <Button asChild variant="secondary" className="h-11 min-w-11 flex-1">
-            <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-11 min-w-11 flex-1"
-            onClick={onOpenJob}
-          >
-            Open job
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-11 min-w-11 flex-1"
+          onClick={onOpenJob}
+        >
+          Open job
+        </Button>
         {!job.actions.canClockOut && job.actions.canClockIn ? (
           <MutationButton className="h-11 flex-1" disabled={blocked} onClick={onClockIn}>
             Start work

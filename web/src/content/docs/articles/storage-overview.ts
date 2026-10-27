@@ -34,7 +34,7 @@ export const storageOverview: DocArticle = {
       heading: "Per-file size guidance",
       paragraphs: [
         "Practical per-file caps are approximately 10 MB for documents, 8 MB for photos, and 2 MB for the organization logo. Uploads also require an allowed MIME type and magic-byte validation; extension alone is not trusted. Executables are rejected.",
-        "Organization logo upload additionally requires the CUSTOM_BRANDING plan feature (Professional and above, including Professional trial entitlement).",
+        "Organization logo upload additionally requires Organization branding on the plan (Professional and above, including Professional trial).",
       ],
     },
     {

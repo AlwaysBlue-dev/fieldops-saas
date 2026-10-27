@@ -24,7 +24,7 @@ export const cannotInvite: DocArticle = {
       id: "checks",
       heading: "Checklist",
       paragraphs: [
-        "Confirm you are OWNER or ADMIN (or otherwise authorized to invite) in the active organization — not merely a technician in another workspace you also belong to. Switch organization if you invited from the wrong tenant context.",
+        "Confirm you are Owner or Admin (or otherwise authorized to invite) in the active organization — not merely a technician in another workspace you also belong to. Switch organization if you invited from the wrong workspace.",
         "Check Plan & Subscription usage for remaining seats. Starter includes 5 users; Professional 10; Business 100. Soft-deactivated memberships may still count depending on how usage is metered — free a seat or request a plan change if you are at the cap.",
       ],
     },

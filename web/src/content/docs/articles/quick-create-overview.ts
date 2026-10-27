@@ -32,7 +32,7 @@ export const quickCreateOverview: DocArticle = {
       id: "permissions",
       heading: "Who sees which actions",
       paragraphs: [
-        "Available create actions depend on your organization role and whether the workspace can mutate. Technicians typically see fewer create options than OWNER, ADMIN, or OPERATIONS_MANAGER. If the subscription is trial-expired, suspended, or cancelled, create actions disable with messaging that the workspace is read-only until activation.",
+        "Available create actions depend on your organization role and whether the workspace can mutate. Technicians typically see fewer create options than Owner, Admin, or Operations manager. If the subscription is trial-expired, suspended, or cancelled, create actions disable with messaging that the workspace is read-only until activation.",
         "If an expected shortcut is missing, check role, active organization, and subscription status before assuming a product bug. See the troubleshooting article on missing Quick Create.",
       ],
     },

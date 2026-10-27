@@ -58,6 +58,7 @@ import {
   type MaterialUnit,
 } from "@/lib/jobs";
 import { MissingAccessBadge } from "./missing-access-badge";
+import { useOnlineStatus } from "./offline-banner";
 import { getOfflineJob, isLikelyOfflineNetworkError } from "@/lib/offline/db";
 import { queueOfflineOp } from "@/lib/offline/sync-engine";
 import {
@@ -84,6 +85,7 @@ const CompletionDraftContext = createContext<{
 export function JobDetailWorkspace() {
   const params = useParams<{ orgSlug: string; jobId: string }>();
   const { canMutate } = useCanMutate();
+  const online = useOnlineStatus();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
   const [membership, setMembership] = useState<OrganizationMembership | null>(
@@ -217,6 +219,10 @@ export function JobDetailWorkspace() {
   const canEditRecords = Boolean(
     canMutate && job.permissions.canEditExecutionRecords,
   );
+  const offlineMode =
+    Boolean(offlineSnapshotAt) ||
+    !online ||
+    (typeof navigator !== "undefined" && !navigator.onLine);
   const address =
     job.addressLabel ||
     [job.site.addressLine1, job.site.city, job.site.stateRegion]
@@ -227,14 +233,24 @@ export function JobDetailWorkspace() {
     <CompletionDraftContext.Provider value={{ draft: completionDraft, setDraft: setCompletionDraft }}>
     <div className="mx-auto flex max-w-[1120px] flex-col gap-4">
       <Header job={job} orgSlug={params.orgSlug} />
-      {offlineSnapshotAt ? (
+      {offlineMode ? (
         <div
           className="rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
           role="status"
         >
-          Showing a last-synced offline copy from{" "}
-          {formatDateTimeInZone(offlineSnapshotAt, timezone)}. Reconnect to refresh
-          from the server.
+          {offlineSnapshotAt ? (
+            <>
+              Showing a last-synced offline copy from{" "}
+              {formatDateTimeInZone(offlineSnapshotAt, timezone)}. Work notes
+              and materials save on this device and sync when you reconnect.
+            </>
+          ) : (
+            <>
+              You&apos;re offline. Supported field updates save on this device
+              and sync when you reconnect. Dispatch and approvals still need a
+              connection.
+            </>
+          )}
         </div>
       ) : null}
       {jobMissingAccess(job) ? (
@@ -302,10 +318,7 @@ export function JobDetailWorkspace() {
                 timezone={timezone}
                 canEdit={canEditRecords}
                 pending={pending}
-                offline={
-                  Boolean(offlineSnapshotAt) ||
-                  (typeof navigator !== "undefined" && !navigator.onLine)
-                }
+                offline={offlineMode}
                 onAdd={async (text) => {
                   const queueLocal = async () => {
                     if (!userId) throw new Error("Sign in again to save offline.");
@@ -323,10 +336,7 @@ export function JobDetailWorkspace() {
                   setPending(true);
                   setError(null);
                   try {
-                    if (
-                      Boolean(offlineSnapshotAt) ||
-                      (typeof navigator !== "undefined" && !navigator.onLine)
-                    ) {
+                    if (offlineMode) {
                       await queueLocal();
                       return;
                     }
@@ -359,10 +369,7 @@ export function JobDetailWorkspace() {
                 userId={userId}
                 canEdit={canEditRecords}
                 pending={pending}
-                offline={
-                  Boolean(offlineSnapshotAt) ||
-                  (typeof navigator !== "undefined" && !navigator.onLine)
-                }
+                offline={offlineMode}
                 onAdd={async (body) => {
                   const queueLocal = async () => {
                     if (!userId) throw new Error("Sign in again to save offline.");
@@ -385,10 +392,7 @@ export function JobDetailWorkspace() {
                   setPending(true);
                   setError(null);
                   try {
-                    if (
-                      Boolean(offlineSnapshotAt) ||
-                      (typeof navigator !== "undefined" && !navigator.onLine)
-                    ) {
+                    if (offlineMode) {
                       await queueLocal();
                       return;
                     }

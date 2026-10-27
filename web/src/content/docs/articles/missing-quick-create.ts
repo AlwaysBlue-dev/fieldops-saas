@@ -23,7 +23,7 @@ export const missingQuickCreate: DocArticle = {
       id: "role",
       heading: "Role and organization",
       paragraphs: [
-        "Technicians see fewer create shortcuts than OWNER, ADMIN, or OPERATIONS_MANAGER. Confirm you are in the intended organization via the switcher — membership role is per organization, so elevated access in company A does not grant create options in company B.",
+        "Technicians see fewer create shortcuts than Owner, Admin, or Operations manager. Confirm you are in the intended organization via the switcher — membership role is per organization, so elevated access in company A does not grant create options in company B.",
       ],
     },
     {

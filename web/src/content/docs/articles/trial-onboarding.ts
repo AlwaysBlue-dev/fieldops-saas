@@ -52,7 +52,7 @@ export const trialOnboarding: DocArticle = {
       heading: "Choose a payment method",
       paragraphs: [
         "The 14-day Professional trial needs no card and will not auto-charge. When an invoice is issued, Owners can pay by card through Paddle for an annually renewing subscription, or follow manual invoice/bank-transfer instructions. After a manual payment, select I’ve Sent Payment and allow up to 2 business days for verification. A subscription changes only after payment is confirmed.",
-        "While read-only, create/edit controls show that the action is available after account activation. The API remains authoritative: even if a control were somehow enabled, expired or suspended workspaces reject mutations.",
+        "While read-only, create/edit controls show that the action is available after account activation. Expired or suspended workspaces still reject changes even if a control appears enabled.",
         "An additional workspace with no paid period and an expired workspace both link to Billing with Pay Now. Pay an issued invoice by card or manual invoice; access changes only after payment is confirmed.",
       ],
     },

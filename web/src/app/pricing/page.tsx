@@ -163,9 +163,13 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       ),
     },
     {
-      label: "Reports",
+      label: "Basic reports",
+      values: columns.map((p) => (p.featureFlags.JOBS ? "yes" : "no")),
+    },
+    {
+      label: "Advanced reports",
       values: columns.map((p) =>
-        p.featureFlags.ADVANCED_REPORTS || p.featureFlags.JOBS ? "yes" : "no",
+        p.featureFlags.ADVANCED_REPORTS ? "yes" : "no",
       ),
     },
     {

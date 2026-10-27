@@ -4,14 +4,14 @@ export const roles: DocArticle = {
   slug: "roles",
   title: "Organization roles",
   description:
-    "Understand OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, and TECHNICIAN — and why org role never lives on the User record.",
+    "Understand Owner, Admin, Operations manager, Supervisor, and Technician — and how organization role is assigned per membership.",
   categoryId: "organizations-members",
   keywords: [
-    "OWNER",
-    "ADMIN",
-    "OPERATIONS_MANAGER",
-    "SUPERVISOR",
-    "TECHNICIAN",
+    "Owner",
+    "Admin",
+    "Operations manager",
+    "Supervisor",
+    "Technician",
     "permissions",
   ],
   relatedSlugs: [
@@ -40,17 +40,17 @@ export const roles: DocArticle = {
     },
     {
       id: "ops-supervisor",
-      heading: "OPERATIONS_MANAGER and SUPERVISOR",
+      heading: "Operations manager and Supervisor",
       paragraphs: [
-        "OPERATIONS_MANAGER owns the board: jobs, schedule, dispatch, exceptions, and the approvals action center. Expect full-organization visibility for day-to-day dispatch work.",
-        "SUPERVISOR owns a crew. Scope for reports and many lists focuses on led teams and assigned jobs / those technicians’ time. Supervisors review My Day exceptions, timesheets, overtime, incomplete cards, and missing photos or signatures.",
+        "Operations manager owns the board: jobs, schedule, dispatch, exceptions, and the approvals action center. Expect full-organization visibility for day-to-day dispatch work.",
+        "Supervisor owns a crew. Scope for reports and many lists focuses on led teams and assigned jobs / those technicians’ time. Supervisors review My Day exceptions, timesheets, overtime, incomplete cards, and missing photos or signatures.",
       ],
     },
     {
       id: "technician",
-      heading: "TECHNICIAN",
+      heading: "Technician",
       paragraphs: [
-        "TECHNICIAN is the field role. Lists and reports typically show assigned jobs and own time only. The mobile shell emphasizes My Day, clock in/out, job execution evidence, and time. Technicians do not manage org-wide membership or billing.",
+        "Technician is the field role. Lists and reports typically show assigned jobs and own time only. The mobile shell emphasizes My Day, clock in/out, job execution evidence, and time. Technicians do not manage org-wide membership or billing.",
       ],
     },
   ],

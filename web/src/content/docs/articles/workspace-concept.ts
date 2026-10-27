@@ -29,15 +29,15 @@ export const workspaceConcept: DocArticle = {
       heading: "Organization as tenant",
       paragraphs: [
         "FieldKeel is multi-tenant from day one. An Organization is the commercial customer of FieldKeel and the isolation boundary for operational data. Clients, sites, teams, jobs, files, timesheets, approvals, reports, and subscription usage all live under one organization.",
-        "Lookups are always scoped to the active organization. Wrong-tenant identifiers return not found rather than leaking existence across companies. Platform SUPER_ADMIN routes are separate and do not casually browse tenant jobs or files.",
+        "Lookups are always scoped to the active organization. Wrong-organization identifiers return not found rather than leaking existence across companies. FieldKeel platform administration is separate and does not casually browse tenant jobs or files.",
       ],
     },
     {
       id: "membership",
       heading: "Accounts and membership",
       paragraphs: [
-        "A FieldKeel account is a platform identity. Organization role is never stored on the account itself. Membership links an account to an organization with exactly one org role for that membership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Soft-deactivate memberships when people leave so history stays intact.",
-        "Multi-organization membership is first-class. After login you select which organization to work in. Frontend org id or slug is selection only — authorization always reloads an active membership on the server.",
+        "A FieldKeel account is a sign-in identity. Organization role is never stored on the account itself. Membership links an account to an organization with exactly one role for that membership: Owner, Admin, Operations manager, Supervisor, or Technician. Soft-deactivate memberships when people leave so history stays intact.",
+        "Multi-organization membership is first-class. After login you select which organization to work in. Choosing an organization in the UI is selection only — FieldKeel re-checks your active membership before allowing work.",
       ],
     },
     {

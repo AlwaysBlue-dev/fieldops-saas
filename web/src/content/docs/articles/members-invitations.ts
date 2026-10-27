@@ -26,7 +26,7 @@ export const membersInvitations: DocArticle = {
       id: "invite",
       heading: "Invite by email",
       paragraphs: [
-        "Authorized owners and admins invite staff by email with a proposed organization role. Invitations are time-limited offers to join one organization. You can resend or revoke outstanding invitations. Token hashes are stored server-side — plaintext invitation tokens are not returned in ordinary API payloads.",
+        "Authorized owners and admins invite staff by email with a proposed organization role. Invitations are time-limited offers to join one organization. You can resend or revoke outstanding invitations. Invitation links are single-use and expire; FieldKeel does not expose raw invitation secrets in ordinary responses.",
         "Invite capacity is limited by the plan’s user (seat) entitlement. If you cannot invite, check remaining seats, your role, and whether the workspace is read-only after trial expiry. See troubleshooting for cannot invite.",
       ],
     },
@@ -43,7 +43,7 @@ export const membersInvitations: DocArticle = {
       heading: "Roles, deactivation, and last owner",
       paragraphs: [
         "From Members you can change roles for active memberships and soft-deactivate people who leave. Soft-deactivate keeps operational history (jobs they worked, approvals they decided) while blocking further access.",
-        "The product prevents the last OWNER from leaving or being deactivated without transferring ownership. Always promote another OWNER before removing the final owner membership.",
+        "The product prevents the last Owner from leaving or being deactivated without transferring ownership. Always promote another Owner before removing the final owner membership.",
       ],
     },
   ],
