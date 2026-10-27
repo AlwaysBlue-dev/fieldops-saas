@@ -61,7 +61,10 @@ import { MissingAccessBadge } from "./missing-access-badge";
 import { ConnectivitySync } from "./connectivity-sync";
 import { useOnlineStatus } from "./offline-banner";
 import { getOfflineJob, isLikelyOfflineNetworkError } from "@/lib/offline/db";
-import { queueOfflineOp } from "@/lib/offline/sync-engine";
+import {
+  queueOfflineOp,
+  subscribeSync,
+} from "@/lib/offline/sync-engine";
 import {
   formatAccuracy,
   formatDistanceFromSite,
@@ -72,7 +75,15 @@ import { formatDateTimeInZone, formatTimeInZone } from "@/lib/timezone";
 import { Navigation } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { createContext, useContext, useId, useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useId,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 const MOBILE_TABS = ["Overview", "Work", "Time", "Files", "Activity"] as const;
@@ -101,6 +112,9 @@ export function JobDetailWorkspace() {
   const [pending, setPending] = useState(false);
   const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null);
   const [completionDraft, setCompletionDraft] = useState<CompletionDraft | null>(null);
+  const [jobSyncPending, setJobSyncPending] = useState(0);
+  const [jobSyncFailed, setJobSyncFailed] = useState(0);
+  const prevJobSyncPendingRef = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,6 +209,41 @@ export function JobDetailWorkspace() {
     };
   }, [organizationId, params.jobId, role, userId, load]);
 
+  // Pending badge + refresh work logs when this job's queue drains after sync.
+  useEffect(() => {
+    if (!organizationId || !userId) return;
+    const jobId = params.jobId;
+    prevJobSyncPendingRef.current = null;
+    return subscribeSync(organizationId, userId, (progress) => {
+      const jobOps = progress.ops.filter((op) => op.jobId === jobId);
+      const waiting = jobOps.filter(
+        (op) => op.status === "pending" || op.status === "syncing",
+      ).length;
+      const failed = jobOps.filter((op) => op.status === "failed").length;
+      setJobSyncPending(waiting);
+      setJobSyncFailed(failed);
+
+      const prev = prevJobSyncPendingRef.current;
+      prevJobSyncPendingRef.current = waiting;
+      if (
+        prev != null &&
+        prev > 0 &&
+        waiting === 0 &&
+        failed === 0 &&
+        !progress.running &&
+        (progress.lastResult === "ok" || progress.lastResult === "partial")
+      ) {
+        void load()
+          .then(() => {
+            toast.success("Synced — updates are on the server.");
+          })
+          .catch(() => {
+            toast.success("Synced. Pull to refresh if notes look stale.");
+          });
+      }
+    });
+  }, [organizationId, userId, params.jobId, load]);
+
   async function run(action: () => Promise<unknown>) {
     setPending(true);
     setError(null);
@@ -235,6 +284,31 @@ export function JobDetailWorkspace() {
         <ConnectivitySync organizationId={organizationId} userId={userId} />
       ) : null}
       <Header job={job} orgSlug={params.orgSlug} />
+      {jobSyncPending > 0 || jobSyncFailed > 0 ? (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+          role="status"
+        >
+          <span
+            className={
+              jobSyncFailed > 0
+                ? "inline-flex min-h-6 items-center rounded-md bg-amber-100 px-2 text-xs font-semibold text-amber-950 dark:bg-amber-950/50 dark:text-amber-100"
+                : "inline-flex min-h-6 items-center rounded-md bg-primary/10 px-2 text-xs font-semibold text-primary"
+            }
+          >
+            {jobSyncPending > 0
+              ? `${jobSyncPending} waiting to sync`
+              : `${jobSyncFailed} need retry`}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {jobSyncFailed > 0
+              ? "Open My Day to retry failed changes."
+              : online
+                ? "Uploading when the connection is ready…"
+                : "Will upload when you reconnect."}
+          </span>
+        </div>
+      ) : null}
       {offlineMode ? (
         <div
           className="rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
