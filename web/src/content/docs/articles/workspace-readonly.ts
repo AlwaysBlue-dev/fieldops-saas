@@ -25,7 +25,7 @@ export const workspaceReadonly: DocArticle = {
       heading: "Why writes stop",
       paragraphs: [
         "New organizations that receive a trial use Professional for 14 days, then three grace days with writes still allowed. After grace, effective status is trial-expired and the workspace becomes read-only: you can sign in and read records, but not create jobs, clock, invite, upload, or approve.",
-        "Additional workspaces created after your account has used its free trial start without a trial and remain read-only until a paid subscription is confirmed. Operator-set SUSPENDED or CANCELLED states are read-only. Paid expiry after renewal grace behaves similarly. A persistent banner links the Owner to Billing with Pay Now.",
+        "Additional workspaces created after your account has used its free trial start without a trial and remain read-only until a paid subscription is confirmed. Suspended or cancelled workspaces are read-only. Paid expiry after renewal grace behaves similarly. A persistent banner links the Owner to Billing with Pay Now.",
       ],
     },
     {

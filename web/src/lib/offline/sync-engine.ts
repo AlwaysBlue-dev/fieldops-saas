@@ -414,22 +414,48 @@ export async function retryOfflineOp(
   });
 }
 
+let connectivityKey: string | null = null;
+let connectivityStop: (() => void) | null = null;
+
 export function startConnectivitySync(organizationId: string, userId: string) {
   if (typeof window === "undefined") return () => undefined;
-  const onOnline = () => {
-    void syncNow(organizationId, userId);
-  };
-  window.addEventListener("online", onOnline);
-  const onVisible = () => {
-    if (document.visibilityState === "visible" && navigator.onLine) {
+  const key = `${organizationId}:${userId}`;
+  // App shell + OfflineFieldBar may both mount; keep a single listener.
+  if (connectivityKey === key && connectivityStop) {
+    return () => undefined;
+  }
+  connectivityStop?.();
+  connectivityKey = key;
+
+  let syncTimer: number | null = null;
+  const scheduleSync = () => {
+    if (syncTimer != null) window.clearTimeout(syncTimer);
+    // Brief delay so navigator.onLine / fetch settle after DevTools reconnect.
+    syncTimer = window.setTimeout(() => {
+      syncTimer = null;
+      if (!navigator.onLine) return;
       void syncNow(organizationId, userId);
-    }
+    }, 400);
   };
+  const onOnline = () => scheduleSync();
+  const onVisible = () => {
+    if (document.visibilityState === "visible") scheduleSync();
+  };
+  const onFocus = () => scheduleSync();
+  window.addEventListener("online", onOnline);
+  window.addEventListener("focus", onFocus);
   document.addEventListener("visibilitychange", onVisible);
   // Recover any ops left in "syncing" from a previous interrupted run.
-  void syncNow(organizationId, userId);
-  return () => {
+  scheduleSync();
+  connectivityStop = () => {
+    if (syncTimer != null) window.clearTimeout(syncTimer);
     window.removeEventListener("online", onOnline);
+    window.removeEventListener("focus", onFocus);
     document.removeEventListener("visibilitychange", onVisible);
+    if (connectivityKey === key) {
+      connectivityKey = null;
+      connectivityStop = null;
+    }
   };
+  return connectivityStop;
 }

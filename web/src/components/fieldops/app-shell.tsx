@@ -43,6 +43,7 @@ import { InstallWorkspaceDialog } from "./install-workspace";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { NavigationRail } from "./navigation-rail";
 import { NotificationCenter } from "./notification-center";
+import { ConnectivitySync } from "./connectivity-sync";
 import { OfflineBanner } from "./offline-banner";
 import { PwaInstallProvider, usePwaInstall } from "./pwa-install-provider";
 import { QuickCreateSheet } from "./quick-create-sheet";
@@ -358,6 +359,12 @@ function AppShellContent({
             onInstallWorkspace={() => setInstallOpen(true)}
           />
           <OfflineBanner />
+          {organizationId && user ? (
+            <ConnectivitySync
+              organizationId={organizationId}
+              userId={user.id}
+            />
+          ) : null}
           {organizationId ? (
             <SubscriptionBanners
               organizationId={organizationId}

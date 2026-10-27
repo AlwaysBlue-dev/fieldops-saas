@@ -4,13 +4,13 @@ export const approvals: DocArticle = {
   slug: "approvals",
   title: "Approvals inbox",
   description:
-    "The approvals action center covers JOB_COMPLETION, TIMESHEET, and OVERTIME only — each row points at the live domain record.",
+    "Review job completions, timesheets, and overtime requests in one Approvals inbox.",
   categoryId: "approvals",
   keywords: [
     "approvals",
-    "JOB_COMPLETION",
-    "TIMESHEET",
-    "OVERTIME",
+    "job completion",
+    "timesheet",
+    "overtime",
     "return",
     "approve",
   ],
@@ -25,8 +25,8 @@ export const approvals: DocArticle = {
       id: "types",
       heading: "What appears in the inbox",
       paragraphs: [
-        "The Approvals page is FieldKeel’s action center for three inbox types: JOB_COMPLETION, TIMESHEET, and OVERTIME. The UI does not copy jobs or timesheets into a separate store — each approval row points at the live domain record via subject type and id.",
-        "Day-to-day, work the three approval types above in Approvals."
+        "The Approvals page is FieldKeel’s action center for three inbox types: Job completion, Timesheet, and Overtime. Each row opens the live job or time record — FieldKeel does not keep a separate copy of that work in the inbox.",
+        "Day-to-day, work the three approval types above in Approvals.",
       ],
     },
     {
@@ -41,8 +41,8 @@ export const approvals: DocArticle = {
       id: "time-ot",
       heading: "Timesheets and overtime",
       paragraphs: [
-        "Timesheet cards show technician, date/week, hours, job linkage, validation status, and warnings. BLOCKED entries cannot be approved (they can be returned). REVIEW shows warnings but still allows an authorized decision. CLEAR entries may be bulk-approved when the server re-validates each id.",
-        "Overtime requests appear on the Overtime tab of the same page. Approve or reject; reject requires a comment. Decisions write audit events and in-app notifications in the same transaction as the domain update.",
+        "Timesheet cards show technician, date/week, hours, job linkage, validation status, and warnings. Blocked entries cannot be approved (they can be returned). Review shows warnings but still allows an authorized decision. Clear entries may be bulk-approved after FieldKeel re-checks each row.",
+        "Overtime requests appear on the Overtime tab of the same page. Approve or reject; reject requires a comment. Decisions keep an audit trail and send in-app notifications with the update.",
       ],
     },
   ],

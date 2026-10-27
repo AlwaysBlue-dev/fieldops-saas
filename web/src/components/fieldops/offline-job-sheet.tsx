@@ -203,7 +203,21 @@ export function OfflineJobSheet({
                   <dd className="whitespace-pre-wrap">{job.scope}</dd>
                 </div>
               ) : null}
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Work logs (last synced)
+                </dt>
+                <dd>
+                  {job.workLogs?.length
+                    ? `${job.workLogs.length} note${job.workLogs.length === 1 ? "" : "s"} on this snapshot`
+                    : "No work notes in this offline snapshot."}
+                </dd>
+              </div>
             </dl>
+            <p className="text-xs text-muted-foreground">
+              Full job page routes need a connection. Use Add work update here
+              to queue a note on this device.
+            </p>
             {onAddUpdate ? (
               <Button type="button" className="h-11 w-full" onClick={onAddUpdate}>
                 Add work update

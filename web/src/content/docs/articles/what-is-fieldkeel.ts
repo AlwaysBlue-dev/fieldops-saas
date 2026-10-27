@@ -35,7 +35,7 @@ export const whatIsFieldkeel: DocArticle = {
       heading: "Who uses it",
       paragraphs: [
         "Owners care about utilization, overtime cost, and whether work is actually getting done. Administrators set up the organization: users, roles, clients, sites, and settings. Operations managers own the board — jobs, schedule, dispatch, and the approvals inbox. Supervisors own a crew and review exceptions, timesheets, and incomplete job cards. Technicians work from a phone, often outdoors, and need today’s jobs, clock in/out, GPS evidence on clock events, photos, materials, notes, and client signatures.",
-        "A single person can belong to more than one organization. Organization role always lives on membership, never as a global user property — so someone can be OWNER of one company and TECHNICIAN in another.",
+        "A single person can belong to more than one organization. Organization role always lives on membership, never as a global account property — so someone can be Owner of one company and Technician in another.",
       ],
     },
     {

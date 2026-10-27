@@ -34,7 +34,7 @@ export const securityPrivacy: DocArticle = {
       id: "tenancy",
       heading: "Tenant isolation",
       paragraphs: [
-        "Operational rows persist organizationId. Lookups use id plus organizationId. Cross-tenant ids return 404. In-org forbidden actions return 403. Platform SUPER_ADMIN tools are separate routes and do not silently read tenant job photos or customer files.",
+        "Operational records always belong to one organization. Lookups are scoped to that organization. Cross-organization ids return not found. Forbidden in-org actions are blocked. FieldKeel platform administration is separate and does not silently read tenant job photos or customer files.",
         "Uploads require auth, org scope, size caps, MIME allow-lists, magic-byte checks, and private bucket keys under the organization. Presigned GET URLs are short-lived capability tokens issued only after authorization.",
       ],
     },

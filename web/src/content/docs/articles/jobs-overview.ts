@@ -49,7 +49,7 @@ export const jobsOverview: DocArticle = {
       id: "cancel",
       heading: "Cancel without destroying history",
       paragraphs: [
-        "Soft-cancel jobs rather than deleting operational history. CANCELLED is a terminal-style status used when work will not complete; prior evidence and audit remain for the organization.",
+        "Soft-cancel jobs rather than deleting operational history. Cancelled is a terminal status used when work will not complete; prior evidence and audit remain for the organization.",
       ],
     },
   ],

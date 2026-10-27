@@ -26,7 +26,7 @@ export const jobExecution: DocArticle = {
       id: "on-site",
       heading: "On-site workflow",
       paragraphs: [
-        "From My Day, open the assigned job, navigate to the site, and clock in according to company practice. While IN_PROGRESS, record work performed, materials used, and any safety checks your organization requires.",
+        "From My Day, open the assigned job, navigate to the site, and clock in according to company practice. While the job is In progress, record work performed, materials used, and any safety checks your organization requires.",
         "Capture photos with the device camera when possible. Uploads count against the organization storage quota and per-file size limits. After submit or approval, evidence locks so casual deletion cannot erase the record.",
       ],
     },

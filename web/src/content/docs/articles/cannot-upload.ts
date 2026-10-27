@@ -33,7 +33,7 @@ export const cannotUpload: DocArticle = {
       heading: "Quota, access, and branding",
       paragraphs: [
         "If Settings → Storage shows the organization at its plan ceiling, free space or request a higher plan. Uploads also need an authorized job (or branding permission for logos) and a workspace that can mutate — read-only subscriptions block new bytes.",
-        "Organization logo specifically needs CUSTOM_BRANDING (Professional+). Starter workspaces without that feature cannot upload a logo even with free storage headroom.",
+        "Organization logo specifically needs Organization branding (Professional+). Starter workspaces without that feature cannot upload a logo even with free storage headroom.",
       ],
     },
   ],
