@@ -69,7 +69,9 @@ export function subscribeSync(
 ) {
   listeners.add(listener);
   emit(organizationId, userId);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export async function queueOfflineOp(
