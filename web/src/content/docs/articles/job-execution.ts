@@ -34,15 +34,15 @@ export const jobExecution: DocArticle = {
       id: "signoff",
       heading: "Client signature and completion rules",
       paragraphs: [
-        "If the job or organization requires client sign-off, capture a touch signature before submit. The API blocks submit when required signature or required safety is missing. GPS-required organizations also need coordinates on clock evidence.",
-        "Choose an accurate outcome (COMPLETED, PARTIALLY_COMPLETED, FOLLOW_UP_REQUIRED, or UNABLE_TO_COMPLETE) and submit. Status moves to PENDING_APPROVAL and a JOB_COMPLETION item appears in the approvals inbox.",
+        "If the job or organization requires client sign-off, capture a touch signature before submit. FieldKeel blocks submit when required signature or required safety is missing. GPS-required organizations also need coordinates on clock evidence.",
+        "Choose an accurate outcome (Completed, Partially completed, Follow-up required, or Unable to complete) and submit. Status moves to Pending approval and a job completion item appears in the Approvals inbox.",
       ],
     },
     {
       id: "returned",
       heading: "If the job is returned",
       paragraphs: [
-        "Approvers can return a job with a required comment. Fix the gaps called out — missing photo, incomplete materials, open clock session — then resubmit. The same approval row returns to PENDING.",
+        "Approvers can return a job with a required comment. Fix the gaps called out — missing photo, incomplete materials, open clock session — then resubmit. The same approval row returns to Pending.",
       ],
     },
   ],

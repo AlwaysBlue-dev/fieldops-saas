@@ -41,9 +41,25 @@ function PricingCard({
   emphasized?: boolean;
 }) {
   const price = annualPriceParts(plan);
-  const highlights = (
-    plan.highlights?.length > 0 ? plan.highlights : plan.inclusions
-  ).filter((item) => !/advanced reports|advanced branding|^approvals$/i.test(item));
+  const source =
+    plan.code === "professional"
+      ? [
+          "Everything in Starter",
+          "Approvals",
+          "Advanced Reports",
+          "Organization Branding",
+          "Standard Support",
+          "Product Updates",
+        ]
+      : plan.highlights?.length > 0
+        ? plan.highlights
+        : plan.inclusions;
+  const highlights = source.filter(
+    (item) =>
+      !/safety\s*&\s*job execution|materials\s*&\s*work logs|technician mobile/i.test(
+        item,
+      ),
+  );
 
   return (
     <article
@@ -163,6 +179,18 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
           ? "yes"
           : "no",
       ),
+    },
+    {
+      label: "Safety & job execution",
+      values: ["yes", "yes", "yes"],
+    },
+    {
+      label: "Materials & work logs",
+      values: ["yes", "yes", "yes"],
+    },
+    {
+      label: "Technician mobile / offline prep",
+      values: ["yes", "yes", "yes"],
     },
   ];
 

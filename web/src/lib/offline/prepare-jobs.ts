@@ -1,6 +1,7 @@
 import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { getJobCard, type JobDetail } from "@/lib/jobs";
 import { getMyDay } from "@/lib/my-day";
+import { cachePreparedJobDocuments } from "./cache-nav";
 import {
   listOfflineJobs,
   putOfflineJob,
@@ -83,6 +84,13 @@ export async function prepareAssignedJobsForOffline(
           : `Could not download job ${jobId}.`,
       );
     }
+  }
+
+  if (context) {
+    await cachePreparedJobDocuments(
+      context.membership.organization.slug,
+      [...ids],
+    ).catch(() => undefined);
   }
 
   const jobs = await listOfflineJobs(organizationId, userId);

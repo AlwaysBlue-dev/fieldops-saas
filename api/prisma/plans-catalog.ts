@@ -85,11 +85,9 @@ export const PLAN_DEFINITIONS = [
       positioning: 'For growing field service businesses.',
       publicHighlights: [
         'Everything in Starter',
-        'Advanced Reports',
         'Approvals',
-        'Safety & Job Execution',
-        'Materials & Work Logs',
-        'Technician Mobile Experience',
+        'Advanced Reports',
+        'Organization Branding',
         'Standard Support',
         'Product Updates',
       ],

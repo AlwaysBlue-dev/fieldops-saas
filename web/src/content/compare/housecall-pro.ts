@@ -94,6 +94,13 @@ export const housecallproComparison = {
               ]
             },
             {
+              label: "**Missing access warnings**",
+              cells: [
+                "Amber badge, Jobs tab, Schedule filter, and soft dispatch confirm when site access notes or contacts are missing",
+                "Not called out as a first-class access readiness warning in public materials"
+              ]
+            },
+            {
               label: "**Estimates, invoicing, payments**",
               cells: [
                 "Not offered on the FieldKeel site",

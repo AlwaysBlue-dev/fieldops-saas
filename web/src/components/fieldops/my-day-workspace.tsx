@@ -44,6 +44,7 @@ import {
   listOfflineJobs,
   type OfflineJobSnapshot,
 } from "@/lib/offline/db";
+import { cacheOfflineNavDocument } from "@/lib/offline/cache-nav";
 import { rememberOfflineMyDay } from "@/lib/offline/prepare-jobs";
 import { queueOfflineOp } from "@/lib/offline/sync-engine";
 import type { JobDetail } from "@/lib/jobs";
@@ -138,6 +139,9 @@ export function MyDayWorkspace() {
         await rememberOfflineMyDay(organizationId, userId, payload).catch(
           () => undefined,
         );
+        await cacheOfflineNavDocument(`/app/${params.orgSlug}/my-day`).catch(
+          () => undefined,
+        );
       })
       .catch(async (err: unknown) => {
         if (cancelled) return;
@@ -170,7 +174,7 @@ export function MyDayWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, userId]);
+  }, [organizationId, userId, params.orgSlug]);
 
   const refresh = async () => {
     if (!organizationId || !userId) return;
