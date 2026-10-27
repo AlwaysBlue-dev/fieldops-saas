@@ -33,8 +33,8 @@ export const approvals: DocArticle = {
       id: "job-completion",
       heading: "Job completion decisions",
       paragraphs: [
-        "When a job is PENDING_APPROVAL, approvers review the full card: client/site, crew, completion, safety, materials, photos, representative, signature, hours, GPS clock evidence, and activity. Approve moves PENDING_APPROVAL → COMPLETED. Return moves PENDING_APPROVAL → RETURNED with a required comment.",
-        "Approve is blocked when the job is not waiting for approval, a required signature is missing, required safety is incomplete, a clock session is still open, a time record is incomplete, or GPS is required and clock evidence lacks coordinates."
+        "When a job is pending approval, approvers review the full card: client/site, crew, completion, safety, materials, photos, representative, signature, hours, GPS clock evidence, and activity. Approve moves the job to Completed. Return moves it to Returned with a required comment.",
+        "Approve is blocked when the job is not waiting for approval, a required signature is missing, required safety is incomplete, a clock session is still open, a time record is incomplete, or GPS is required and clock evidence lacks coordinates.",
       ],
     },
     {

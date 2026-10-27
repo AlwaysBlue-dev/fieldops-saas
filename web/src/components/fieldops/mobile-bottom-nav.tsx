@@ -1,6 +1,7 @@
 "use client";
 
 import { mobilePrimaryNav } from "@/lib/navigation";
+import { navigateFieldOfflineCapable } from "@/lib/offline/cache-nav";
 import { cn } from "cn";
 import { MoreHorizontal } from "lucide-react";
 import Link from "next/link";
@@ -32,6 +33,11 @@ export function MobileBottomNav({
             <li key={item.href}>
               <Link
                 href={item.href}
+                onClick={(event) => {
+                  if (navigateFieldOfflineCapable(item.href)) {
+                    event.preventDefault();
+                  }
+                }}
                 className={cn(
                   "flex h-full min-h-11 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
                   active ? "text-primary" : "text-muted-foreground",

@@ -13,6 +13,7 @@ import {
   desktopSecondaryNav,
   helpNavItem,
 } from "@/lib/navigation";
+import { navigateFieldOfflineCapable } from "@/lib/offline/cache-nav";
 import { cn } from "cn";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
@@ -143,6 +144,11 @@ function NavGroup({
           const link = (
             <Link
               href={item.href}
+              onClick={(event) => {
+                if (navigateFieldOfflineCapable(item.href)) {
+                  event.preventDefault();
+                }
+              }}
               className={cn(
                 "relative flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium",
                 active

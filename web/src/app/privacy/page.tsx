@@ -16,8 +16,7 @@ export default async function PrivacyPage() {
       <LegalSection title="Who this covers">
         <p>
           This policy describes how FieldKeel processes personal and
-          operational data when you use the application. It is a product
-          template for legal review.
+          operational data when you use the application.
         </p>
       </LegalSection>
       <LegalSection title="Account information">
@@ -64,10 +63,11 @@ export default async function PrivacyPage() {
       <LegalSection title="Service providers and security">
         <p>
           Infrastructure vendors such as hosting, object storage, and email
-          delivery may process data on our instructions. We apply access
-          controls, hashed passwords, tenant isolation, and audit logging as
-          described on the Security page. We do not claim a specific production
-          hosting country until that region is configured.
+          delivery may process data on our instructions. Production application
+          and database hosting for FieldKeel currently runs on cloud
+          infrastructure in the United States. We apply access controls, hashed
+          passwords, tenant isolation, and audit logging as described on the
+          Security page.
         </p>
       </LegalSection>
       <LegalSection title="Contact">

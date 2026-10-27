@@ -41,7 +41,7 @@ export const scheduleDispatch: DocArticle = {
       id: "dispatch-flow",
       heading: "From schedule to field",
       paragraphs: [
-        "Typical flow: create or finalize a job (often DRAFT), place it on the schedule (SCHEDULED), dispatch to the crew (DISPATCHED), then the technician clocks in and work moves to IN_PROGRESS. See the job lifecycle article for the full status path including PENDING_APPROVAL, RETURNED, and CANCELLED.",
+        "Typical flow: create or finalize a job (often Draft), place it on the schedule (Scheduled), dispatch to the crew (Dispatched), then the technician clocks in and work moves to In progress. See the job lifecycle article for the full status path including Pending approval, Returned, and Cancelled.",
         "If a Scheduled job is missing access information, Job Details shows a soft confirmation before dispatch (Add access info when you can edit the site, Dispatch anyway, or Cancel). Missing access is a warning, not a hard block.",
         "Conflict awareness (double-booking warnings) may appear as guidance. Treat schedule edits as operational decisions — confirm client windows and travel time before locking a day.",
       ],

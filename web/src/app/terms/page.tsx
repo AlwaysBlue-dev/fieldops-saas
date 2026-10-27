@@ -47,15 +47,21 @@ export default async function TermsPage() {
       <LegalSection title="5. Trial, subscription, and activation">
         <p>
           Eligible new organizations receive a time-limited trial of the
-          published Professional plan. No credit card is collected in the
-          application. After the trial and any published grace period, the
-          workspace becomes read-only until FieldKeel manually activates an
-          prepaid subscription for the selected term after Paddle confirms payment of a FieldKeel invoice. Card subscriptions renew automatically at the end of that term unless canceled.
+          published Professional plan. The trial does not require a credit card.
+          After the trial and any published grace period, the workspace becomes
+          read-only until FieldKeel activates a prepaid subscription for the
+          selected term after payment of a FieldKeel invoice is confirmed
+          (card checkout through Paddle, or manual invoice verification). Card
+          subscriptions renew automatically at the end of the selected term
+          (1–5 years) unless canceled. Manual invoice subscriptions do not
+          auto-renew and require a new issued invoice and payment verification
+          for each period.
         </p>
         <p>
-          Renewals use the same invoice-and-manual-activation process. Payment
-          details appear only on an issued invoice in your authenticated billing
-          page or an official FieldKeel invoice email.
+          Payment details appear on an issued invoice in your authenticated
+          Billing page or an official FieldKeel invoice email. Card numbers are
+          collected on Paddle’s hosted checkout, not stored in the FieldKeel
+          application.
         </p>
       </LegalSection>
       <LegalSection title="6. Non-payment and expiration">

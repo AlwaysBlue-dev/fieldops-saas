@@ -59,6 +59,7 @@ import {
 } from "@/lib/jobs";
 import { MissingAccessBadge } from "./missing-access-badge";
 import { getOfflineJob, isLikelyOfflineNetworkError } from "@/lib/offline/db";
+import { queueOfflineOp } from "@/lib/offline/sync-engine";
 import {
   formatAccuracy,
   formatDistanceFromSite,
@@ -301,9 +302,52 @@ export function JobDetailWorkspace() {
                 timezone={timezone}
                 canEdit={canEditRecords}
                 pending={pending}
-                onAdd={(text) =>
-                  void run(() => addJobWorkLog(organizationId, job.id, text).then(() => load()))
+                offline={
+                  Boolean(offlineSnapshotAt) ||
+                  (typeof navigator !== "undefined" && !navigator.onLine)
                 }
+                onAdd={async (text) => {
+                  const queueLocal = async () => {
+                    if (!userId) throw new Error("Sign in again to save offline.");
+                    await queueOfflineOp({
+                      organizationId,
+                      userId,
+                      jobId: job.id,
+                      type: "WORK_LOG",
+                      body: { text },
+                    });
+                    toast.success(
+                      "Work update saved on this device. Waiting to sync.",
+                    );
+                  };
+                  setPending(true);
+                  setError(null);
+                  try {
+                    if (
+                      Boolean(offlineSnapshotAt) ||
+                      (typeof navigator !== "undefined" && !navigator.onLine)
+                    ) {
+                      await queueLocal();
+                      return;
+                    }
+                    try {
+                      await addJobWorkLog(organizationId, job.id, text);
+                      await load();
+                    } catch (err) {
+                      if (!isLikelyOfflineNetworkError(err)) throw err;
+                      await queueLocal();
+                    }
+                  } catch (err) {
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : "Could not save work log.",
+                    );
+                    throw err;
+                  } finally {
+                    setPending(false);
+                  }
+                }}
                 onUpdate={(id, text) =>
                   void run(() =>
                     updateJobWorkLog(organizationId, job.id, id, text).then(() => load()),
@@ -315,11 +359,57 @@ export function JobDetailWorkspace() {
                 userId={userId}
                 canEdit={canEditRecords}
                 pending={pending}
-                onAdd={(body) =>
-                  void run(() =>
-                    addJobMaterialRecord(organizationId, job.id, body).then(() => load()),
-                  )
+                offline={
+                  Boolean(offlineSnapshotAt) ||
+                  (typeof navigator !== "undefined" && !navigator.onLine)
                 }
+                onAdd={async (body) => {
+                  const queueLocal = async () => {
+                    if (!userId) throw new Error("Sign in again to save offline.");
+                    await queueOfflineOp({
+                      organizationId,
+                      userId,
+                      jobId: job.id,
+                      type: "MATERIAL",
+                      body: {
+                        name: body.itemName,
+                        quantity: Number(body.quantity),
+                        unit: body.unit,
+                        partNumber: body.partNumber,
+                      },
+                    });
+                    toast.success(
+                      "Material saved on this device. Waiting to sync.",
+                    );
+                  };
+                  setPending(true);
+                  setError(null);
+                  try {
+                    if (
+                      Boolean(offlineSnapshotAt) ||
+                      (typeof navigator !== "undefined" && !navigator.onLine)
+                    ) {
+                      await queueLocal();
+                      return;
+                    }
+                    try {
+                      await addJobMaterialRecord(organizationId, job.id, body);
+                      await load();
+                    } catch (err) {
+                      if (!isLikelyOfflineNetworkError(err)) throw err;
+                      await queueLocal();
+                    }
+                  } catch (err) {
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : "Could not save material.",
+                    );
+                    throw err;
+                  } finally {
+                    setPending(false);
+                  }
+                }}
                 onUpdate={(id, body) =>
                   void run(() =>
                     updateJobMaterialRecord(organizationId, job.id, id, body).then(
@@ -757,10 +847,16 @@ function DispatchAction({
           </p>
           <div className="mt-3 flex flex-col gap-2">
             {canEditSite && siteHref ? (
-              <Button asChild variant="outline" className="h-11 md:h-8">
-                <Link href={siteHref} onClick={() => setConfirmOpen(false)}>
-                  Add access info
-                </Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full md:h-8"
+                onClick={() => {
+                  setConfirmOpen(false);
+                  window.location.assign(siteHref);
+                }}
+              >
+                Add access info
               </Button>
             ) : null}
             <MutationButton
@@ -1029,6 +1125,7 @@ function WorkLogsSection({
   timezone,
   canEdit,
   pending,
+  offline = false,
   onAdd,
   onUpdate,
 }: {
@@ -1037,7 +1134,8 @@ function WorkLogsSection({
   timezone: string;
   canEdit: boolean;
   pending: boolean;
-  onAdd: (text: string) => void;
+  offline?: boolean;
+  onAdd: (text: string) => void | Promise<void>;
   onUpdate: (id: string, text: string) => void;
 }) {
   const [text, setText] = useState("");
@@ -1109,11 +1207,14 @@ function WorkLogsSection({
             className="h-11 w-full md:h-8 md:w-auto"
             disabled={pending || !text.trim()}
             onClick={() => {
-              onAdd(text.trim());
-              setText("");
+              const value = text.trim();
+              if (!value) return;
+              void Promise.resolve(onAdd(value))
+                .then(() => setText(""))
+                .catch(() => undefined);
             }}
           >
-            Add work log
+            {offline ? "Save on device" : "Add work log"}
           </MutationButton>
         </div>
       ) : null}
@@ -1126,6 +1227,7 @@ function MaterialsSection({
   userId,
   canEdit,
   pending,
+  offline = false,
   onAdd,
   onUpdate,
   onRemove,
@@ -1134,13 +1236,14 @@ function MaterialsSection({
   userId: string | null;
   canEdit: boolean;
   pending: boolean;
+  offline?: boolean;
   onAdd: (body: {
     itemName: string;
     partNumber?: string;
     quantity: number;
     unit: MaterialUnit;
     notes?: string;
-  }) => void;
+  }) => void | Promise<void>;
   onUpdate: (
     id: string,
     body: { itemName?: string; quantity?: number; unit?: MaterialUnit },
@@ -1278,20 +1381,24 @@ function MaterialsSection({
             className="h-11 sm:col-span-2 md:h-8"
             disabled={pending || !itemName.trim()}
             onClick={() => {
-              onAdd({
+              const payload = {
                 itemName: itemName.trim(),
                 partNumber: partNumber.trim() || undefined,
                 quantity: Number(quantity),
                 unit,
                 notes: notes.trim() || undefined,
-              });
-              setItemName("");
-              setPartNumber("");
-              setQuantity("1");
-              setNotes("");
+              };
+              void Promise.resolve(onAdd(payload))
+                .then(() => {
+                  setItemName("");
+                  setPartNumber("");
+                  setQuantity("1");
+                  setNotes("");
+                })
+                .catch(() => undefined);
             }}
           >
-            Add material
+            {offline ? "Save on device" : "Add material"}
           </MutationButton>
         </div>
       ) : null}

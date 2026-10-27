@@ -26,16 +26,16 @@ export const roles: DocArticle = {
       id: "model",
       heading: "Where roles live",
       paragraphs: [
-        "Platform roles are only USER and SUPER_ADMIN (internal operators). Organization permissions live on membership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Selecting an organization in the UI does not grant access by itself — FieldKeel re-checks your active membership on every request.",
-        "Because role is per membership, the same person can be OWNER in one workspace and TECHNICIAN in another without conflicting global roles.",
+        "Organization permissions live on membership: Owner, Admin, Operations manager, Supervisor, or Technician. Selecting an organization in the UI does not grant access by itself — FieldKeel re-checks your active membership on every request.",
+        "Because role is per membership, the same person can be Owner in one workspace and Technician in another without conflicting global roles.",
       ],
     },
     {
       id: "owner-admin",
-      heading: "OWNER and ADMIN",
+      heading: "Owner and Admin",
       paragraphs: [
-        "OWNER runs the company commercially and operationally: billing, plan & usage, subscription activation/renewal, membership, settings, and full operational scope. Only the OWNER can open Settings → Plan & Subscription, Plan & Usage, and Billing. ADMIN configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
-        "Both roles can manage members and organization profile settings. ADMIN cannot activate or renew the paid plan; that remains OWNER-only. Both should be careful with last-owner protection when changing memberships.",
+        "Owner runs the company commercially and operationally: billing, plan & usage, subscription activation/renewal, membership, settings, and full operational scope. Only the Owner can open Settings → Plan & Subscription, Plan & Usage, and Billing. Admin configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
+        "Both roles can manage members and organization profile settings. Admin cannot activate or renew the paid plan; that remains Owner-only. Both should be careful with last-owner protection when changing memberships.",
       ],
     },
     {
