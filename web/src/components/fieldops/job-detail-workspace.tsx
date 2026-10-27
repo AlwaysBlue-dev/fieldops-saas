@@ -379,7 +379,7 @@ export function JobDetailWorkspace() {
             orgSlug={params.orgSlug}
             organizationId={organizationId}
             pending={pending}
-            onAction={(action) => void run(action)}
+            onAction={(action) => run(action)}
           />
         </aside>
       </div>
@@ -393,7 +393,7 @@ export function JobDetailWorkspace() {
             canEditSite={canManageCustomers(membership)}
             pending={pending}
             fullWidth
-            onAction={(action) => void run(action)}
+            onAction={(action) => run(action)}
           />
         </StickyMobileActionBar>
       </div>
@@ -597,7 +597,7 @@ function Sidebar({
   orgSlug: string;
   organizationId: string;
   pending: boolean;
-  onAction: (action: () => Promise<unknown>) => void;
+  onAction: (action: () => Promise<unknown>) => void | Promise<unknown>;
 }) {
   return (
     <div className="sticky top-4 space-y-3">
@@ -652,7 +652,7 @@ function DispatchAction({
   canEditSite?: boolean;
   pending: boolean;
   className: string;
-  onAction: (action: () => Promise<unknown>) => void;
+  onAction: (action: () => Promise<unknown>) => void | Promise<unknown>;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -747,9 +747,9 @@ function DispatchAction({
                 if (dispatching) return;
                 setDispatching(true);
                 setConfirmOpen(false);
-                void onAction(() => dispatchJob(organizationId, job.id)).finally(
-                  () => setDispatching(false),
-                );
+                void Promise.resolve(
+                  onAction(() => dispatchJob(organizationId, job.id)),
+                ).finally(() => setDispatching(false));
               }}
             >
               Dispatch anyway
@@ -783,7 +783,7 @@ export function PrimaryActions({
   orgSlug?: string;
   canEditSite?: boolean;
   pending: boolean;
-  onAction: (action: () => Promise<unknown>) => void;
+  onAction: (action: () => Promise<unknown>) => void | Promise<unknown>;
   fullWidth?: boolean;
 }) {
   const width = fullWidth ? "h-11 w-full" : "h-11 w-full md:h-8";

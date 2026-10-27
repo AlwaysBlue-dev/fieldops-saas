@@ -75,7 +75,7 @@ export function subscribeSync(
 export async function queueOfflineOp(
   input: Omit<
     OfflinePendingOp,
-    "status" | "attemptCount" | "lastError" | "createdAt"
+    "id" | "status" | "attemptCount" | "lastError" | "createdAt"
   > & { id?: string },
 ) {
   const op: OfflinePendingOp = {
