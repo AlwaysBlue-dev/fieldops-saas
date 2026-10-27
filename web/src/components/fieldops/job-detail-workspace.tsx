@@ -58,6 +58,7 @@ import {
   type MaterialUnit,
 } from "@/lib/jobs";
 import { MissingAccessBadge } from "./missing-access-badge";
+import { ConnectivitySync } from "./connectivity-sync";
 import { useOnlineStatus } from "./offline-banner";
 import { getOfflineJob, isLikelyOfflineNetworkError } from "@/lib/offline/db";
 import { queueOfflineOp } from "@/lib/offline/sync-engine";
@@ -219,10 +220,8 @@ export function JobDetailWorkspace() {
   const canEditRecords = Boolean(
     canMutate && job.permissions.canEditExecutionRecords,
   );
-  const offlineMode =
-    Boolean(offlineSnapshotAt) ||
-    !online ||
-    (typeof navigator !== "undefined" && !navigator.onLine);
+  // `online` is API-probed (see useOnlineStatus) — do not also trust navigator.onLine.
+  const offlineMode = Boolean(offlineSnapshotAt) || !online;
   const address =
     job.addressLabel ||
     [job.site.addressLine1, job.site.city, job.site.stateRegion]
@@ -232,6 +231,9 @@ export function JobDetailWorkspace() {
   return (
     <CompletionDraftContext.Provider value={{ draft: completionDraft, setDraft: setCompletionDraft }}>
     <div className="mx-auto flex max-w-[1120px] flex-col gap-4">
+      {organizationId && userId ? (
+        <ConnectivitySync organizationId={organizationId} userId={userId} />
+      ) : null}
       <Header job={job} orgSlug={params.orgSlug} />
       {offlineMode ? (
         <div

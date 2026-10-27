@@ -59,16 +59,13 @@ import { Camera, ClipboardPen, Navigation, Phone, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { confirmOnline } from "@/lib/offline/connectivity";
 import { OfflineFieldBar } from "./offline-field-bar";
 import { OfflineJobSheet } from "./offline-job-sheet";
 import { useOnlineStatus } from "./offline-banner";
 
 type SheetKind = "update" | "photo" | "material" | "signoff" | null;
 type PendingClock = { kind: "in" | "out"; jobId?: string };
-
-function deviceOnline() {
-  return typeof navigator === "undefined" ? true : navigator.onLine;
-}
 
 export function MyDayWorkspace() {
   const params = useParams<{ orgSlug: string }>();
@@ -228,16 +225,24 @@ export function MyDayWorkspace() {
     }
   };
 
-  const effectivelyOnline = online && deviceOnline();
+  const effectivelyOnline = online;
 
   const openJob = (job: MyDayJob) => {
-    // Never soft-navigate to job routes while offline — chunks/RSC are not
-    // guaranteed in the SW cache. Use the IndexedDB offline sheet instead.
-    if (!effectivelyOnline || !deviceOnline()) {
+    // Never hard-navigate to job routes without a confirmed API reachability —
+    // uncached RSC/chunks produce the SW offline.html dead-end. Prefer the
+    // IndexedDB OfflineJobSheet whenever the probe fails (navigator.onLine lies).
+    if (!online) {
       setOfflineJobId(job.id);
       return;
     }
-    window.location.assign(`/app/${params.orgSlug}/jobs/${job.id}`);
+    void (async () => {
+      const live = await confirmOnline();
+      if (!live) {
+        setOfflineJobId(job.id);
+        return;
+      }
+      window.location.assign(`/app/${params.orgSlug}/jobs/${job.id}`);
+    })();
   };
 
   const runClock = async (kind: "in" | "out", jobId?: string) => {

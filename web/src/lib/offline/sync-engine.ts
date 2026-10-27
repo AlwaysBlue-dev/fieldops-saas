@@ -416,46 +416,95 @@ export async function retryOfflineOp(
 
 let connectivityKey: string | null = null;
 let connectivityStop: (() => void) | null = null;
+let connectivityRefs = 0;
 
 export function startConnectivitySync(organizationId: string, userId: string) {
   if (typeof window === "undefined") return () => undefined;
   const key = `${organizationId}:${userId}`;
-  // App shell + OfflineFieldBar may both mount; keep a single listener.
+  // App shell + OfflineFieldBar may both mount; ref-count a single listener.
   if (connectivityKey === key && connectivityStop) {
-    return () => undefined;
+    connectivityRefs += 1;
+    return () => {
+      connectivityRefs = Math.max(0, connectivityRefs - 1);
+      if (connectivityRefs === 0) connectivityStop?.();
+    };
   }
   connectivityStop?.();
   connectivityKey = key;
+  connectivityRefs = 1;
 
   let syncTimer: number | null = null;
+  let lastProbedOnline: boolean | null = null;
+
   const scheduleSync = () => {
     if (syncTimer != null) window.clearTimeout(syncTimer);
-    // Brief delay so navigator.onLine / fetch settle after DevTools reconnect.
+    // Brief delay so fetch settles after DevTools reconnect.
     syncTimer = window.setTimeout(() => {
       syncTimer = null;
-      if (!navigator.onLine) return;
-      void syncNow(organizationId, userId);
+      void (async () => {
+        const { confirmOnline } = await import("./connectivity");
+        const ok = await confirmOnline();
+        lastProbedOnline = ok;
+        if (!ok) return;
+        void syncNow(organizationId, userId);
+      })();
     }, 400);
   };
+
   const onOnline = () => scheduleSync();
   const onVisible = () => {
     if (document.visibilityState === "visible") scheduleSync();
   };
   const onFocus = () => scheduleSync();
+  const onProbe = (event: Event) => {
+    const online = Boolean(
+      (event as CustomEvent<{ online?: boolean }>).detail?.online,
+    );
+    if (online) scheduleSync();
+    else lastProbedOnline = false;
+  };
+
   window.addEventListener("online", onOnline);
   window.addEventListener("focus", onFocus);
   document.addEventListener("visibilitychange", onVisible);
-  // Recover any ops left in "syncing" from a previous interrupted run.
+  window.addEventListener("fieldops:connectivity", onProbe);
+
+  // Pending ops while stuck on a job page: navigator may never flip if it
+  // already reported "online" — retry on an interval after a real probe.
+  const poll = window.setInterval(() => {
+    void (async () => {
+      const ops = await listPendingOps(organizationId, userId);
+      const needs =
+        ops.some(
+          (op) =>
+            op.status === "pending" ||
+            op.status === "syncing" ||
+            op.status === "failed",
+        );
+      if (!needs) return;
+      const { probeOnline } = await import("./connectivity");
+      if (!(await probeOnline())) return;
+      lastProbedOnline = true;
+      void syncNow(organizationId, userId);
+    })();
+  }, 8000);
+
   scheduleSync();
   connectivityStop = () => {
     if (syncTimer != null) window.clearTimeout(syncTimer);
+    window.clearInterval(poll);
     window.removeEventListener("online", onOnline);
     window.removeEventListener("focus", onFocus);
     document.removeEventListener("visibilitychange", onVisible);
+    window.removeEventListener("fieldops:connectivity", onProbe);
     if (connectivityKey === key) {
       connectivityKey = null;
       connectivityStop = null;
+      connectivityRefs = 0;
     }
   };
-  return connectivityStop;
+  return () => {
+    connectivityRefs = Math.max(0, connectivityRefs - 1);
+    if (connectivityRefs === 0) connectivityStop?.();
+  };
 }

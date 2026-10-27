@@ -3,8 +3,8 @@
  * PWA can reopen My Day / prepared job detail offline. Job payloads stay in
  * IndexedDB (never in this SW). Does NOT cache /api or auth responses.
  */
-const SHELL = "fieldops-shell-v6";
-const NAV = "fieldops-nav-v1";
+const SHELL = "fieldops-shell-v7";
+const NAV = "fieldops-nav-v2";
 const PRECACHE = [
   "/offline.html",
   "/icons/icon-192.png",
@@ -35,6 +35,12 @@ self.addEventListener("activate", (event) => {
       )
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 function shouldBypass(url) {
