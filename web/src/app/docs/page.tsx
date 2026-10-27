@@ -15,8 +15,9 @@ const POPULAR = [
   "what-is-fieldkeel",
   "trial-onboarding",
   "jobs-overview",
+  "offline-field-operations",
+  "sites-access-notes",
   "teams-technicians-overview",
-  "storage-overview",
   "billing-plans",
 ] as const;
 

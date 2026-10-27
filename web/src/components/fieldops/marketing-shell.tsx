@@ -7,10 +7,20 @@ import {
 import { BrandMark } from "@/components/fieldops/brand-mark";
 import { PwaInstallProvider } from "@/components/fieldops/pwa-install-provider";
 import { JsonLd } from "@/components/fieldops/json-ld";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 import { SITE_URL } from "@/lib/seo";
+import { Menu } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 const organizationJsonLd = {
   "@context": "https://schema.org",
@@ -63,6 +73,8 @@ export function MarketingShell({
   /** Wider main column for documentation and similar dense layouts. */
   wide?: boolean;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <PwaInstallProvider>
       <MarketingAuthProvider>
@@ -75,11 +87,15 @@ export function MarketingShell({
             <div
               className={
                 wide
-                  ? "mx-auto flex h-14 max-w-7xl items-center justify-between px-4"
-                  : "mx-auto flex h-14 max-w-6xl items-center justify-between px-4"
+                  ? "mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4"
+                  : "mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4"
               }
             >
-              <Link href="/" className="flex items-center gap-2">
+              <Link
+                href="/"
+                className="flex items-center gap-2"
+                aria-label={`${APP_NAME} home`}
+              >
                 <BrandMark variant="full" />
               </Link>
               <nav
@@ -96,7 +112,42 @@ export function MarketingShell({
                   </Link>
                 ))}
               </nav>
-              <MarketingAuthActions />
+              <div className="flex items-center gap-2">
+                <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+                  <SheetTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 md:hidden"
+                      aria-label="Open menu"
+                    >
+                      <Menu className="size-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-[min(100%,20rem)]">
+                    <SheetHeader>
+                      <SheetTitle>Menu</SheetTitle>
+                    </SheetHeader>
+                    <nav
+                      className="mt-4 flex flex-col gap-1"
+                      aria-label="Marketing mobile"
+                    >
+                      {links.map((link) => (
+                        <SheetClose asChild key={link.href}>
+                          <Link
+                            href={link.href}
+                            className="rounded-md px-3 py-3 text-base text-foreground hover:bg-muted"
+                          >
+                            {link.label}
+                          </Link>
+                        </SheetClose>
+                      ))}
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+                <MarketingAuthActions />
+              </div>
             </div>
           </header>
           <main

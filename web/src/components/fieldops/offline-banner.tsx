@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 
 export function useOnlineStatus() {
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
 
   useEffect(() => {
     const sync = () =>
@@ -11,9 +13,16 @@ export function useOnlineStatus() {
     sync();
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
+    // DevTools "Offline" and some browsers miss events; re-check on focus.
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", sync);
+    const timer = window.setInterval(sync, 2000);
     return () => {
       window.removeEventListener("online", sync);
       window.removeEventListener("offline", sync);
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", sync);
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -21,7 +30,7 @@ export function useOnlineStatus() {
 }
 
 export function OfflineBanner({
-  message = "You’re offline. Operational actions need a connection — jobs, time, photos, and approvals won’t save until you’re back online.",
+  message = "You’re offline. Prepared My Day jobs and queued field changes stay on this device and sync when you reconnect. Dispatch, approvals, billing, and other live server actions still need a connection.",
 }: {
   message?: string;
 }) {

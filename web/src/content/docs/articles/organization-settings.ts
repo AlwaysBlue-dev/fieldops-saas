@@ -44,7 +44,7 @@ export const organizationSettings: DocArticle = {
       id: "manual-time",
       heading: "allowManualTime note",
       paragraphs: [
-        "OrganizationSettings.allowManualTime gates manual timesheet entry on the API (default off). The flag exists in schema/onboarding paths, but it is not currently editable in the Settings UI. Do not expect a Settings toggle until that control ships; changing it requires an operator/data path outside the ordinary settings form.",
+        "Manual timesheet entry is off by default and is not currently controllable from Settings. Treat clock-based time as the supported path until a Settings toggle ships.",
       ],
     },
     {

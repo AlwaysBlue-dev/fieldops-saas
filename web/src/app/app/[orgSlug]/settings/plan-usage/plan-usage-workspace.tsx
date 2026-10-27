@@ -90,9 +90,14 @@ export function PlanUsageWorkspace() {
   }
 
   const supportMailto = FIELDKEEL_SUPPORT_MAILTO;
-  const accessUntil = usage.subscription.accessUntil
+  const periodEnd = usage.subscription.currentPeriodEnd
+    ? new Date(usage.subscription.currentPeriodEnd).toLocaleDateString()
+    : usage.subscription.trialEndsAt
+      ? new Date(usage.subscription.trialEndsAt).toLocaleDateString()
+      : null;
+  const writeAccessUntil = usage.subscription.accessUntil
     ? new Date(usage.subscription.accessUntil).toLocaleDateString()
-    : "—";
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,8 +117,19 @@ export function PlanUsageWorkspace() {
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Access until</dt>
-          <dd className="font-medium">{accessUntil}</dd>
+          <dt className="text-muted-foreground">Renewal / period end</dt>
+          <dd className="font-medium">{periodEnd ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Write access until</dt>
+          <dd className="font-medium">{writeAccessUntil ?? "—"}</dd>
+          {periodEnd &&
+          writeAccessUntil &&
+          periodEnd !== writeAccessUntil ? (
+            <dd className="text-xs text-muted-foreground">
+              Includes paid grace after the period end.
+            </dd>
+          ) : null}
         </div>
         <div>
           <dt className="text-muted-foreground">Jobs this month</dt>

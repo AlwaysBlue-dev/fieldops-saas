@@ -72,6 +72,13 @@ export const servicetitanComparison = {
               ]
             },
             {
+              label: "**Offline field work**",
+              cells: [
+                "Prepare assigned My Day jobs; queue clock, notes, materials, photos, and signatures; sync when back online",
+                "Native Field Mobile App offline support"
+              ]
+            },
+            {
               label: "**Call booking and recording**",
               cells: [
                 "Not offered on the FieldKeel site",

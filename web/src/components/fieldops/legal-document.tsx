@@ -20,10 +20,9 @@ export function LegalDocument({
         <p className="mt-2 text-sm text-muted-foreground">
           {version ? (
             <>
-              Version {version.version}. Effective {version.effectiveDate}.{" "}
+              Version {version.version}. Effective {version.effectiveDate}.
             </>
           ) : null}
-          This is a product template for legal review, not legal advice.
         </p>
         <div className="legal-prose mt-8 space-y-6 text-sm leading-6 text-foreground">
           {children}

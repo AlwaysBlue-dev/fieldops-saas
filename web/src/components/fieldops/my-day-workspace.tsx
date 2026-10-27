@@ -60,19 +60,25 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { OfflineFieldBar } from "./offline-field-bar";
+import { OfflineJobSheet } from "./offline-job-sheet";
+import { useOnlineStatus } from "./offline-banner";
 
 type SheetKind = "update" | "photo" | "material" | "signoff" | null;
 type PendingClock = { kind: "in" | "out"; jobId?: string };
 
+function deviceOnline() {
+  return typeof navigator === "undefined" ? true : navigator.onLine;
+}
+
 export function MyDayWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const { canMutate } = useCanMutate();
+  const online = useOnlineStatus();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [day, setDay] = useState<MyDayPayload | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
-  const [online, setOnline] = useState(true);
   const [pending, setPending] = useState(false);
   const [locating, setLocating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -80,17 +86,7 @@ export function MyDayWorkspace() {
   const [pendingClock, setPendingClock] = useState<PendingClock | null>(null);
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [activeJob, setActiveJob] = useState<MyDayJob | null>(null);
-
-  useEffect(() => {
-    const sync = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("offline", sync);
-    };
-  }, []);
+  const [offlineJobId, setOfflineJobId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,6 +225,16 @@ export function MyDayWorkspace() {
     }
   };
 
+  const effectivelyOnline = online && deviceOnline();
+
+  const openJob = (job: MyDayJob) => {
+    if (!effectivelyOnline) {
+      setOfflineJobId(job.id);
+      return;
+    }
+    window.location.assign(`/app/${params.orgSlug}/jobs/${job.id}`);
+  };
+
   const runClock = async (kind: "in" | "out", jobId?: string) => {
     if (!organizationId || !userId) return;
     if (!requireConnection(true)) return;
@@ -237,9 +243,9 @@ export function MyDayWorkspace() {
     setActionError(null);
     setGeoError(null);
     try {
-      const gps = online ? await withGps() : {};
+      const gps = effectivelyOnline ? await withGps() : {};
       const occurredAt = new Date().toISOString();
-      if (!online) {
+      if (!effectivelyOnline) {
         await queueOfflineOp({
           organizationId,
           userId,
@@ -278,6 +284,23 @@ export function MyDayWorkspace() {
       if (isGeolocationRequestError(err)) {
         setPendingClock({ kind, jobId });
         setGeoError(err);
+        return;
+      }
+      if (isLikelyOfflineNetworkError(err) && organizationId && userId) {
+        const occurredAt = new Date().toISOString();
+        await queueOfflineOp({
+          organizationId,
+          userId,
+          jobId: jobId ?? null,
+          type: kind === "in" ? "CLOCK_IN" : "CLOCK_OUT",
+          body: { jobId, clientOccurredAt: occurredAt },
+        });
+        toast.success(
+          kind === "in"
+            ? "Clock-in saved on this device. Waiting to sync."
+            : "Clock-out saved on this device. Waiting to sync.",
+        );
+        setPendingClock(null);
         return;
       }
       setActionError(
@@ -453,6 +476,8 @@ export function MyDayWorkspace() {
                 timeZone={day.shift.timeZone}
                 current
                 blocked={blocked}
+                online={effectivelyOnline}
+                onOpenJob={() => openJob(day.currentJob!)}
                 onClockIn={() => void runClock("in", day.currentJob!.id)}
                 onClockOut={() => void runClock("out")}
                 onAction={openSheet}
@@ -470,6 +495,8 @@ export function MyDayWorkspace() {
                     orgSlug={params.orgSlug}
                     timeZone={day.shift.timeZone}
                     blocked={blocked}
+                    online={effectivelyOnline}
+                    onOpenJob={() => openJob(job)}
                     onClockIn={() => void runClock("in", job.id)}
                     onClockOut={() => void runClock("out")}
                     onAction={openSheet}
@@ -487,14 +514,34 @@ export function MyDayWorkspace() {
         job={activeJob}
         organizationId={organizationId}
         userId={userId}
-        online={online}
+        online={effectivelyOnline}
         canMutate={canMutate}
         onClose={() => setSheet(null)}
         onSaved={async () => {
           setSheet(null);
-          if (online) await refresh();
+          if (effectivelyOnline) await refresh();
         }}
       />
+
+      {organizationId && userId ? (
+        <OfflineJobSheet
+          open={Boolean(offlineJobId)}
+          jobId={offlineJobId}
+          organizationId={organizationId}
+          userId={userId}
+          timeZone={day.shift.timeZone}
+          onClose={() => setOfflineJobId(null)}
+          onAddUpdate={() => {
+            const job =
+              day.currentJob?.id === offlineJobId
+                ? day.currentJob
+                : day.upcomingJobs.find((item) => item.id === offlineJobId) ??
+                  null;
+            setOfflineJobId(null);
+            if (job) openSheet("update", job);
+          }}
+        />
+      ) : null}
 
       <GeolocationErrorDialog
         open={Boolean(geoError)}
@@ -519,6 +566,8 @@ function JobCard({
   timeZone,
   current = false,
   blocked,
+  online,
+  onOpenJob,
   onClockIn,
   onClockOut,
   onAction,
@@ -528,6 +577,8 @@ function JobCard({
   timeZone: string;
   current?: boolean;
   blocked: boolean;
+  online: boolean;
+  onOpenJob: () => void;
   onClockIn: () => void;
   onClockOut: () => void;
   onAction: (kind: SheetKind, job: MyDayJob) => void;
@@ -594,17 +645,32 @@ function JobCard({
               Call
             </a>
           </Button>
-        ) : (
+        ) : online ? (
           <Button asChild variant="outline" className="h-11">
             <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" className="h-11" onClick={onOpenJob}>
+            Open job
           </Button>
         )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button asChild variant="secondary" className="h-11 min-w-11 flex-1">
-          <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
-        </Button>
+        {online ? (
+          <Button asChild variant="secondary" className="h-11 min-w-11 flex-1">
+            <Link href={`/app/${orgSlug}/jobs/${job.id}`}>Open job</Link>
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-11 min-w-11 flex-1"
+            onClick={onOpenJob}
+          >
+            Open job
+          </Button>
+        )}
         {!job.actions.canClockOut && job.actions.canClockIn ? (
           <MutationButton className="h-11 flex-1" disabled={blocked} onClick={onClockIn}>
             Start work
@@ -691,6 +757,33 @@ function FieldSheets({
   const [photoProgress, setPhotoProgress] = useState<number | null>(null);
   const padRef = useRef<SignaturePadHandle>(null);
 
+  const queuePhotoLocally = async (file: File) => {
+    if (!organizationId || !job || !userId) return;
+    const { newOfflineId, putBlob } = await import("@/lib/offline/db");
+    const blobId = newOfflineId();
+    const bytes = await file.arrayBuffer();
+    await putBlob({
+      id: blobId,
+      organizationId,
+      userId,
+      mimeType: file.type || "image/jpeg",
+      fileName: file.name || "photo.jpg",
+      createdAt: new Date().toISOString(),
+      bytes,
+    });
+    await queueOfflineOp({
+      organizationId,
+      userId,
+      jobId: job.id,
+      type: "PHOTO",
+      blobId,
+      body: { fileName: file.name || "photo.jpg" },
+    });
+    toast.success(
+      "Photo saved on this device. It uploads when you sync — not marked uploaded yet.",
+    );
+  };
+
   const save = async () => {
     if (!organizationId || !job || !userId) return;
     setSaving(true);
@@ -698,17 +791,30 @@ function FieldSheets({
     try {
       if (open === "update") {
         if (!body.trim()) throw new Error("Add a short work update.");
+        const payload = { text: body.trim() };
         if (!online) {
           await queueOfflineOp({
             organizationId,
             userId,
             jobId: job.id,
             type: "WORK_LOG",
-            body: { text: body.trim() },
+            body: payload,
           });
           toast.success("Work update saved on this device. Waiting to sync.");
         } else {
-          await addWorkUpdate(organizationId, job.id, body.trim());
+          try {
+            await addWorkUpdate(organizationId, job.id, body.trim());
+          } catch (err) {
+            if (!isLikelyOfflineNetworkError(err)) throw err;
+            await queueOfflineOp({
+              organizationId,
+              userId,
+              jobId: job.id,
+              type: "WORK_LOG",
+              body: payload,
+            });
+            toast.success("Work update saved on this device. Waiting to sync.");
+          }
         }
       }
       if (open === "material") {
@@ -731,7 +837,19 @@ function FieldSheets({
           });
           toast.success("Material saved on this device. Waiting to sync.");
         } else {
-          await addJobMaterial(organizationId, job.id, payload);
+          try {
+            await addJobMaterial(organizationId, job.id, payload);
+          } catch (err) {
+            if (!isLikelyOfflineNetworkError(err)) throw err;
+            await queueOfflineOp({
+              organizationId,
+              userId,
+              jobId: job.id,
+              type: "MATERIAL",
+              body: payload,
+            });
+            toast.success("Material saved on this device. Waiting to sync.");
+          }
         }
       }
       if (open === "signoff") {
@@ -739,27 +857,38 @@ function FieldSheets({
           throw new Error("Add the signer name and a signature.");
         }
         const imageBase64 = padRef.current?.toPng() ?? "";
+        const payload = {
+          signerName: signerName.trim(),
+          signerTitle: signerTitle.trim() || undefined,
+          imageBase64,
+        };
         if (!online) {
           await queueOfflineOp({
             organizationId,
             userId,
             jobId: job.id,
             type: "SIGNATURE",
-            body: {
-              signerName: signerName.trim(),
-              signerTitle: signerTitle.trim() || undefined,
-              imageBase64,
-            },
+            body: payload,
           });
           toast.success(
             "Signature saved on this device. Awaiting server verification.",
           );
         } else {
-          await addJobSignature(organizationId, job.id, {
-            signerName: signerName.trim(),
-            signerTitle: signerTitle.trim() || undefined,
-            imageBase64,
-          });
+          try {
+            await addJobSignature(organizationId, job.id, payload);
+          } catch (err) {
+            if (!isLikelyOfflineNetworkError(err)) throw err;
+            await queueOfflineOp({
+              organizationId,
+              userId,
+              jobId: job.id,
+              type: "SIGNATURE",
+              body: payload,
+            });
+            toast.success(
+              "Signature saved on this device. Awaiting server verification.",
+            );
+          }
         }
       }
       await onSaved();
@@ -777,39 +906,22 @@ function FieldSheets({
     setPhotoProgress(0);
     try {
       if (!online) {
-        const { newOfflineId, putBlob } = await import("@/lib/offline/db");
-        const blobId = newOfflineId();
-        const bytes = await file.arrayBuffer();
-        await putBlob({
-          id: blobId,
-          organizationId,
-          userId,
-          mimeType: file.type || "image/jpeg",
-          fileName: file.name || "photo.jpg",
-          createdAt: new Date().toISOString(),
-          bytes,
-        });
-        await queueOfflineOp({
-          organizationId,
-          userId,
-          jobId: job.id,
-          type: "PHOTO",
-          blobId,
-          body: { fileName: file.name || "photo.jpg" },
-        });
-        toast.success(
-          "Photo saved on this device. It uploads when you sync — not marked uploaded yet.",
-        );
+        await queuePhotoLocally(file);
         setPhotoFile(null);
         setPhotoPreview(null);
         setPhotoProgress(null);
         await onSaved();
         return;
       }
-      await uploadJobFile(organizationId, job.id, file, {
-        category: "PHOTO",
-        onProgress: setPhotoProgress,
-      });
+      try {
+        await uploadJobFile(organizationId, job.id, file, {
+          category: "PHOTO",
+          onProgress: setPhotoProgress,
+        });
+      } catch (err) {
+        if (!isLikelyOfflineNetworkError(err)) throw err;
+        await queuePhotoLocally(file);
+      }
       setPhotoFile(null);
       setPhotoPreview(null);
       setPhotoProgress(null);
@@ -984,10 +1096,14 @@ function FieldSheets({
         {open !== "photo" ? (
           <MutationButton
             className="h-12 w-full"
-            disabled={!canMutate || !online || saving}
+            disabled={!canMutate || saving}
             onClick={() => void save()}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving
+              ? "Saving…"
+              : online
+                ? "Save"
+                : "Save on device"}
           </MutationButton>
         ) : null}
       </div>

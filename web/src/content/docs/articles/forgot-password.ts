@@ -12,7 +12,6 @@ export const forgotPassword: DocArticle = {
     "login",
     "email",
     "account",
-    "Mailpit",
   ],
   relatedSlugs: [
     "create-account-workspace",
@@ -32,7 +31,7 @@ export const forgotPassword: DocArticle = {
       id: "troubleshooting",
       heading: "Troubleshooting",
       paragraphs: [
-        "If you do not receive the email, check spam or junk folders and confirm you used the same work email you registered with. Wait a minute and request another link if needed — only the newest unused link remains valid. Local developers: with SMTP pointed at Mailpit (`SMTP_HOST=localhost`, `SMTP_PORT=1025`), open the Mailpit UI (typically port 8025) to read the reset message.",
+        "If you do not receive the email, check spam or junk folders and confirm you used the same work email you registered with. Wait a minute and request another link if needed — only the newest unused link remains valid.",
         "If the reset link says it is invalid or has expired, request a new link from Forgot password. Links expire after a short time and can be used only once. After a successful reset, sign in with the new password; the old password will no longer work.",
       ],
     },

@@ -78,9 +78,10 @@ export const installFieldkeelOnPhone: DocArticle = {
     },
     {
       id: "offline-icons",
-      heading: "Internet connection and icons",
+      heading: "Offline field work and icons",
       paragraphs: [
-        "An internet connection is required for current business data. FieldKeel does not provide full offline job, customer, or timesheet functionality in this release.",
+        "Installing FieldKeel as an app helps with an app-like shell, but you still prepare assigned jobs while online. On My Day, use Prepare for offline before you lose coverage, then open prepared jobs and save supported field updates (clock in/out, work notes, materials, photos, and signatures) on the device. Changes sync when you reconnect — see Work offline and sync later.",
+        "Dispatch, approvals, billing, membership changes, and the full client/site catalog still need a live connection. Treat offline copies as convenience snapshots, not the system of record.",
         "The installed icon uses the FieldKeel app icon. Organization logos continue to appear inside the product UI when configured.",
       ],
     },

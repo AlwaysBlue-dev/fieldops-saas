@@ -124,8 +124,9 @@ export class ScheduleService {
     const accessFiltered = query.missingAccessOnly
       ? inRange.filter((job) => accessInfoFromJobRow(job).missingAccessInfo)
       : inRange;
-    const unassignedSource = query.missingAccessOnly ? accessFiltered : jobs;
-    const unassigned = unassignedSource.filter(
+    // Unassigned queue uses the full job set (not only in-range lane blocks),
+    // then optionally narrows by missing access so filtered unassigned jobs remain visible.
+    const unassigned = jobs.filter(
       (job) =>
         !job.teamId &&
         job.assignments.length === 0 &&

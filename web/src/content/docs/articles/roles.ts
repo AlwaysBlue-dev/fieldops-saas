@@ -26,7 +26,7 @@ export const roles: DocArticle = {
       id: "model",
       heading: "Where roles live",
       paragraphs: [
-        "Platform roles on User are only USER and SUPER_ADMIN (internal operators). Organization permissions live exclusively on OrganizationMembership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Never treat a JWT claim or a UI-selected org as authority — membership is re-checked for every tenant request.",
+        "Platform roles are only USER and SUPER_ADMIN (internal operators). Organization permissions live on membership: OWNER, ADMIN, OPERATIONS_MANAGER, SUPERVISOR, or TECHNICIAN. Selecting an organization in the UI does not grant access by itself — FieldKeel re-checks your active membership on every request.",
         "Because role is per membership, the same person can be OWNER in one workspace and TECHNICIAN in another without conflicting global roles.",
       ],
     },

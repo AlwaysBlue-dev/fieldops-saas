@@ -363,8 +363,22 @@ export function isLikelyOfflineNetworkError(error: unknown): boolean {
   if (
     error &&
     typeof error === "object" &&
+    "error" in error &&
+    (error as { error?: string }).error === "NetworkError"
+  ) {
+    return true;
+  }
+  if (
+    error &&
+    typeof error === "object" &&
     "status" in error &&
     (error as { status: number }).status === 0
+  ) {
+    return true;
+  }
+  if (
+    error instanceof Error &&
+    /couldn['’]t reach the server/i.test(error.message)
   ) {
     return true;
   }

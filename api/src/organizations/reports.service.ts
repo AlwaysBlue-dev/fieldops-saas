@@ -29,14 +29,6 @@ import { jobVisibilityWhere } from './job-visibility.js';
 import { JobReportPdfService } from './job-report-pdf.service.js';
 import { TeamsService } from './teams.service.js';
 
-const ACTIVE_STATUSES: JobStatus[] = [
-  JobStatus.SCHEDULED,
-  JobStatus.DISPATCHED,
-  JobStatus.IN_PROGRESS,
-  JobStatus.PENDING_APPROVAL,
-  JobStatus.RETURNED,
-];
-
 @Injectable()
 export class ReportsService {
   constructor(
@@ -67,29 +59,27 @@ export class ReportsService {
       completedInWindow,
       terminalInWindow,
     ] = await Promise.all([
+      // Match Jobs "Today" preset: scheduled start falls in the org timezone day.
+      this.prisma.job.count({
+        where: {
+          AND: [
+            jobBase,
+            { scheduledStart: { gte: today.start, lt: today.end } },
+          ],
+        },
+      }),
+      // Match Jobs "Open" (non-terminal), including drafts — labelled Open in the UI.
       this.prisma.job.count({
         where: {
           AND: [
             jobBase,
             {
-              OR: [
-                { scheduledStart: { gte: today.start, lt: today.end } },
-                {
-                  status: {
-                    in: [
-                      JobStatus.IN_PROGRESS,
-                      JobStatus.DISPATCHED,
-                      JobStatus.PENDING_APPROVAL,
-                    ],
-                  },
-                },
-              ],
+              status: {
+                notIn: [JobStatus.COMPLETED, JobStatus.CANCELLED],
+              },
             },
           ],
         },
-      }),
-      this.prisma.job.count({
-        where: { AND: [jobBase, { status: { in: ACTIVE_STATUSES } }] },
       }),
       this.prisma.job.count({
         where: {

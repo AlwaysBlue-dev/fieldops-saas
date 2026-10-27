@@ -80,6 +80,13 @@ export const jobberComparison = {
               ]
             },
             {
+              label: "**Offline field work**",
+              cells: [
+                "Prepare assigned My Day jobs; queue clock, notes, materials, photos, and signatures; sync when back online",
+                "Mobile app offline capabilities vary by plan and feature"
+              ]
+            },
+            {
               label: "**Mobile design**",
               cells: [
                 "Bottom navigation, large tap targets, keyboard-safe forms",

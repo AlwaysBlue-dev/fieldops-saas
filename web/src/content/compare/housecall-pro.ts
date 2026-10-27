@@ -87,6 +87,13 @@ export const housecallproComparison = {
               ]
             },
             {
+              label: "**Offline field work**",
+              cells: [
+                "Prepare assigned My Day jobs; queue clock, notes, materials, photos, and signatures; sync when back online",
+                "Native app offline viewing (full offline capture varies by feature)"
+              ]
+            },
+            {
               label: "**Estimates, invoicing, payments**",
               cells: [
                 "Not offered on the FieldKeel site",

@@ -11,7 +11,7 @@ export const metadata = publicPageMetadata({
 export default async function TermsPage() {
   const trust = await getPublicTrust();
   const entity = trust.legalEntityName ?? "the FieldKeel operator";
-  const law = trust.governingLaw ?? "the laws designated by the FieldKeel operator in the applicable order or invoice";
+  const law = trust.governingLaw ?? "the laws of Pakistan";
 
   return (
     <LegalDocument title="Terms of Service" version={trust.terms} trust={trust}>
@@ -106,17 +106,35 @@ export default async function TermsPage() {
       </LegalSection>
       <LegalSection title="12. Disclaimers and liability">
         <p>
-          The service is provided on a commercially reasonable basis. This
-          section is a placeholder for counsel: limitation of liability,
-          warranty disclaimer, and indemnity terms should be completed before
-          large-scale commercial launch.
+          FieldKeel is provided on an “as is” and “as available” basis to the
+          fullest extent permitted by law. {entity} disclaims all warranties,
+          express or implied, including merchantability, fitness for a
+          particular purpose, and non-infringement. Operational decisions remain
+          your organization’s responsibility.
+        </p>
+        <p>
+          To the fullest extent permitted by law, {entity}’s total liability
+          arising out of or relating to these Terms or the service is limited to
+          the fees your organization paid to FieldKeel for the service in the
+          twelve (12) months before the claim. {entity} is not liable for
+          indirect, incidental, special, consequential, or punitive damages, or
+          for lost profits, revenue, data, or goodwill, even if advised of the
+          possibility.
+        </p>
+        <p>
+          You will defend and indemnify {entity} against claims arising from
+          your organization’s misuse of the service, violation of these Terms,
+          or content and data you submit, except to the extent caused by
+          {entity}’s willful misconduct.
         </p>
       </LegalSection>
       <LegalSection title="13. Governing law">
         <p>
-          These Terms are governed by {law}, except where a signed order states
-          otherwise. Do not treat this as a selected jurisdiction unless that
-          value has been configured by the operator.
+          These Terms are governed by {law}, excluding conflict-of-law rules,
+          except where a signed order or invoice states otherwise. Courts in
+          that jurisdiction have exclusive venue for disputes that are not
+          resolved informally, subject to any non-waivable consumer or local
+          mandatory rights.
         </p>
       </LegalSection>
     </LegalDocument>

@@ -148,15 +148,21 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
     },
     {
       label: "Reports",
-      values: ["yes", "yes", "yes"],
+      values: columns.map((p) =>
+        p.featureFlags.ADVANCED_REPORTS || p.featureFlags.JOBS ? "yes" : "no",
+      ),
     },
     {
       label: "Approvals",
-      values: ["yes", "yes", "yes"],
+      values: columns.map((p) => (p.featureFlags.APPROVALS ? "yes" : "no")),
     },
     {
       label: "Organization Branding",
-       values: ["yes", "yes", "yes"],
+      values: columns.map((p) =>
+        p.featureFlags.CUSTOM_BRANDING || p.featureFlags.ADVANCED_BRANDING
+          ? "yes"
+          : "no",
+      ),
     },
   ];
 
@@ -390,8 +396,9 @@ export default async function PricingPage() {
       )}
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Paid subscriptions are activated through an official FieldKeel invoice.
-        We do not currently collect card details in the app. See the{" "}
+        Paid subscriptions start from an official FieldKeel invoice in Billing.
+        Card payments are processed securely by Paddle on their hosted checkout —
+        FieldKeel does not store card numbers in the app. See the{" "}
         <Link
           href="/billing-policy"
           className="text-foreground underline-offset-2 hover:underline"

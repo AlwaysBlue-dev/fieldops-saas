@@ -37,7 +37,7 @@ const sections = [
   },
   {
     title: "Subscription transparency",
-    copy: "Paddle card subscriptions renew annually; manual invoices require payment verification before subscription changes.",
+    copy: "Paddle card subscriptions renew at the end of the selected term (1–5 years); manual invoices require payment verification before subscription changes.",
     href: "/billing-policy",
   },
 ];

@@ -291,7 +291,7 @@ export function TeamsWorkspace() {
           >
             <MobileListItem
               title={team.name}
-              meta={`${team.supervisor ? personOptionLabel(team.supervisor) : "No supervisor"} · ${team.memberCount} members`}
+              meta={`${team.supervisor ? personOptionLabel(team.supervisor) : "No supervisor"} · ${team.memberCount} ${team.memberCount === 1 ? "member" : "members"}`}
               trailing={
                 <StatusPill
                   label={team.status === "ACTIVE" ? "Active" : "Inactive"}

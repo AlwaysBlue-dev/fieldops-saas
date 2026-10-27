@@ -26,7 +26,7 @@ export const approvals: DocArticle = {
       heading: "What appears in the inbox",
       paragraphs: [
         "The Approvals page is FieldKeel’s action center for three inbox types: JOB_COMPLETION, TIMESHEET, and OVERTIME. The UI does not copy jobs or timesheets into a separate store — each approval row points at the live domain record via subject type and id.",
-        "Other historical enum values may exist in the schema for future use, but the product inbox you work day-to-day is these three types.",
+        "Day-to-day, work the three approval types above in Approvals."
       ],
     },
     {
@@ -34,7 +34,7 @@ export const approvals: DocArticle = {
       heading: "Job completion decisions",
       paragraphs: [
         "When a job is PENDING_APPROVAL, approvers review the full card: client/site, crew, completion, safety, materials, photos, representative, signature, hours, GPS clock evidence, and activity. Approve moves PENDING_APPROVAL → COMPLETED. Return moves PENDING_APPROVAL → RETURNED with a required comment.",
-        "The backend refuses approve when the job is not PENDING_APPROVAL, required signature is missing, required safety is incomplete, a clock session is still open, a time record is incomplete, or GPS is required and clock evidence lacks coordinates.",
+        "Approve is blocked when the job is not waiting for approval, a required signature is missing, required safety is incomplete, a clock session is still open, a time record is incomplete, or GPS is required and clock evidence lacks coordinates."
       ],
     },
     {

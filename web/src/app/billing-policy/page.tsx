@@ -29,11 +29,12 @@ export default async function BillingPolicyPage() {
           transfer using the listed instructions.
         </p>
         <p>
-          A card purchase creates an annual Paddle subscription that renews
-          automatically each year. The next billing date is shown in Billing
-          when available. Manual invoice subscriptions do not auto-renew and
-          require a new invoice and payment verification for each period. The
-          Professional trial requires no card and never auto-charges when it ends.
+          A card purchase creates a Paddle subscription for the selected term
+          (1–5 years) that renews at the end of that term unless canceled. The
+          next billing date is shown in Billing when available. Manual invoice
+          subscriptions do not auto-renew and require a new invoice and payment
+          verification for each period. The Professional trial requires no card
+          and never auto-charges when it ends.
         </p>
       </LegalSection>
       <LegalSection title="Payment verification and activation">
@@ -53,11 +54,12 @@ export default async function BillingPolicyPage() {
       </LegalSection>
       <LegalSection title="Renewal">
         <p>
-          Paddle card subscriptions renew automatically each year. A manual
-          invoice subscription does not auto-renew; a new invoice must be issued
-          and payment verified. Confirmed renewal updates the next paid period
-          without shortening time already paid. If payment remains outstanding
-          after the applicable renewal grace period, the workspace may become read-only.
+          Paddle card subscriptions renew at the end of the selected term
+          (1–5 years) unless canceled. A manual invoice subscription does not
+          auto-renew; a new invoice must be issued and payment verified.
+          Confirmed renewal updates the next paid period without shortening time
+          already paid. If payment remains outstanding after the applicable
+          renewal grace period, the workspace may become read-only.
         </p>
       </LegalSection>
       <LegalSection title="Anti-fraud">

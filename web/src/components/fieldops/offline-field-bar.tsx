@@ -48,21 +48,33 @@ export function OfflineFieldBar({
     const refreshJobs = () => {
       void listOfflineJobs(organizationId, userId).then(setJobs);
     };
+    const syncOnline = () => {
+      const next = typeof navigator === "undefined" ? true : navigator.onLine;
+      setOnline(next);
+      return next;
+    };
     refreshJobs();
+    syncOnline();
     const unsub = subscribeSync(organizationId, userId, setProgress);
     const stop = startConnectivitySync(organizationId, userId);
     const onOnline = () => {
-      setOnline(true);
+      syncOnline();
       refreshJobs();
     };
-    const onOffline = () => setOnline(false);
+    const onOffline = () => syncOnline();
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
+    window.addEventListener("focus", syncOnline);
+    document.addEventListener("visibilitychange", syncOnline);
+    const timer = window.setInterval(syncOnline, 2000);
     return () => {
       unsub();
       stop();
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      window.removeEventListener("focus", syncOnline);
+      document.removeEventListener("visibilitychange", syncOnline);
+      window.clearInterval(timer);
     };
   }, [organizationId, userId]);
 

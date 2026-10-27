@@ -477,8 +477,8 @@ export function ReportsWorkspace() {
 
       {kpis ? (
         <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-          <Kpi label="Jobs today" value={String(kpis.jobsToday)} />
-          <Kpi label="Active" value={String(kpis.activeJobs)} />
+          <Kpi label="Jobs today" value={String(kpis.jobsToday)} hint="Scheduled start is today" />
+          <Kpi label="Open" value={String(kpis.activeJobs)} hint="Not completed or cancelled" />
           <Kpi label="Completed today" value={String(kpis.completedJobs)} />
           <Kpi label="Pending approval" value={String(kpis.pendingApproval)} tone="amber" />
           <Kpi label="Overdue" value={String(kpis.overdueJobs)} tone="crimson" />
@@ -738,10 +738,12 @@ function FilterField({
 function Kpi({
   label,
   value,
+  hint,
   tone = "muted",
 }: {
   label: string;
   value: string;
+  hint?: string;
   tone?: "muted" | "amber" | "crimson";
 }) {
   return (
@@ -760,6 +762,9 @@ function Kpi({
       >
         {value}
       </p>
+      {hint ? (
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }

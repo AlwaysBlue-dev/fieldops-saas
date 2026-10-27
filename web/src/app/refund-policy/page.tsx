@@ -13,7 +13,11 @@ export default async function RefundPolicyPage() {
   const trust = await getPublicTrust();
 
   return (
-    <LegalDocument title="Refund Policy" trust={trust}>
+    <LegalDocument
+      title="Refund Policy"
+      version={trust.refundPolicy ?? { version: "1.0", effectiveDate: "2026-09-28" }}
+      trust={trust}
+    >
       <p>
         This policy explains how to ask FieldKeel to review a subscription
         payment. It applies alongside our{" "}

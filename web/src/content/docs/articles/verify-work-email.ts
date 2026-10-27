@@ -10,7 +10,6 @@ export const verifyWorkEmail: DocArticle = {
     "verify email",
     "verification",
     "signup",
-    "Mailpit",
     "resend",
     "account",
   ],
@@ -33,7 +32,7 @@ export const verifyWorkEmail: DocArticle = {
       id: "troubleshooting",
       heading: "Troubleshooting",
       paragraphs: [
-        "If you do not receive the email, check spam or junk folders and confirm the address you registered. On the verification screen, use Resend verification email (there is a short cooldown). Local developers: with SMTP pointed at Mailpit (`SMTP_HOST=localhost`, `SMTP_PORT=1025`), open the Mailpit UI (typically port 8025) to read the message.",
+        "If you do not receive the email, check spam or junk folders and confirm the address you registered. On the verification screen, use Resend verification email (there is a short cooldown).",
         "If the link says it is invalid or has expired, request a new one from the verification screen. Links expire after 24 hours and can be used only once. If you registered the wrong email, sign out and create a new account with the correct address (or use Change email / Back to signup from the verification screen).",
       ],
     },

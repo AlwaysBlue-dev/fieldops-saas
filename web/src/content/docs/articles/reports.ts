@@ -25,7 +25,7 @@ export const reports: DocArticle = {
       id: "summary",
       heading: "Summary KPIs",
       paragraphs: [
-        "Reports open at `/app/[orgSlug]/reports`. The summary strip shows organization-timezone “today” metrics: jobs today, active jobs, completed today, pending approval, overdue, labour minutes (total / normal / overtime), completion rate, average recorded duration, technicians active today, and time entries requiring review.",
+        "Open Reports from the workspace navigation. The summary strip shows organization-timezone “today” metrics: jobs today (scheduled start today), open jobs (not completed or cancelled), completed today, pending approval, overdue, labor minutes (total / normal / overtime), completion rate, average recorded duration, technicians active today, and time entries requiring review."
         "All aggregates are computed on the API against membership scope. The browser never aggregates raw job or time collections as a second source of truth.",
       ],
     },

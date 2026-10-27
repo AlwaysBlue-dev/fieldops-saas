@@ -16,6 +16,7 @@ export type PublicTrust = {
   terms: LegalVersion;
   privacy: LegalVersion;
   billingPolicy: LegalVersion;
+  refundPolicy?: LegalVersion;
 };
 
 const FALLBACK: PublicTrust = {
@@ -24,11 +25,12 @@ const FALLBACK: PublicTrust = {
   salesEmail: FIELDKEEL_SUPPORT_EMAIL,
   securityEmail: FIELDKEEL_SUPPORT_EMAIL,
   legalEntityName: null,
-  governingLaw: null,
+  governingLaw: "the laws of Pakistan",
   hostingRegionConfigured: false,
-  terms: { version: "2026-09-23", effectiveDate: "2026-09-23" },
-  privacy: { version: "2026-09-23", effectiveDate: "2026-09-23" },
-  billingPolicy: { version: "2026-09-23", effectiveDate: "2026-09-23" },
+  terms: { version: "1.0", effectiveDate: "2026-09-28" },
+  privacy: { version: "1.0", effectiveDate: "2026-09-28" },
+  billingPolicy: { version: "1.0", effectiveDate: "2026-09-28" },
+  refundPolicy: { version: "1.0", effectiveDate: "2026-09-28" },
 };
 
 export async function getPublicTrust(): Promise<PublicTrust> {

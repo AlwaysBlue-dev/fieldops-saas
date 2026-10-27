@@ -171,6 +171,7 @@ export class MyDayService {
     role: OrganizationContext['role'],
   ) {
     const assigned = job.assignments.some((row) => row.userId === actorUserId);
+    // Same contact chain as Missing Access Info — never use client company phone/email.
     const primaryContact = job.site.contacts[0];
     const contactName =
       job.site.siteContactName ??
@@ -181,13 +182,11 @@ export class MyDayService {
       job.site.siteContactPhone ??
       primaryContact?.phone ??
       job.clientRepPhone ??
-      job.client.phone ??
       null;
     const contactEmail =
       job.site.siteContactEmail ??
       primaryContact?.email ??
       job.clientRepEmail ??
-      job.client.email ??
       null;
     const addressLabel = formatSiteAddress(job.site);
     const latitude = job.site.latitude?.toString() ?? null;

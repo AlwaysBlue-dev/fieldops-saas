@@ -378,6 +378,7 @@ export function JobDetailWorkspace() {
             address={address}
             orgSlug={params.orgSlug}
             organizationId={organizationId}
+            canEditSite={canManageCustomers(membership)}
             pending={pending}
             onAction={(action) => run(action)}
           />
@@ -405,12 +406,19 @@ export function JobDetailWorkspace() {
 function Header({ job, orgSlug }: { job: JobDetail; orgSlug: string }) {
   return (
     <div>
-      <Link
-        href={`/app/${orgSlug}/jobs`}
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        Jobs
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Link
+          href={`/app/${orgSlug}/jobs`}
+          className="text-sm text-muted-foreground hover:text-foreground"
+        >
+          Jobs
+        </Link>
+        {job.permissions.canEdit ? (
+          <Button asChild variant="outline" className="h-9 md:h-8">
+            <Link href={`/app/${orgSlug}/jobs/${job.id}/edit`}>Edit job</Link>
+          </Button>
+        ) : null}
+      </div>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <h1 className="text-lg font-semibold md:text-xl">
           {job.jobNumber} · {job.title}
@@ -475,8 +483,19 @@ function OverviewFacts({
 }) {
   const maps = job.navigationUrl;
   const accessNotes = job.site.accessNotes ?? job.site.notes ?? null;
-  const siteContactName = job.site.siteContactName ?? null;
-  const siteContactPhone = job.site.siteContactPhone ?? null;
+  // Align with Missing Access Info: site fields, primary SiteContact, then job clientRep.
+  const siteContactName =
+    job.site.siteContactName ??
+    job.site.primaryContact?.name ??
+    job.clientRepName ??
+    job.representativeName ??
+    null;
+  const siteContactPhone =
+    job.site.siteContactPhone ??
+    job.site.primaryContact?.phone ??
+    job.clientRepPhone ??
+    job.representativePhone ??
+    null;
   return (
     <section className="rounded-lg border border-border bg-card px-4 py-4">
       <h2 className="text-sm font-semibold">Job overview</h2>
@@ -588,6 +607,7 @@ function Sidebar({
   address,
   orgSlug,
   organizationId,
+  canEditSite,
   pending,
   onAction,
 }: {
@@ -596,6 +616,7 @@ function Sidebar({
   address: string;
   orgSlug: string;
   organizationId: string;
+  canEditSite?: boolean;
   pending: boolean;
   onAction: (action: () => Promise<unknown>) => void | Promise<unknown>;
 }) {
@@ -606,6 +627,7 @@ function Sidebar({
         timezone={timezone}
         address={address}
         orgSlug={orgSlug}
+        canEditSite={canEditSite}
       />
       <section className="rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Time on this job</h2>
@@ -626,6 +648,7 @@ function Sidebar({
           job={job}
           organizationId={organizationId}
           orgSlug={orgSlug}
+          canEditSite={canEditSite}
           pending={pending}
           onAction={onAction}
         />

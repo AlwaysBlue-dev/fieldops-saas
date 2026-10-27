@@ -26,7 +26,7 @@ export const timeGps: DocArticle = {
       heading: "Clock in and clock out",
       paragraphs: [
         "Technicians clock in and out from My Day, Time, or the job context depending on the flow. Clock events feed timesheets and labour reporting. Open clock sessions can block job approval until closed — approvals validation expects complete time records.",
-        "Manual time entry may exist when OrganizationSettings.allowManualTime is enabled. That setting exists in onboarding/schema, but it is not currently editable in the Settings UI — operators should not expect a Settings toggle for allowManualTime yet.",
+        "Manual time entry is not enabled from Settings today. Clock-in and clock-out on jobs remain the supported way to capture field time.",
       ],
     },
     {

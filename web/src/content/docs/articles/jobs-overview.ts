@@ -18,6 +18,7 @@ export const jobsOverview: DocArticle = {
     "job-execution",
     "schedule-dispatch",
     "clients-overview",
+    "sites-access-notes",
   ],
   sections: [
     {
@@ -26,6 +27,14 @@ export const jobsOverview: DocArticle = {
       paragraphs: [
         "Each job is organization-scoped with a job number from your organization’s numbering settings. The card ties together client, site, description, priority, status, scheduled window, and assignments to technicians and/or a team.",
         "Work logs, materials used, photos, documents, signatures, clock events, and GPS evidence on those clock events attach to the job. Reports and the approvals inbox read the live job record — they do not keep a separate copy of the card.",
+      ],
+    },
+    {
+      id: "access",
+      heading: "Missing access info",
+      paragraphs: [
+        "Active jobs (not completed or cancelled) show Missing access info when the site’s Access notes are empty, or when both the site and the job lack a usable contact name/phone. FieldKeel calculates this on the server.",
+        "You will see an amber badge on the Jobs list, a Missing access tab with a count, a warning on Job Details (with Add access info when you can edit the site), and a matching filter on Schedule. Saving site access notes and contacts clears the flag only after the server recalculates readiness. See Site access notes for the full rule.",
       ],
     },
     {

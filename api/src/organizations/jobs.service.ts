@@ -321,6 +321,12 @@ export class JobsService {
         siteContactName: job.site.siteContactName ?? null,
         siteContactPhone: job.site.siteContactPhone ?? null,
         siteContactEmail: job.site.siteContactEmail ?? null,
+        primaryContact: job.site.contacts?.[0]
+          ? {
+              name: job.site.contacts[0].name ?? null,
+              phone: job.site.contacts[0].phone ?? null,
+            }
+          : null,
       },
       accessInfo: accessInfoFromJobRow(job),
       allowedTransitions: this.workflow.allowedTargets(job.status),

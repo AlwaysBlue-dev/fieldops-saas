@@ -135,6 +135,7 @@ export type JobDetail = JobSummary & {
     siteContactName?: string | null;
     siteContactPhone?: string | null;
     siteContactEmail?: string | null;
+    primaryContact?: { name: string | null; phone: string | null } | null;
   };
   accessInfo?: JobAccessInfo;
   allowedTransitions: JobStatus[];
