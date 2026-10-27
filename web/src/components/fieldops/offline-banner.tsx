@@ -1,30 +1,16 @@
 "use client";
 
+import {
+  getOnlineSnapshot,
+  subscribeConnectivity,
+} from "@/lib/offline/connectivity";
 import { useEffect, useState } from "react";
 
+/** Live reachability (API probe), not navigator.onLine alone. */
 export function useOnlineStatus() {
-  const [online, setOnline] = useState(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
+  const [online, setOnline] = useState(getOnlineSnapshot);
 
-  useEffect(() => {
-    const sync = () =>
-      setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
-    // DevTools "Offline" and some browsers miss events; re-check on focus.
-    window.addEventListener("focus", sync);
-    document.addEventListener("visibilitychange", sync);
-    const timer = window.setInterval(sync, 2000);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("offline", sync);
-      window.removeEventListener("focus", sync);
-      document.removeEventListener("visibilitychange", sync);
-      window.clearInterval(timer);
-    };
-  }, []);
+  useEffect(() => subscribeConnectivity(setOnline), []);
 
   return online;
 }
