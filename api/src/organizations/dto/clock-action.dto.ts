@@ -39,6 +39,11 @@ export class ClockInDto extends GpsEvidenceDto {
   @IsOptional()
   @IsDateString()
   clientOccurredAt?: string;
+
+  /** Stable client-generated id for offline retries (used as ClockSession.id when new). */
+  @IsOptional()
+  @IsUUID()
+  clientEventId?: string;
 }
 
 export class ClockOutDto extends GpsEvidenceDto {
@@ -49,4 +54,9 @@ export class ClockOutDto extends GpsEvidenceDto {
   @IsOptional()
   @IsDateString()
   clientOccurredAt?: string;
+
+  /** Stable client-generated id for offline clock-out retries (audit/idempotency). */
+  @IsOptional()
+  @IsUUID()
+  clientEventId?: string;
 }

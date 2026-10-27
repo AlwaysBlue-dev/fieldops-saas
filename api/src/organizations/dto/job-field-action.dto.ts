@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   MinLength,
@@ -24,6 +25,11 @@ export class CreateWorkLogDto {
   @MinLength(1)
   @MaxLength(4000)
   text?: string;
+
+  /** Stable offline queue id; reused as JobWorkLog.id for idempotent retries. */
+  @IsOptional()
+  @IsUUID()
+  clientOperationId?: string;
 }
 
 export class CreateJobMaterialDto {
@@ -57,6 +63,11 @@ export class CreateJobMaterialDto {
   @IsString()
   @MaxLength(400)
   notes?: string;
+
+  /** Stable offline queue id; reused as JobMaterial.id for idempotent retries. */
+  @IsOptional()
+  @IsUUID()
+  clientOperationId?: string;
 }
 
 export class CreateJobPhotoDto {
@@ -82,6 +93,11 @@ export class CreateJobPhotoDto {
   @IsOptional()
   @IsString()
   capturedAt?: string;
+
+  /** Stable offline queue id; reused as JobFile.id for idempotent retries. */
+  @IsOptional()
+  @IsUUID()
+  clientOperationId?: string;
 }
 
 export class CreateJobSignatureDto {
@@ -120,4 +136,9 @@ export class CreateJobSignatureDto {
   @IsString()
   @MinLength(8)
   imageBase64!: string;
+
+  /** Stable offline queue id; reused as JobSignature/JobFile.id for idempotent retries. */
+  @IsOptional()
+  @IsUUID()
+  clientOperationId?: string;
 }

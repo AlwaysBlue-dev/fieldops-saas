@@ -56,13 +56,19 @@ export class ListJobsQueryDto {
   date?: string;
 
   @IsOptional()
-  @IsIn(['open', 'today', 'unassigned', 'approval'])
-  preset?: 'open' | 'today' | 'unassigned' | 'approval';
+  @IsIn(['open', 'today', 'unassigned', 'approval', 'missing_access'])
+  preset?: 'open' | 'today' | 'unassigned' | 'approval' | 'missing_access';
 
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
   unassigned?: boolean;
+
+  /** When true, only jobs missing access notes and/or usable contact (server rule). */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  missingAccess?: boolean;
 
   @IsOptional()
   @IsIn(['jobNumber', 'scheduledStart', 'priority', 'status', 'updatedAt', 'createdAt'])

@@ -20,6 +20,7 @@ import { ApiError } from "@/lib/api";
 import { listClients, type ClientSummary } from "@/lib/clients";
 import { canCreateJobs, resolveCurrentMembership } from "@/lib/current-org";
 import {
+  jobMissingAccess,
   listJobs,
   priorityTone,
   statusLabel,
@@ -33,12 +34,14 @@ import { formatDateTimeInZone, formatYmdInZone } from "@/lib/timezone";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MissingAccessBadge } from "./missing-access-badge";
 
 const PRESETS = [
   { id: "", label: "All" },
   { id: "open", label: "Open" },
   { id: "today", label: "Today" },
   { id: "unassigned", label: "Unassigned" },
+  { id: "missing_access", label: "Missing access" },
   { id: "approval", label: "Needs approval" },
 ] as const;
 
@@ -52,6 +55,7 @@ export function JobsWorkspace() {
   const [canCreate, setCanCreate] = useState(false);
   const [jobs, setJobs] = useState<JobSummary[]>([]);
   const [total, setTotal] = useState(0);
+  const [missingAccessCount, setMissingAccessCount] = useState(0);
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
   const [clients, setClients] = useState<ClientSummary[]>([]);
@@ -100,26 +104,37 @@ export function JobsWorkspace() {
     if (!organizationId) return;
     const date =
       preset === "today" ? formatYmdInZone(new Date(), timezone) : undefined;
-    const [result, teamResult, techResult, clientResult] = await Promise.all([
-      listJobs(organizationId, {
-        search: search.trim() || undefined,
-        status,
-        priority,
-        teamId: teamId || undefined,
-        technicianId: technicianId || undefined,
-        clientId: clientId || undefined,
-        preset: preset || undefined,
-        date,
-        pageSize: 50,
-        sort: "scheduledStart",
-        order: "asc",
-      }),
-      listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
-      listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
-    ]);
+    const [result, missingResult, teamResult, techResult, clientResult] =
+      await Promise.all([
+        listJobs(organizationId, {
+          search: search.trim() || undefined,
+          status,
+          priority,
+          teamId: teamId || undefined,
+          technicianId: technicianId || undefined,
+          clientId: clientId || undefined,
+          preset: preset || undefined,
+          date,
+          pageSize: 50,
+          sort: "scheduledStart",
+          order: "asc",
+        }),
+        listJobs(organizationId, {
+          preset: "missing_access",
+          pageSize: 1,
+        }),
+        listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
+        listTechnicians(organizationId, {
+          pageSize: 100,
+          roles: "TECHNICIAN",
+          status: "ACTIVE",
+          teamId: teamId || undefined,
+        }),
+        listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
+      ]);
     setJobs(result.items);
     setTotal(result.total);
+    setMissingAccessCount(missingResult.total);
     setTeams(teamResult.items);
     setTechnicians(techResult.items);
     setClients(clientResult.items);
@@ -141,35 +156,8 @@ export function JobsWorkspace() {
   useEffect(() => {
     if (!organizationId) return;
     let cancelled = false;
-    const date =
-      preset === "today" ? formatYmdInZone(new Date(), timezone) : undefined;
-    Promise.all([
-      listJobs(organizationId, {
-        search: search.trim() || undefined,
-        status,
-        priority,
-        teamId: teamId || undefined,
-        technicianId: technicianId || undefined,
-        clientId: clientId || undefined,
-        preset: preset || undefined,
-        date,
-        pageSize: 50,
-        sort: "scheduledStart",
-        order: "asc",
-      }),
-      listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
-      listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
-      listClients(organizationId, { pageSize: 50, status: "ACTIVE" }),
-    ])
-      .then(([result, teamResult, techResult, clientResult]) => {
-        if (cancelled) return;
-        setJobs(result.items);
-        setTotal(result.total);
-        setTeams(teamResult.items);
-        setTechnicians(techResult.items);
-        setClients(clientResult.items);
-        setLoadState("ready");
-      })
+    setLoadState("loading");
+    load()
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof ApiError ? err.message : "Could not load jobs.");
@@ -187,6 +175,7 @@ export function JobsWorkspace() {
     technicianId,
     clientId,
     preset,
+    load,
     timezone,
   ]);
 
@@ -240,7 +229,9 @@ export function JobsWorkspace() {
             className="h-11 md:h-8"
             onClick={() => setPreset(item.id)}
           >
-            {item.label}
+            {item.id === "missing_access"
+              ? `Missing access · ${missingAccessCount}`
+              : item.label}
           </Button>
         ))}
       </div>
@@ -387,7 +378,13 @@ export function JobsWorkspace() {
             key: "status",
             header: "Status",
             cell: (job) => (
-              <StatusPill label={statusLabel(job.status)} tone={statusTone(job.status)} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusPill
+                  label={statusLabel(job.status)}
+                  tone={statusTone(job.status)}
+                />
+                {jobMissingAccess(job) ? <MissingAccessBadge /> : null}
+              </div>
             ),
           },
           {
@@ -428,6 +425,9 @@ export function JobsWorkspace() {
                 <div className="flex flex-col items-end gap-1">
                   <StatusPill label={job.priority} tone={priorityTone(job.priority)} />
                   <StatusPill label={statusLabel(job.status)} tone={statusTone(job.status)} />
+                  {jobMissingAccess(job) ? (
+                    <MissingAccessBadge compact />
+                  ) : null}
                 </div>
               }
             />

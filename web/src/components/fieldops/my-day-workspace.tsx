@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
+import { getMe } from "@/lib/auth";
 import { resolveCurrentMembership } from "@/lib/current-org";
 import {
   GeolocationRequestError,
@@ -38,6 +39,15 @@ import {
   type MyDayPayload,
 } from "@/lib/my-day";
 import {
+  getOfflineMyDay,
+  isLikelyOfflineNetworkError,
+  listOfflineJobs,
+  type OfflineJobSnapshot,
+} from "@/lib/offline/db";
+import { rememberOfflineMyDay } from "@/lib/offline/prepare-jobs";
+import { queueOfflineOp } from "@/lib/offline/sync-engine";
+import type { JobDetail } from "@/lib/jobs";
+import {
   formatAccuracy,
   formatDistanceFromSite,
   locationStatusLabel,
@@ -48,6 +58,8 @@ import { Camera, ClipboardPen, Navigation, Phone, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { OfflineFieldBar } from "./offline-field-bar";
 
 type SheetKind = "update" | "photo" | "material" | "signoff" | null;
 type PendingClock = { kind: "in" | "out"; jobId?: string };
@@ -56,6 +68,7 @@ export function MyDayWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const { canMutate } = useCanMutate();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [day, setDay] = useState<MyDayPayload | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -81,8 +94,8 @@ export function MyDayWorkspace() {
 
   useEffect(() => {
     let cancelled = false;
-    resolveCurrentMembership(params.orgSlug)
-      .then((membership) => {
+    Promise.all([resolveCurrentMembership(params.orgSlug), getMe()])
+      .then(([membership, me]) => {
         if (cancelled) return;
         if (!membership) {
           setError("Organization not found");
@@ -90,9 +103,26 @@ export function MyDayWorkspace() {
           return;
         }
         setOrganizationId(membership.organization.id);
+        setUserId(me.user.id);
       })
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         if (cancelled) return;
+        if (isLikelyOfflineNetworkError(err)) {
+          const { getOfflineShellContext } = await import("@/lib/offline/db");
+          const cached = await getOfflineShellContext(params.orgSlug).catch(
+            () => null,
+          );
+          if (cached) {
+            setOrganizationId(cached.organizationId);
+            setUserId(cached.userId);
+            return;
+          }
+          setError(
+            "You're offline and this workspace isn't prepared on this device. Reconnect, open My Day, and use Prepare for offline.",
+          );
+          setLoadState("error");
+          return;
+        }
         setError(err instanceof ApiError ? err.message : "Could not load My Day.");
         setLoadState("error");
       });
@@ -102,36 +132,79 @@ export function MyDayWorkspace() {
   }, [params.orgSlug]);
 
   useEffect(() => {
-    if (!organizationId) return;
+    if (!organizationId || !userId) return;
     let cancelled = false;
     getMyDay(organizationId)
-      .then((payload) => {
+      .then(async (payload) => {
         if (cancelled) return;
         setDay(payload);
         setLoadState("ready");
+        await rememberOfflineMyDay(organizationId, userId, payload).catch(
+          () => undefined,
+        );
       })
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         if (cancelled) return;
+        if (isLikelyOfflineNetworkError(err)) {
+          const cached = await getOfflineMyDay(organizationId, userId).catch(
+            () => null,
+          );
+          if (cached) {
+            setDay(cached.payload);
+            setLoadState("ready");
+            return;
+          }
+          const jobs = await listOfflineJobs(organizationId, userId).catch(
+            () => [],
+          );
+          if (jobs.length > 0) {
+            setDay(buildMyDayFromOfflineJobs(jobs, dayFallbackShift()));
+            setLoadState("ready");
+            return;
+          }
+          setError(
+            "You're offline and no prepared My Day jobs are saved on this device. Reconnect and use Prepare for offline.",
+          );
+          setLoadState("error");
+          return;
+        }
         setError(err instanceof ApiError ? err.message : "Could not load My Day.");
         setLoadState("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [organizationId]);
+  }, [organizationId, userId]);
 
   const refresh = async () => {
-    if (!organizationId) return;
-    const payload = await getMyDay(organizationId);
-    setDay(payload);
-    setLoadState("ready");
+    if (!organizationId || !userId) return;
+    try {
+      const payload = await getMyDay(organizationId);
+      setDay(payload);
+      setLoadState("ready");
+      await rememberOfflineMyDay(organizationId, userId, payload).catch(
+        () => undefined,
+      );
+    } catch (err) {
+      if (isLikelyOfflineNetworkError(err)) {
+        const cached = await getOfflineMyDay(organizationId, userId);
+        if (cached) {
+          setDay(cached.payload);
+          setLoadState("ready");
+          return;
+        }
+      }
+      throw err;
+    }
   };
 
   useRefreshLoader(refresh);
 
-  const requireConnection = () => {
-    if (!online) {
-      setActionError("You’re offline. Reconnect to clock or add job evidence.");
+  const requireConnection = (allowOfflineQueue = false) => {
+    if (!online && !allowOfflineQueue) {
+      setActionError(
+        "You’re offline. Prepare jobs first, or reconnect for this action.",
+      );
       return false;
     }
     return true;
@@ -157,17 +230,47 @@ export function MyDayWorkspace() {
   };
 
   const runClock = async (kind: "in" | "out", jobId?: string) => {
-    if (!organizationId || !requireConnection()) return;
+    if (!organizationId || !userId) return;
+    if (!requireConnection(true)) return;
     if (pending || locating) return;
     setPending(true);
     setActionError(null);
     setGeoError(null);
     try {
-      const gps = await withGps();
+      const gps = online ? await withGps() : {};
+      const occurredAt = new Date().toISOString();
+      if (!online) {
+        await queueOfflineOp({
+          organizationId,
+          userId,
+          jobId: jobId ?? null,
+          type: kind === "in" ? "CLOCK_IN" : "CLOCK_OUT",
+          body: {
+            jobId,
+            clientOccurredAt: occurredAt,
+            ...gps,
+          },
+        });
+        const localTime = formatTimeInZone(occurredAt, day?.shift.timeZone ?? "UTC");
+        toast.success(
+          kind === "in"
+            ? `Clock-in recorded on this device at ${localTime}. Awaiting server verification.`
+            : `Clock-out recorded on this device at ${localTime}. Awaiting server verification.`,
+        );
+        setPendingClock(null);
+        return;
+      }
       if (kind === "in") {
-        await clockIn(organizationId, { ...gps, jobId });
+        await clockIn(organizationId, {
+          ...gps,
+          jobId,
+          clientOccurredAt: occurredAt,
+        });
       } else {
-        await clockOut(organizationId, gps);
+        await clockOut(organizationId, {
+          ...gps,
+          clientOccurredAt: occurredAt,
+        });
       }
       setPendingClock(null);
       await refresh();
@@ -229,15 +332,12 @@ export function MyDayWorkspace() {
       : day.upcomingJobs.find((job) => job.id === day.clock.session?.jobId) ??
         day.currentJob;
   const empty = !day.currentJob && day.upcomingJobs.length === 0;
-  const blocked = !canMutate || !online || pending || locating;
+  const blocked = !canMutate || pending || locating;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-28 md:max-w-3xl md:pb-0">
-      {!online ? (
-        <div className="rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          You’re offline. My Day can still show the last loaded day, but clock and
-          job actions need a connection.
-        </div>
+      {organizationId && userId ? (
+        <OfflineFieldBar organizationId={organizationId} userId={userId} />
       ) : null}
 
       <header className="flex flex-col gap-1">
@@ -386,12 +486,13 @@ export function MyDayWorkspace() {
         open={sheet}
         job={activeJob}
         organizationId={organizationId}
+        userId={userId}
         online={online}
         canMutate={canMutate}
         onClose={() => setSheet(null)}
         onSaved={async () => {
           setSheet(null);
-          await refresh();
+          if (online) await refresh();
         }}
       />
 
@@ -562,6 +663,7 @@ function FieldSheets({
   open,
   job,
   organizationId,
+  userId,
   online,
   canMutate,
   onClose,
@@ -570,6 +672,7 @@ function FieldSheets({
   open: SheetKind;
   job: MyDayJob | null;
   organizationId: string | null;
+  userId: string | null;
   online: boolean;
   canMutate: boolean;
   onClose: () => void;
@@ -589,38 +692,75 @@ function FieldSheets({
   const padRef = useRef<SignaturePadHandle>(null);
 
   const save = async () => {
-    if (!organizationId || !job) return;
-    if (!online) {
-      setError("You’re offline. Reconnect to save.");
-      return;
-    }
+    if (!organizationId || !job || !userId) return;
     setSaving(true);
     setError(null);
     try {
       if (open === "update") {
         if (!body.trim()) throw new Error("Add a short work update.");
-        await addWorkUpdate(organizationId, job.id, body.trim());
+        if (!online) {
+          await queueOfflineOp({
+            organizationId,
+            userId,
+            jobId: job.id,
+            type: "WORK_LOG",
+            body: { text: body.trim() },
+          });
+          toast.success("Work update saved on this device. Waiting to sync.");
+        } else {
+          await addWorkUpdate(organizationId, job.id, body.trim());
+        }
       }
       if (open === "material") {
         const qty = Number(quantity);
         if (!name.trim() || !Number.isFinite(qty) || qty <= 0) {
           throw new Error("Enter a material name and quantity.");
         }
-        await addJobMaterial(organizationId, job.id, {
+        const payload = {
           name: name.trim(),
           quantity: qty,
           unit: unit.trim() || "ea",
-        });
+        };
+        if (!online) {
+          await queueOfflineOp({
+            organizationId,
+            userId,
+            jobId: job.id,
+            type: "MATERIAL",
+            body: payload,
+          });
+          toast.success("Material saved on this device. Waiting to sync.");
+        } else {
+          await addJobMaterial(organizationId, job.id, payload);
+        }
       }
       if (open === "signoff") {
         if (!signerName.trim() || padRef.current?.isEmpty()) {
           throw new Error("Add the signer name and a signature.");
         }
-        await addJobSignature(organizationId, job.id, {
-          signerName: signerName.trim(),
-          signerTitle: signerTitle.trim() || undefined,
-          imageBase64: padRef.current?.toPng() ?? "",
-        });
+        const imageBase64 = padRef.current?.toPng() ?? "";
+        if (!online) {
+          await queueOfflineOp({
+            organizationId,
+            userId,
+            jobId: job.id,
+            type: "SIGNATURE",
+            body: {
+              signerName: signerName.trim(),
+              signerTitle: signerTitle.trim() || undefined,
+              imageBase64,
+            },
+          });
+          toast.success(
+            "Signature saved on this device. Awaiting server verification.",
+          );
+        } else {
+          await addJobSignature(organizationId, job.id, {
+            signerName: signerName.trim(),
+            signerTitle: signerTitle.trim() || undefined,
+            imageBase64,
+          });
+        }
       }
       await onSaved();
     } catch (err) {
@@ -631,15 +771,41 @@ function FieldSheets({
   };
 
   const onPhoto = async (file: File) => {
-    if (!organizationId || !job) return;
-    if (!online) {
-      setError("You’re offline. Reconnect to upload a photo.");
-      return;
-    }
+    if (!organizationId || !job || !userId) return;
     setSaving(true);
     setError(null);
     setPhotoProgress(0);
     try {
+      if (!online) {
+        const { newOfflineId, putBlob } = await import("@/lib/offline/db");
+        const blobId = newOfflineId();
+        const bytes = await file.arrayBuffer();
+        await putBlob({
+          id: blobId,
+          organizationId,
+          userId,
+          mimeType: file.type || "image/jpeg",
+          fileName: file.name || "photo.jpg",
+          createdAt: new Date().toISOString(),
+          bytes,
+        });
+        await queueOfflineOp({
+          organizationId,
+          userId,
+          jobId: job.id,
+          type: "PHOTO",
+          blobId,
+          body: { fileName: file.name || "photo.jpg" },
+        });
+        toast.success(
+          "Photo saved on this device. It uploads when you sync — not marked uploaded yet.",
+        );
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        setPhotoProgress(null);
+        await onSaved();
+        return;
+      }
       await uploadJobFile(organizationId, job.id, file, {
         category: "PHOTO",
         onProgress: setPhotoProgress,
@@ -650,7 +816,13 @@ function FieldSheets({
       await onSaved();
     } catch (err) {
       setPhotoProgress(null);
-      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Photo upload failed.");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Photo could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -716,10 +888,16 @@ function FieldSheets({
             <div className="flex gap-2">
               <Button
                 className="h-11 flex-1"
-                disabled={!photoFile || saving || !canMutate || !online}
+                disabled={!photoFile || saving || !canMutate}
                 onClick={() => photoFile && void onPhoto(photoFile)}
               >
-                {saving ? "Uploading…" : "Upload"}
+                {saving
+                  ? online
+                    ? "Uploading…"
+                    : "Saving…"
+                  : online
+                    ? "Upload"
+                    : "Save on device"}
               </Button>
               {photoFile ? (
                 <Button
@@ -845,4 +1023,79 @@ function formatShiftDate(ymd: string) {
     month: "long",
     day: "numeric",
   }).format(new Date(year, month - 1, day));
+}
+
+function dayFallbackShift(): MyDayPayload["shift"] {
+  const now = new Date();
+  const ymd = now.toISOString().slice(0, 10);
+  return {
+    date: ymd,
+    weekday: "MON",
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    isWorkingDay: true,
+    dailyHoursLimit: 8,
+  };
+}
+
+function jobDetailToMyDayJob(detail: JobDetail): MyDayJob {
+  return {
+    id: detail.id,
+    jobNumber: detail.jobNumber,
+    title: detail.title,
+    status: detail.status,
+    priority: detail.priority,
+    scheduledStart: detail.scheduledStart,
+    expectedFinish: detail.expectedFinish,
+    scopeSummary: detail.scope,
+    client: { id: detail.client.id, name: detail.client.name },
+    site: {
+      id: detail.site.id,
+      name: detail.site.name,
+      addressLabel: detail.addressLabel ?? null,
+      city: detail.site.city ?? null,
+      latitude: detail.site.latitude ?? null,
+      longitude: detail.site.longitude ?? null,
+    },
+    siteContact:
+      detail.site.siteContactName || detail.site.siteContactPhone
+        ? {
+            name: detail.site.siteContactName ?? null,
+            phone: detail.site.siteContactPhone ?? null,
+            email: detail.site.siteContactEmail ?? null,
+          }
+        : null,
+    navigationUrl: detail.navigationUrl ?? null,
+    actions: {
+      canClockIn: Boolean(detail.permissions.canClockIn),
+      canClockOut: false,
+      canOpen: true,
+      canAddWorkUpdate: Boolean(detail.permissions.canEditExecutionRecords),
+      canAddPhoto: Boolean(detail.permissions.canEditExecutionRecords),
+      canAddMaterial: Boolean(detail.permissions.canEditExecutionRecords),
+      canSignOff: Boolean(detail.permissions.canEditExecutionRecords),
+    },
+  };
+}
+
+function buildMyDayFromOfflineJobs(
+  jobs: OfflineJobSnapshot[],
+  shift: MyDayPayload["shift"],
+): MyDayPayload {
+  const mapped = jobs
+    .map((row) => row.payload as JobDetail)
+    .filter((job) => job && typeof job === "object" && "id" in job)
+    .map(jobDetailToMyDayJob);
+  return {
+    serverNow: new Date().toISOString(),
+    shift,
+    clock: { status: "CLOCKED_OUT", session: null },
+    currentJob: mapped[0] ?? null,
+    upcomingJobs: mapped.slice(1),
+    actions: { canClockIn: true, canClockOut: false },
+    settings: {
+      requireGps: false,
+      requireClientSignature: false,
+      gpsReviewDistanceMeters: 200,
+    },
+  };
 }

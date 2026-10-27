@@ -126,18 +126,40 @@ export class JobExecutionService {
       throw new BadRequestException('This safety control is not required');
     }
     if (control.completedAt) {
-      throw new BadRequestException('This safety control is already confirmed');
+      // Idempotent for offline retries after a lost success response.
+      const withActor = await this.prisma.jobSafetyControl.findFirst({
+        where: { id: control.id, organizationId: ctx.organizationId },
+        include: { completedBy: { select: { id: true, fullName: true } } },
+      });
+      if (!withActor) {
+        throw new NotFoundException();
+      }
+      return this.serializeSafety(withActor);
     }
     const now = this.clock.now();
     const note = emptyToNull(dto.note);
     const updated = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.jobSafetyControl.update({
-        where: { id: control.id },
+      const row = await tx.jobSafetyControl.updateMany({
+        where: {
+          id: control.id,
+          organizationId: ctx.organizationId,
+          completedAt: null,
+        },
         data: {
           completedAt: now,
           completedByUserId: actorUserId,
           notes: note,
         },
+      });
+      if (row.count === 0) {
+        const already = await tx.jobSafetyControl.findFirstOrThrow({
+          where: { id: control.id, organizationId: ctx.organizationId },
+          include: { completedBy: { select: { id: true, fullName: true } } },
+        });
+        return already;
+      }
+      const confirmed = await tx.jobSafetyControl.findFirstOrThrow({
+        where: { id: control.id, organizationId: ctx.organizationId },
         include: { completedBy: { select: { id: true, fullName: true } } },
       });
       await this.audit.record(
@@ -151,7 +173,7 @@ export class JobExecutionService {
         },
         tx,
       );
-      return row;
+      return confirmed;
     });
     return this.serializeSafety(updated);
   }
@@ -341,12 +363,19 @@ export class JobExecutionService {
 
   async submit(ctx: OrganizationContext, actorUserId: string, jobId: string) {
     const visibleJob = await this.requireVisibleJob(ctx, actorUserId, jobId);
+    if (visibleJob.status === JobStatus.PENDING_APPROVAL) {
+      // Offline retry after a lost submit acknowledgment.
+      return { ok: true, alreadySubmitted: true };
+    }
     const emails = await this.prisma.$transaction(async (tx) => {
       const job = await this.jobEvents.snapshot(tx, ctx.organizationId, visibleJob.id, true);
       const before = job;
       const assigned = job.assignments.some((row) => row.userId === actorUserId);
       if (!this.workflow.canFieldAdvance(ctx.role, assigned)) {
         throw new ForbiddenException('Insufficient organization role');
+      }
+      if (job.status === JobStatus.PENDING_APPROVAL) {
+        return [];
       }
       this.workflow.assertTransition(job.status, JobStatus.PENDING_APPROVAL);
       if (executionRecordsLocked(job.status)) {

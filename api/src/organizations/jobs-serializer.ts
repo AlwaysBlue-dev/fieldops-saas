@@ -3,6 +3,10 @@ import type {
   JobPriority,
   JobStatus,
 } from '../generated/prisma/client.js';
+import {
+  accessInfoFromJobRow,
+  type JobAccessInfo,
+} from './job-access-info.js';
 
 export type JobPerson = ReturnType<typeof serializeOrganizationPerson>;
 
@@ -23,9 +27,12 @@ export type JobSummaryView = {
   supervisor: JobPerson | null;
   technicians: JobPerson[];
   updatedAt: string;
+  missingAccessInfo: boolean;
+  accessInfoReady: boolean;
+  missingAccessItems: JobAccessInfo['missingItems'];
 };
 
-export function serializeJobSummary(job: {
+type JobSummaryRow = {
   id: string;
   organizationId: string;
   jobNumber: string;
@@ -37,12 +44,26 @@ export function serializeJobSummary(job: {
   expectedFinish: Date | null;
   workOrderNumber: string | null;
   updatedAt: Date;
+  clientRepName?: string | null;
+  clientRepPhone?: string | null;
   client: { id: string; name: string };
-  site: { id: string; name: string; city?: string | null };
+  site: {
+    id: string;
+    name: string;
+    city?: string | null;
+    notes?: string | null;
+    accessNotes?: string | null;
+    siteContactName?: string | null;
+    siteContactPhone?: string | null;
+    contacts?: Array<{ name: string | null; phone: string | null }>;
+  };
   team: { id: string; name: string } | null;
   supervisor: OrganizationPerson | null;
   assignments: Array<{ user: OrganizationPerson }>;
-}): JobSummaryView {
+};
+
+export function serializeJobSummary(job: JobSummaryRow): JobSummaryView {
+  const access = accessInfoFromJobRow(job);
   return {
     id: job.id,
     organizationId: job.organizationId,
@@ -60,7 +81,12 @@ export function serializeJobSummary(job: {
     supervisor: job.supervisor
       ? serializeOrganizationPerson(job.supervisor, job.organizationId)
       : null,
-    technicians: job.assignments.map((row) => serializeOrganizationPerson(row.user, job.organizationId)),
+    technicians: job.assignments.map((row) =>
+      serializeOrganizationPerson(row.user, job.organizationId),
+    ),
     updatedAt: job.updatedAt.toISOString(),
+    missingAccessInfo: access.missingAccessInfo,
+    accessInfoReady: access.accessInfoReady,
+    missingAccessItems: access.missingItems,
   };
 }

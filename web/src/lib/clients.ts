@@ -227,6 +227,12 @@ export function deactivateClient(organizationId: string, clientId: string) {
   );
 }
 
+export function getSite(organizationId: string, siteId: string) {
+  return apiRequest<SiteRecord>(
+    `/organizations/${organizationId}/sites/${siteId}`,
+  );
+}
+
 export function createSite(
   organizationId: string,
   clientId: string,

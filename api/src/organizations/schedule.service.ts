@@ -47,12 +47,13 @@ import {
   TERMINAL_JOB_STATUSES,
 } from './job-visibility.js';
 import { JobWorkflowService } from './job-workflow.service.js';
+import { accessInfoFromJobRow, JOB_ACCESS_SITE_SELECT } from './job-access-info.js';
 import { serializeScheduleJob } from './schedule-serializer.js';
 import { TeamsService } from './teams.service.js';
 
 const JOB_INCLUDE = (organizationId: string) => ({
   client: { select: { id: true, name: true } },
-  site: { select: { id: true, name: true } },
+  site: { select: JOB_ACCESS_SITE_SELECT },
   team: { select: { id: true, name: true } },
   supervisor: { select: organizationPersonSelect(organizationId) },
   assignments: {
@@ -120,18 +121,24 @@ export class ScheduleService {
       if (!span) return false;
       return windowsOverlap(span, window);
     });
-    const unassigned = jobs.filter(
+    const accessFiltered = query.missingAccessOnly
+      ? inRange.filter((job) => accessInfoFromJobRow(job).missingAccessInfo)
+      : inRange;
+    const unassignedSource = query.missingAccessOnly ? accessFiltered : jobs;
+    const unassigned = unassignedSource.filter(
       (job) =>
         !job.teamId &&
         job.assignments.length === 0 &&
-        !TERMINAL_JOB_STATUSES.includes(job.status),
+        !TERMINAL_JOB_STATUSES.includes(job.status) &&
+        (!query.missingAccessOnly ||
+          accessInfoFromJobRow(job).missingAccessInfo),
     );
 
     const lanes = await this.buildLanes(
       ctx,
       actorUserId,
       visibleTeamIds,
-      inRange,
+      accessFiltered,
       query,
     );
 
@@ -144,6 +151,7 @@ export class ScheduleService {
       hours: { start: 6, end: 20 },
       defaultWindowMinutes: DEFAULT_JOB_WINDOW_MINUTES,
       canMutate: canEditSchedule(ctx.role),
+      missingAccessOnly: Boolean(query.missingAccessOnly),
       lanes,
       unassigned: unassigned.map((job) => serializeScheduleJob(job)),
     };

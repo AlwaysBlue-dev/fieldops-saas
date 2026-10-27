@@ -50,6 +50,7 @@
       }
       h1 { margin: 0 0 0.5rem; font-size: 1.125rem; }
       p { margin: 0; color: var(--muted); font-size: 0.9375rem; line-height: 1.45; }
+      p + p { margin-top: 0.75rem; }
       button {
         margin-top: 1rem;
         min-height: 44px;
@@ -68,9 +69,14 @@
     <main>
       <h1>You’re offline</h1>
       <p>
-        FieldKeel requires an internet connection to load current workspace
-        data. Reconnect, then try again. Stale customer or job information is
-        not shown offline.
+        FieldKeel could not open this page without a connection. If you already
+        prepared assigned jobs while online, open My Day from the installed app
+        after revisiting it once online — that visit is cached for reopen, and
+        job details load from this device.
+      </p>
+      <p>
+        This screen never shows customer or job records. Reconnect to prepare
+        jobs or continue work that needs the server.
       </p>
       <button type="button" onclick="location.reload()">Try Again</button>
     </main>

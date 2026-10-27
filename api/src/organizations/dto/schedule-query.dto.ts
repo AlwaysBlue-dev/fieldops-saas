@@ -1,4 +1,12 @@
-import { IsEnum, IsIn, IsOptional, IsUUID, Matches } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsOptional,
+  IsUUID,
+  Matches,
+} from 'class-validator';
 import { JobPriority, JobStatus } from '../../generated/prisma/client.js';
 
 export class ScheduleQueryDto {
@@ -29,4 +37,10 @@ export class ScheduleQueryDto {
   @IsOptional()
   @IsEnum(JobPriority)
   priority?: JobPriority;
+
+  /** When true, only jobs flagged missing access info by the shared server rule. */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  missingAccessOnly?: boolean;
 }

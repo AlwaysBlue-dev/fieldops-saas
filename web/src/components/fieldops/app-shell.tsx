@@ -14,6 +14,11 @@ import {
   type PublicUser,
 } from "@/lib/auth";
 import { canManageCustomers, canManageSubscription } from "@/lib/current-org";
+import {
+  getOfflineShellContext,
+  isLikelyOfflineNetworkError,
+} from "@/lib/offline/db";
+import { rememberOfflineShellContext } from "@/lib/offline/prepare-jobs";
 import { desktopPrimaryNav } from "@/lib/navigation";
 import { NOTIFICATIONS_CHANGED, unreadNotificationCount } from "@/lib/notifications";
 import { OWNER_INBOX_CHANGED, ownerInboxUnreadCount } from "@/lib/owner-inbox";
@@ -88,6 +93,7 @@ function AppShellContent({
   const [user, setUser] = useState<PublicUser | null>(null);
   const [memberships, setMemberships] = useState<OrganizationMembership[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [commandOpen, setCommandOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
@@ -99,6 +105,7 @@ function AppShellContent({
 
   const loadSession = useCallback(async () => {
     setStatus("loading");
+    setSessionError(null);
     try {
       const [{ user: nextUser }, orgs] = await Promise.all([
         getMe(),
@@ -115,6 +122,13 @@ function AppShellContent({
         router.replace("/app");
         return;
       }
+      const current = orgs.find((item) => item.organization.slug === orgSlug);
+      if (current) {
+        void rememberOfflineShellContext({
+          user: nextUser,
+          membership: current,
+        }).catch(() => undefined);
+      }
       setStatus("ready");
     } catch (error) {
       if (
@@ -124,6 +138,23 @@ function AppShellContent({
         router.replace("/login?reason=session-expired");
         return;
       }
+      if (isLikelyOfflineNetworkError(error)) {
+        const cached = await getOfflineShellContext(orgSlug).catch(() => null);
+        if (cached) {
+          setUser(cached.user);
+          setMemberships([cached.membership]);
+          setStatus("ready");
+          return;
+        }
+        setSessionError(
+          "You're offline and this workspace isn't available on this device yet. Reconnect, open the workspace, and prepare jobs from My Day before relying on offline reopen.",
+        );
+        setStatus("error");
+        return;
+      }
+      setSessionError(
+        error instanceof Error ? error.message : "Could not load workspace.",
+      );
       setStatus("error");
     }
   }, [router, orgSlug]);
@@ -262,7 +293,11 @@ function AppShellContent({
   if (status === "error") {
     return (
       <div className="mx-auto flex min-h-dvh max-w-lg items-center px-4">
-        <ErrorState onRetry={() => void loadSession()} />
+        <ErrorState
+          title="Could not open workspace"
+          description={sessionError ?? undefined}
+          onRetry={() => void loadSession()}
+        />
       </div>
     );
   }

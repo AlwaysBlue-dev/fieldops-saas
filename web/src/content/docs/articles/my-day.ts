@@ -18,6 +18,7 @@ export const myDay: DocArticle = {
     "time-gps",
     "navigation-theme",
     "schedule-dispatch",
+    "offline-field-operations",
   ],
   sections: [
     {
@@ -26,6 +27,7 @@ export const myDay: DocArticle = {
       paragraphs: [
         "On mobile, Home is My Day — not a miniature office dashboard. It shows today’s assigned jobs ordered for the organization timezone so “today” matches how the company runs timesheets and overtime.",
         "Primary actions focus on navigate to site, clock in/out, open the job card, and call the site contact. Large targets and sticky actions keep gloves-and-sunlight use realistic.",
+        "Use Prepare for offline and Sync now on the offline status bar when you expect spotty coverage. See Work offline and sync later for what is saved locally versus what still needs a connection.",
       ],
     },
     {

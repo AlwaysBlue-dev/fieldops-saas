@@ -1,8 +1,10 @@
-/* FieldKeel — install shell only.
- * Does NOT cache authenticated API responses, app HTML, or tenant business data.
- * Navigation failures fall back to /offline.html (static message only).
+/* FieldKeel — install shell + field navigation cache.
+ * Caches allowlisted app documents after a successful visit so the installed
+ * PWA can reopen My Day / prepared job detail offline. Job payloads stay in
+ * IndexedDB (never in this SW). Does NOT cache /api or auth responses.
  */
-const SHELL = "fieldops-shell-v3";
+const SHELL = "fieldops-shell-v5";
+const NAV = "fieldops-nav-v1";
 const PRECACHE = [
   "/offline.html",
   "/icons/icon-192.png",
@@ -22,12 +24,13 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  const keep = new Set([SHELL, NAV]);
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((key) => key !== SHELL).map((key) => caches.delete(key)),
+          keys.filter((key) => !keep.has(key)).map((key) => caches.delete(key)),
         ),
       )
       .then(() => self.clients.claim()),
@@ -36,10 +39,32 @@ self.addEventListener("activate", (event) => {
 
 function shouldBypass(url) {
   if (url.origin !== self.location.origin) return true;
-  // Never touch API, auth, or any authenticated Nest proxy paths.
   if (url.pathname.startsWith("/api")) return true;
-  // Do not cache Next data / RSC / app documents — network only.
   if (url.pathname.startsWith("/_next/data")) return true;
+  return false;
+}
+
+/** Field routes that may reopen from a previously visited document + IndexedDB. */
+function isOfflineCapableNav(pathname) {
+  if (pathname === "/app" || pathname === "/app/") return true;
+  // /app/{slug}/my-day
+  if (/^\/app\/[^/]+\/my-day\/?$/.test(pathname)) return true;
+  // /app/{slug}/jobs/{jobId} (prepared job detail only — still needs IDB payload)
+  if (/^\/app\/[^/]+\/jobs\/[^/]+\/?$/.test(pathname)) return true;
+  // Workspace home often redirects technicians to My Day
+  if (/^\/app\/[^/]+\/?$/.test(pathname)) return true;
+  return false;
+}
+
+function isSensitiveNav(pathname) {
+  if (pathname.startsWith("/login")) return true;
+  if (pathname.startsWith("/signup")) return true;
+  if (pathname.startsWith("/onboarding")) return true;
+  if (pathname.includes("/settings")) return true;
+  if (pathname.includes("/billing")) return true;
+  if (pathname.startsWith("/platform")) return true;
+  if (pathname.includes("/approvals")) return true;
+  if (pathname.includes("/reports")) return true;
   return false;
 }
 
@@ -50,18 +75,30 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (shouldBypass(url)) return;
 
-  // Navigations: network-first; offline → static offline page (no stale jobs/data).
   if (request.mode === "navigate") {
+    event.respondWith(handleNavigation(request, url));
+    return;
+  }
+
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cached = await caches.match("/offline.html");
-        return cached || Response.error();
+      caches.open(SHELL).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) {
+            void cache.put(request, response.clone());
+          }
+          return response;
+        } catch {
+          return Response.error();
+        }
       }),
     );
     return;
   }
 
-  // Precached icons / offline shell only — never put arbitrary responses in cache.
   if (PRECACHE.includes(url.pathname)) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -76,3 +113,46 @@ self.addEventListener("fetch", (event) => {
     );
   }
 });
+
+async function handleNavigation(request, url) {
+  try {
+    const response = await fetch(request);
+    if (
+      response.ok &&
+      isOfflineCapableNav(url.pathname) &&
+      !isSensitiveNav(url.pathname)
+    ) {
+      const cache = await caches.open(NAV);
+      void cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    if (isOfflineCapableNav(url.pathname) && !isSensitiveNav(url.pathname)) {
+      const cache = await caches.open(NAV);
+      const cached =
+        (await cache.match(request)) ||
+        (await cache.match(url.pathname)) ||
+        (await findNavFallback(cache, url.pathname));
+      if (cached) return cached;
+    }
+    const offline = await caches.match("/offline.html");
+    return offline || Response.error();
+  }
+}
+
+async function findNavFallback(cache, pathname) {
+  const keys = await cache.keys();
+  // Prefer an exact my-day match for the same org when job detail wasn't cached.
+  const myDayMatch = pathname.match(/^\/app\/([^/]+)\//);
+  if (myDayMatch) {
+    const slug = myDayMatch[1];
+    const myDayUrl = `/app/${slug}/my-day`;
+    for (const key of keys) {
+      const keyUrl = new URL(key.url);
+      if (keyUrl.pathname === myDayUrl || keyUrl.pathname === `${myDayUrl}/`) {
+        return cache.match(key);
+      }
+    }
+  }
+  return null;
+}

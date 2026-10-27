@@ -42,6 +42,11 @@ import { executionRecordsLocked } from './job-execution.js';
 import { JobWorkflowService } from './job-workflow.service.js';
 import { jobVisibilityWhere } from './job-visibility.js';
 import { TeamsService } from './teams.service.js';
+import {
+  asRecordId,
+  isUniqueViolation,
+  rejectCrossTenantReplay,
+} from './client-operation-id.js';
 
 @Injectable()
 export class JobFilesService {
@@ -95,6 +100,7 @@ export class JobFilesService {
       originalName: dto.fileName,
       caption: dto.caption,
       capturedAt: dto.capturedAt,
+      clientOperationId: dto.clientOperationId,
     });
   }
 
@@ -105,10 +111,31 @@ export class JobFilesService {
     dto: CreateJobSignatureDto | CreateJobSignOffDto,
   ) {
     const job = await this.requireSignableJob(ctx, actorUserId, jobId);
+    const recordId = asRecordId(
+      'clientOperationId' in dto ? dto.clientOperationId : undefined,
+    );
+
+    if (recordId) {
+      const byClient = await this.prisma.jobSignature.findFirst({
+        where: { id: recordId },
+      });
+      if (byClient) {
+        if (
+          byClient.organizationId !== ctx.organizationId ||
+          byClient.jobId !== job.id
+        ) {
+          rejectCrossTenantReplay();
+        }
+        return this.serializeSignature(byClient, true);
+      }
+    }
+
     const existing = await this.prisma.jobSignature.findFirst({
       where: { organizationId: ctx.organizationId, jobId: job.id },
     });
     if (existing) {
+      // Same offline retry after a lost response that used a different path, or
+      // a second distinct sign-off attempt — only the matching client id is OK.
       throw new BadRequestException('Client sign-off is already captured');
     }
     const representativeName = (
@@ -134,7 +161,7 @@ export class JobFilesService {
     const mimeType = detectObjectMime(buffer);
     assertAllowedMime(JobFileType.SIGNATURE, mimeType);
 
-    const fileId = randomUUID();
+    const fileId = recordId ?? randomUUID();
     const objectKey = jobObjectKey({
       organizationId: ctx.organizationId,
       jobId: job.id,
@@ -142,17 +169,43 @@ export class JobFilesService {
       fileId,
       extension: extensionForMime(mimeType),
     });
-    const reservation = await this.storageQuota.reserveUpload({
-      organizationId: ctx.organizationId,
-      userId: actorUserId,
-      objectKey,
-      originalName: 'client-signature.png',
-      mimeType,
-      sizeBytes: buffer.length,
-      purpose: StorageUploadPurpose.JOB_FILE,
-      jobId: job.id,
-      actorUserId,
+    const existingFile = await this.prisma.jobSignature.findFirst({
+      where: {
+        organizationId: ctx.organizationId,
+        jobId: job.id,
+        OR: [{ objectKey }, ...(recordId ? [{ id: recordId }] : [])],
+      },
     });
+    if (existingFile) {
+      return this.serializeSignature(existingFile, clientAccepted);
+    }
+
+    let reservation;
+    try {
+      reservation = await this.storageQuota.reserveUpload({
+        organizationId: ctx.organizationId,
+        userId: actorUserId,
+        objectKey,
+        originalName: 'client-signature.png',
+        mimeType,
+        sizeBytes: buffer.length,
+        purpose: StorageUploadPurpose.JOB_FILE,
+        jobId: job.id,
+        actorUserId,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error) || recordId) {
+        const raced = await this.prisma.jobSignature.findFirst({
+          where: {
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+            OR: [{ objectKey }, ...(recordId ? [{ id: recordId }] : [])],
+          },
+        });
+        if (raced) return this.serializeSignature(raced, clientAccepted);
+      }
+      throw error;
+    }
     try {
       await this.storage.put(objectKey, buffer, mimeType);
     } catch (error) {
@@ -161,74 +214,104 @@ export class JobFilesService {
     }
     const signedAt = this.clock.now();
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const file = await tx.jobFile.create({
-        data: {
-          id: fileId,
-          organizationId: ctx.organizationId,
-          jobId: job.id,
-          objectKey,
-          originalName: 'client-signature.png',
-          mimeType,
-          sizeBytes: BigInt(buffer.length),
-          type: JobFileType.SIGNATURE,
-          uploadedById: actorUserId,
-        },
+    try {
+      const created = await this.prisma.$transaction(async (tx) => {
+        const file = await tx.jobFile.create({
+          data: {
+            id: fileId,
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+            objectKey,
+            originalName: 'client-signature.png',
+            mimeType,
+            sizeBytes: BigInt(buffer.length),
+            type: JobFileType.SIGNATURE,
+            uploadedById: actorUserId,
+          },
+        });
+        await this.storageQuota.completeReservation(
+          reservation.id,
+          ctx.organizationId,
+          file.id,
+          tx,
+        );
+        const signature = await tx.jobSignature.create({
+          data: {
+            id: fileId,
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+            signerName: representativeName,
+            signerTitle: representativeRole,
+            signedAt,
+            objectKey,
+            mimeType,
+            capturedByUserId: actorUserId,
+          },
+        });
+        await tx.job.update({
+          where: { id: job.id },
+          data: {
+            clientAccepted,
+            clientComments,
+            signedAt,
+            clientRepName: representativeName,
+            clientRepTitle: representativeRole,
+          },
+        });
+        await this.audit.record(
+          {
+            action: AUDIT_CLIENT_SIGNATURE_CAPTURED,
+            entityType: 'Job',
+            entityId: job.id,
+            organizationId: ctx.organizationId,
+            actorUserId,
+            newValues: {
+              signatureId: signature.id,
+              fileId: file.id,
+              clientOperationId: recordId ?? null,
+            },
+          },
+          tx,
+        );
+        await this.audit.record(
+          {
+            action: AUDIT_CLIENT_SIGNOFF_UPDATED,
+            entityType: 'Job',
+            entityId: job.id,
+            organizationId: ctx.organizationId,
+            actorUserId,
+            newValues: { clientAccepted, hasComments: Boolean(clientComments) },
+          },
+          tx,
+        );
+        return signature;
       });
-      await this.storageQuota.completeReservation(
-        reservation.id,
-        ctx.organizationId,
-        file.id,
-        tx,
-      );
-      const signature = await tx.jobSignature.create({
-        data: {
-          id: fileId,
-          organizationId: ctx.organizationId,
-          jobId: job.id,
-          signerName: representativeName,
-          signerTitle: representativeRole,
-          signedAt,
-          objectKey,
-          mimeType,
-          capturedByUserId: actorUserId,
-        },
-      });
-      await tx.job.update({
-        where: { id: job.id },
-        data: {
-          clientAccepted,
-          clientComments,
-          signedAt,
-          clientRepName: representativeName,
-          clientRepTitle: representativeRole,
-        },
-      });
-      await this.audit.record(
-        {
-          action: AUDIT_CLIENT_SIGNATURE_CAPTURED,
-          entityType: 'Job',
-          entityId: job.id,
-          organizationId: ctx.organizationId,
-          actorUserId,
-          newValues: { signatureId: signature.id, fileId: file.id },
-        },
-        tx,
-      );
-      await this.audit.record(
-        {
-          action: AUDIT_CLIENT_SIGNOFF_UPDATED,
-          entityType: 'Job',
-          entityId: job.id,
-          organizationId: ctx.organizationId,
-          actorUserId,
-          newValues: { clientAccepted, hasComments: Boolean(clientComments) },
-        },
-        tx,
-      );
-      return signature;
-    });
 
+      return this.serializeSignature(created, clientAccepted);
+    } catch (error) {
+      if (recordId && isUniqueViolation(error)) {
+        const replay = await this.prisma.jobSignature.findFirst({
+          where: {
+            id: recordId,
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+          },
+        });
+        if (replay) return this.serializeSignature(replay, clientAccepted);
+      }
+      throw error;
+    }
+  }
+
+  private serializeSignature(
+    created: {
+      id: string;
+      signerName: string;
+      signerTitle: string | null;
+      signedAt: Date;
+    },
+    clientAccepted: boolean,
+  ) {
     return {
       id: created.id,
       representativeName: created.signerName,
@@ -385,19 +468,36 @@ export class JobFilesService {
     originalName: string;
     caption?: string;
     capturedAt?: string;
+    clientOperationId?: string;
   }) {
     const job = await this.execution.requireMutableCapture(
       input.ctx,
       input.actorUserId,
       input.jobId,
     );
+    const recordId = asRecordId(input.clientOperationId);
+    if (recordId) {
+      const existing = await this.prisma.jobFile.findFirst({
+        where: { id: recordId },
+      });
+      if (existing) {
+        if (
+          existing.organizationId !== input.ctx.organizationId ||
+          existing.jobId !== job.id
+        ) {
+          rejectCrossTenantReplay();
+        }
+        return this.present(existing, input.ctx.organizationId, job.id);
+      }
+    }
+
     if (input.buffer.length > maxBytesFor(input.type)) {
       throw new BadRequestException('File exceeds the allowed size');
     }
     const mimeType = detectObjectMime(input.buffer);
     assertAllowedMime(input.type, mimeType);
 
-    const fileId = randomUUID();
+    const fileId = recordId ?? randomUUID();
     const objectKey = jobObjectKey({
       organizationId: input.ctx.organizationId,
       jobId: job.id,
@@ -405,17 +505,55 @@ export class JobFilesService {
       fileId,
       extension: extensionForMime(mimeType),
     });
-    const reservation = await this.storageQuota.reserveUpload({
-      organizationId: input.ctx.organizationId,
-      userId: input.actorUserId,
-      objectKey,
-      originalName: sanitizeOriginalName(input.originalName, 'file'),
-      mimeType,
-      sizeBytes: input.buffer.length,
-      purpose: StorageUploadPurpose.JOB_FILE,
-      jobId: job.id,
-      actorUserId: input.actorUserId,
+    // Concurrent retry may have already persisted the JobFile under this key/id.
+    const existingByKey = await this.prisma.jobFile.findFirst({
+      where: {
+        OR: [
+          { objectKey },
+          ...(recordId
+            ? [{ id: recordId, organizationId: input.ctx.organizationId }]
+            : []),
+        ],
+      },
     });
+    if (existingByKey) {
+      if (
+        existingByKey.organizationId !== input.ctx.organizationId ||
+        existingByKey.jobId !== job.id
+      ) {
+        rejectCrossTenantReplay();
+      }
+      return this.present(existingByKey, input.ctx.organizationId, job.id);
+    }
+
+    let reservation;
+    try {
+      reservation = await this.storageQuota.reserveUpload({
+        organizationId: input.ctx.organizationId,
+        userId: input.actorUserId,
+        objectKey,
+        originalName: sanitizeOriginalName(input.originalName, 'file'),
+        mimeType,
+        sizeBytes: input.buffer.length,
+        purpose: StorageUploadPurpose.JOB_FILE,
+        jobId: job.id,
+        actorUserId: input.actorUserId,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error) || recordId) {
+        const raced = await this.prisma.jobFile.findFirst({
+          where: {
+            organizationId: input.ctx.organizationId,
+            jobId: job.id,
+            OR: [{ objectKey }, ...(recordId ? [{ id: recordId }] : [])],
+          },
+        });
+        if (raced) {
+          return this.present(raced, input.ctx.organizationId, job.id);
+        }
+      }
+      throw error;
+    }
     try {
       await this.storage.put(objectKey, input.buffer, mimeType);
     } catch (error) {
@@ -425,42 +563,64 @@ export class JobFilesService {
       );
       throw error;
     }
-    const created = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.jobFile.create({
-        data: {
-          id: fileId,
-          organizationId: input.ctx.organizationId,
-          jobId: job.id,
-          objectKey,
-          originalName: sanitizeOriginalName(input.originalName, 'file'),
-          mimeType,
-          sizeBytes: BigInt(input.buffer.length),
-          type: input.type,
-          caption: emptyToNull(input.caption),
-          capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
-          uploadedById: input.actorUserId,
-        },
+    try {
+      const created = await this.prisma.$transaction(async (tx) => {
+        const row = await tx.jobFile.create({
+          data: {
+            id: fileId,
+            organizationId: input.ctx.organizationId,
+            jobId: job.id,
+            objectKey,
+            originalName: sanitizeOriginalName(input.originalName, 'file'),
+            mimeType,
+            sizeBytes: BigInt(input.buffer.length),
+            type: input.type,
+            caption: emptyToNull(input.caption),
+            capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
+            uploadedById: input.actorUserId,
+          },
+        });
+        await this.storageQuota.completeReservation(
+          reservation.id,
+          input.ctx.organizationId,
+          row.id,
+          tx,
+        );
+        await this.audit.record(
+          {
+            action: AUDIT_FILE_UPLOADED,
+            entityType: 'JobFile',
+            entityId: row.id,
+            organizationId: input.ctx.organizationId,
+            actorUserId: input.actorUserId,
+            newValues: {
+              jobId: job.id,
+              type: row.type,
+              mimeType,
+              sizeBytes: row.sizeBytes.toString(),
+              clientOperationId: recordId ?? null,
+            },
+          },
+          tx,
+        );
+        return row;
       });
-      await this.storageQuota.completeReservation(
-        reservation.id,
-        input.ctx.organizationId,
-        row.id,
-        tx,
-      );
-      await this.audit.record(
-        {
-          action: AUDIT_FILE_UPLOADED,
-          entityType: 'JobFile',
-          entityId: row.id,
-          organizationId: input.ctx.organizationId,
-          actorUserId: input.actorUserId,
-          newValues: { jobId: job.id, type: row.type, mimeType, sizeBytes: row.sizeBytes.toString() },
-        },
-        tx,
-      );
-      return row;
-    });
-    return this.present(created, input.ctx.organizationId, job.id);
+      return this.present(created, input.ctx.organizationId, job.id);
+    } catch (error) {
+      if (recordId && isUniqueViolation(error)) {
+        const existing = await this.prisma.jobFile.findFirst({
+          where: {
+            id: recordId,
+            organizationId: input.ctx.organizationId,
+            jobId: job.id,
+          },
+        });
+        if (existing) {
+          return this.present(existing, input.ctx.organizationId, job.id);
+        }
+      }
+      throw error;
+    }
   }
 
   private async present(

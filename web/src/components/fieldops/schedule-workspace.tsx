@@ -36,6 +36,7 @@ import { addCalendarDays, formatYmdInZone, isOutsideWorkingWeek, outsideWorkingD
 import { getOrganization } from "@/lib/organizations";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MissingAccessBadge } from "./missing-access-badge";
 import { OutsideWorkingDayDialog } from "./outside-working-day-dialog";
 import { ScheduleAgenda } from "./schedule-agenda";
 import { ScheduleBoard } from "./schedule-board";
@@ -59,6 +60,7 @@ export function ScheduleWorkspace() {
   const [clientId, setClientId] = useState("");
   const [status, setStatus] = useState<JobStatus | "">("");
   const [priority, setPriority] = useState<JobPriority | "">("");
+  const [missingAccessOnly, setMissingAccessOnly] = useState(false);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<ScheduleJob | null>(null);
@@ -129,6 +131,7 @@ export function ScheduleWorkspace() {
         clientId: clientId || undefined,
         status,
         priority,
+        missingAccessOnly: missingAccessOnly || undefined,
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
       listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
@@ -139,7 +142,16 @@ export function ScheduleWorkspace() {
     setTechnicians(techResult.items);
     setClients(clientResult.items);
     setLoadState("ready");
-  }, [organizationId, date, teamId, technicianId, clientId, status, priority]);
+  }, [
+    organizationId,
+    date,
+    teamId,
+    technicianId,
+    clientId,
+    status,
+    priority,
+    missingAccessOnly,
+  ]);
 
   useRefreshLoader(load);
 
@@ -155,6 +167,7 @@ export function ScheduleWorkspace() {
         clientId: clientId || undefined,
         status,
         priority,
+        missingAccessOnly: missingAccessOnly || undefined,
       }),
       listTeams(organizationId, { pageSize: 50, status: "ACTIVE" }),
       listTechnicians(organizationId, { pageSize: 100, roles: "TECHNICIAN", status: "ACTIVE", teamId: teamId || undefined }),
@@ -176,7 +189,16 @@ export function ScheduleWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, date, teamId, technicianId, clientId, status, priority]);
+  }, [
+    organizationId,
+    date,
+    teamId,
+    technicianId,
+    clientId,
+    status,
+    priority,
+    missingAccessOnly,
+  ]);
 
   const visibleBoard = useMemo(() => {
     if (!board) return null;
@@ -198,6 +220,11 @@ export function ScheduleWorkspace() {
     };
   }, [board, view, date]);
 
+  /**
+   * Schedule board drops update schedule/assignment only via scheduleJob.
+   * They do not call dispatchJob / change dispatch state, so Missing Access
+   * soft-confirm belongs on Job Details Dispatch — not on ordinary reschedules.
+   */
   async function persistDrop(input: {
     jobId: string;
     scheduledStart: string;
@@ -374,6 +401,14 @@ export function ScheduleWorkspace() {
           <option value="HIGH">High</option>
           <option value="URGENT">Urgent</option>
         </select>
+        <label className="inline-flex h-11 items-center gap-2 rounded-lg border border-input px-2.5 text-sm md:h-8">
+          <input
+            type="checkbox"
+            checked={missingAccessOnly}
+            onChange={(event) => setMissingAccessOnly(event.target.checked)}
+          />
+          Missing access only
+        </label>
       </FilterBar>
 
       {conflicts.length > 0 && pendingDrop ? (
@@ -449,9 +484,12 @@ export function ScheduleWorkspace() {
                         {job.jobNumber} · {job.client.name}
                       </p>
                       <p className="text-xs text-muted-foreground">{job.site.name}</p>
-                      <div className="mt-1 flex gap-1">
+                      <div className="mt-1 flex flex-wrap gap-1">
                         <StatusPill label={job.priority} tone={priorityTone(job.priority)} />
                         <StatusPill label={statusLabel(job.status)} tone={statusTone(job.status)} />
+                        {job.missingAccessInfo ? (
+                          <MissingAccessBadge compact />
+                        ) : null}
                       </div>
                     </button>
                   </li>

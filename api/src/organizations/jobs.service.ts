@@ -68,6 +68,10 @@ import {
 } from './job-execution.js';
 import { JobExecutionService } from './job-execution.service.js';
 import { JobWorkflowService } from './job-workflow.service.js';
+import {
+  accessInfoFromJobRow,
+  JOB_ACCESS_SITE_SELECT,
+} from './job-access-info.js';
 import { serializeJobSummary } from './jobs-serializer.js';
 import {
   formatSiteAddress,
@@ -77,7 +81,7 @@ import { TeamsService } from './teams.service.js';
 
 const LIST_INCLUDE = (organizationId: string) => ({
   client: { select: { id: true, name: true } },
-  site: { select: { id: true, name: true, city: true } },
+  site: { select: JOB_ACCESS_SITE_SELECT },
   team: { select: { id: true, name: true } },
   supervisor: { select: organizationPersonSelect(organizationId) },
   assignments: {
@@ -123,12 +127,15 @@ export class JobsService {
           : undefined;
     const search = query.search?.trim();
 
+    const missingAccessFilter =
+      query.missingAccess === true || preset === 'missing_access';
+
     const where: Prisma.JobWhereInput = {
       AND: [
         visibility,
         query.status
           ? { status: query.status }
-          : preset === 'open'
+          : preset === 'open' || missingAccessFilter
             ? { status: { notIn: TERMINAL_JOB_STATUSES } }
             : preset === 'approval'
               ? { status: JobStatus.PENDING_APPROVAL }
@@ -162,6 +169,26 @@ export class JobsService {
           : {},
       ],
     };
+
+    if (missingAccessFilter) {
+      // Exact rule (incl. whitespace / job-level contact) requires in-memory evaluation.
+      const candidates = await this.prisma.job.findMany({
+        where,
+        include: LIST_INCLUDE(ctx.organizationId),
+        orderBy: { [sort]: order },
+      });
+      const matching = candidates.filter(
+        (row) => accessInfoFromJobRow(row).missingAccessInfo,
+      );
+      const total = matching.length;
+      const rows = matching.slice((page - 1) * pageSize, page * pageSize);
+      return {
+        items: rows.map((row) => serializeJobSummary(row)),
+        total,
+        page,
+        pageSize,
+      };
+    }
 
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.job.count({ where }),
@@ -268,6 +295,7 @@ export class JobsService {
       completedAt: job.completedAt?.toISOString() ?? null,
       cancelledAt: job.cancelledAt?.toISOString() ?? null,
       createdAt: job.createdAt.toISOString(),
+      updatedAt: job.updatedAt.toISOString(),
       addressLabel,
       navigationUrl: mapsUrl,
       client: {
@@ -283,9 +311,18 @@ export class JobsService {
         city: job.site.city,
         stateRegion: job.site.region,
         addressLine1: job.site.addressLine1,
+        addressLine2: job.site.addressLine2 ?? null,
+        postalCode: job.site.postalCode ?? null,
+        country: job.site.country ?? null,
         latitude: job.site.latitude?.toString() ?? null,
         longitude: job.site.longitude?.toString() ?? null,
+        notes: job.site.notes ?? job.site.accessNotes ?? null,
+        accessNotes: job.site.notes ?? job.site.accessNotes ?? null,
+        siteContactName: job.site.siteContactName ?? null,
+        siteContactPhone: job.site.siteContactPhone ?? null,
+        siteContactEmail: job.site.siteContactEmail ?? null,
       },
+      accessInfo: accessInfoFromJobRow(job),
       allowedTransitions: this.workflow.allowedTargets(job.status),
       permissions: {
         canEdit: this.workflow.canEditFields(ctx.role, job.status),
@@ -907,9 +944,7 @@ export class JobsService {
         },
         site: {
           select: {
-            id: true,
-            name: true,
-            city: true,
+            ...JOB_ACCESS_SITE_SELECT,
             region: true,
             addressLine1: true,
             addressLine2: true,
@@ -917,6 +952,7 @@ export class JobsService {
             country: true,
             latitude: true,
             longitude: true,
+            siteContactEmail: true,
           },
         },
         safetyControls: {

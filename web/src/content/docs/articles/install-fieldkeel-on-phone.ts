@@ -25,6 +25,7 @@ export const installFieldkeelOnPhone: DocArticle = {
     "workspace-concept",
     "security-privacy",
     "my-day",
+    "offline-field-operations",
   ],
   sections: [
     {

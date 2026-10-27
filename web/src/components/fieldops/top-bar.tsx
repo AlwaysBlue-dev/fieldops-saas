@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { OrganizationMembership, PublicUser } from "@/lib/auth";
 import { logout } from "@/lib/auth";
+import { clearOfflineForUser } from "@/lib/offline/db";
 import { canInviteMembers, canManageSubscription } from "@/lib/current-org";
 import { pageTitleFromPath } from "@/lib/navigation";
 import { Bell, Inbox, Plus, Search, RefreshCw } from "lucide-react";
@@ -248,6 +249,7 @@ export function TopBar({
               <ThemeMenuItems />
               <DropdownMenuItem
                 onClick={async () => {
+                  await clearOfflineForUser(user.id).catch(() => undefined);
                   await logout().catch(() => undefined);
                   router.replace("/login");
                 }}

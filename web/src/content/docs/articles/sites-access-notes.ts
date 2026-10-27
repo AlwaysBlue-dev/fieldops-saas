@@ -13,7 +13,13 @@ export const sitesAccess: DocArticle = {
     "coordinates",
     "navigate",
   ],
-  relatedSlugs: ["sites-overview", "my-day", "job-execution"],
+  relatedSlugs: [
+    "sites-overview",
+    "my-day",
+    "job-execution",
+    "schedule-dispatch",
+    "offline-field-operations",
+  ],
   sections: [
     {
       id: "notes",
@@ -28,6 +34,15 @@ export const sitesAccess: DocArticle = {
       heading: "On-site contacts",
       paragraphs: [
         "Store an on-site contact distinct from the client’s billing contact when they differ. Technicians often need a facilities manager or site supervisor, not the accounts payable desk.",
+        "A job may also carry a Customer contact on site (job-level). That job contact counts as a valid contact for access readiness even when the site record itself has no contact name or phone.",
+      ],
+    },
+    {
+      id: "missing-access",
+      heading: "Missing access info warning",
+      paragraphs: [
+        "Active jobs (not completed or cancelled) are flagged Missing access info when the site’s Access notes are empty, or when both the site and the job lack usable contact name/phone. FieldKeel calculates this on the server and shows an amber badge on Jobs and Schedule, a warning on Job Details, a Missing access tab on Jobs, and a Missing access only schedule filter.",
+        "Users who can edit clients/sites see Add access info, which opens the existing site edit form. Saving the site and refreshing clears the warning only after the server recalculates readiness. Dispatch may still proceed after a soft confirmation — this warning is not a hard block.",
       ],
     },
   ],

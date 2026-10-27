@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { OrganizationContext } from '../tenancy/request-context.js';
 import type {
   CreateJobMaterialDto,
@@ -12,7 +12,11 @@ import { AuditService } from '../audit/audit.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AUDIT_JOB_MATERIAL, AUDIT_JOB_WORK_LOG } from '../common/constants.js';
 import { emptyToNull } from './dto/text.util.js';
-import { BadRequestException } from '@nestjs/common';
+import {
+  asRecordId,
+  isUniqueViolation,
+  rejectCrossTenantReplay,
+} from './client-operation-id.js';
 
 @Injectable()
 export class JobFieldService {
@@ -34,35 +38,63 @@ export class JobFieldService {
     if (!text) {
       throw new BadRequestException('Work log text is required');
     }
-    const created = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.jobWorkLog.create({
-        data: {
-          organizationId: ctx.organizationId,
-          jobId: job.id,
-          authorUserId: actorUserId,
-          body: text,
-        },
+    const recordId = asRecordId(dto.clientOperationId);
+    if (recordId) {
+      const existing = await this.prisma.jobWorkLog.findFirst({
+        where: { id: recordId },
       });
-      await this.audit.record(
-        {
-          action: AUDIT_JOB_WORK_LOG,
-          entityType: 'Job',
-          entityId: job.id,
-          organizationId: ctx.organizationId,
-          actorUserId,
-          newValues: { workLogId: row.id },
-        },
-        tx,
-      );
-      return row;
-    });
-    return {
-      id: created.id,
-      text: created.body,
-      body: created.body,
-      createdAt: created.createdAt.toISOString(),
-      loggedAt: created.loggedAt.toISOString(),
-    };
+      if (existing) {
+        if (
+          existing.organizationId !== ctx.organizationId ||
+          existing.jobId !== job.id
+        ) {
+          rejectCrossTenantReplay();
+        }
+        return this.serializeWorkLog(existing);
+      }
+    }
+
+    try {
+      const created = await this.prisma.$transaction(async (tx) => {
+        const row = await tx.jobWorkLog.create({
+          data: {
+            ...(recordId ? { id: recordId } : {}),
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+            authorUserId: actorUserId,
+            body: text,
+          },
+        });
+        await this.audit.record(
+          {
+            action: AUDIT_JOB_WORK_LOG,
+            entityType: 'Job',
+            entityId: job.id,
+            organizationId: ctx.organizationId,
+            actorUserId,
+            newValues: {
+              workLogId: row.id,
+              clientOperationId: recordId ?? null,
+            },
+          },
+          tx,
+        );
+        return row;
+      });
+      return this.serializeWorkLog(created);
+    } catch (error) {
+      if (recordId && isUniqueViolation(error)) {
+        const existing = await this.prisma.jobWorkLog.findFirst({
+          where: {
+            id: recordId,
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+          },
+        });
+        if (existing) return this.serializeWorkLog(existing);
+      }
+      throw error;
+    }
   }
 
   async addMaterial(
@@ -76,34 +108,71 @@ export class JobFieldService {
     if (!itemName) {
       throw new BadRequestException('Material item name is required');
     }
-    const created = await this.prisma.$transaction(async (tx) => {
-      const row = await tx.jobMaterial.create({
-        data: {
-          organizationId: ctx.organizationId,
-          jobId: job.id,
-          name: itemName,
-          sku: emptyToNull(dto.partNumber),
-          quantity: dto.quantity,
-          unit: dto.unit,
-          notes: emptyToNull(dto.notes),
-          addedByUserId: actorUserId,
-        },
+    const recordId = asRecordId(dto.clientOperationId);
+    if (recordId) {
+      const existing = await this.prisma.jobMaterial.findFirst({
+        where: { id: recordId },
         include: { addedBy: { select: { id: true, fullName: true } } },
       });
-      await this.audit.record(
-        {
-          action: AUDIT_JOB_MATERIAL,
-          entityType: 'Job',
-          entityId: job.id,
-          organizationId: ctx.organizationId,
-          actorUserId,
-          newValues: { materialId: row.id, name: row.name },
-        },
-        tx,
-      );
-      return row;
-    });
-    return this.execution.serializeMaterial(created);
+      if (existing) {
+        if (
+          existing.organizationId !== ctx.organizationId ||
+          existing.jobId !== job.id
+        ) {
+          rejectCrossTenantReplay();
+        }
+        return this.execution.serializeMaterial(existing);
+      }
+    }
+
+    try {
+      const created = await this.prisma.$transaction(async (tx) => {
+        const row = await tx.jobMaterial.create({
+          data: {
+            ...(recordId ? { id: recordId } : {}),
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+            name: itemName,
+            sku: emptyToNull(dto.partNumber),
+            quantity: dto.quantity,
+            unit: dto.unit,
+            notes: emptyToNull(dto.notes),
+            addedByUserId: actorUserId,
+          },
+          include: { addedBy: { select: { id: true, fullName: true } } },
+        });
+        await this.audit.record(
+          {
+            action: AUDIT_JOB_MATERIAL,
+            entityType: 'Job',
+            entityId: job.id,
+            organizationId: ctx.organizationId,
+            actorUserId,
+            newValues: {
+              materialId: row.id,
+              name: row.name,
+              clientOperationId: recordId ?? null,
+            },
+          },
+          tx,
+        );
+        return row;
+      });
+      return this.execution.serializeMaterial(created);
+    } catch (error) {
+      if (recordId && isUniqueViolation(error)) {
+        const existing = await this.prisma.jobMaterial.findFirst({
+          where: {
+            id: recordId,
+            organizationId: ctx.organizationId,
+            jobId: job.id,
+          },
+          include: { addedBy: { select: { id: true, fullName: true } } },
+        });
+        if (existing) return this.execution.serializeMaterial(existing);
+      }
+      throw error;
+    }
   }
 
   addPhoto(
@@ -122,5 +191,20 @@ export class JobFieldService {
     dto: CreateJobSignatureDto,
   ) {
     return this.files.addSignature(ctx, actorUserId, jobId, dto);
+  }
+
+  private serializeWorkLog(row: {
+    id: string;
+    body: string;
+    createdAt: Date;
+    loggedAt: Date;
+  }) {
+    return {
+      id: row.id,
+      text: row.body,
+      body: row.body,
+      createdAt: row.createdAt.toISOString(),
+      loggedAt: row.loggedAt.toISOString(),
+    };
   }
 }

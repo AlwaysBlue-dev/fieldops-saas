@@ -5,6 +5,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -61,4 +62,8 @@ export class CreateJobSignOffDto {
   @IsString()
   @MinLength(8)
   imageBase64!: string;
+
+  @IsOptional()
+  @IsUUID()
+  clientOperationId?: string;
 }

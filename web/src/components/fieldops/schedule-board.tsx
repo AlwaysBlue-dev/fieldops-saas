@@ -21,6 +21,7 @@ import {
   getZonedParts,
   zonedLocalToUtc,
 } from "@/lib/timezone";
+import { MissingAccessBadge } from "./missing-access-badge";
 
 const DAY_START = 6;
 const DAY_HOURS = 14;
@@ -75,6 +76,7 @@ function JobChip({
       <div className="mt-1 flex flex-wrap gap-1">
         <StatusPill label={job.priority} tone={priorityTone(job.priority)} />
         <StatusPill label={statusLabel(job.status)} tone={statusTone(job.status)} />
+        {job.missingAccessInfo ? <MissingAccessBadge compact /> : null}
       </div>
     </button>
   );

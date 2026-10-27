@@ -27,6 +27,7 @@ import { jobLifecycle } from "./articles/job-lifecycle";
 import { jobWorkflow } from "./articles/job-workflow";
 
 import { myDay } from "./articles/my-day";
+import { offlineFieldOperations } from "./articles/offline-field-operations";
 
 import { timeGps } from "./articles/time-gps";
 
@@ -220,6 +221,7 @@ export const allArticles: DocArticle[] = [
   jobLifecycle,
   jobWorkflow,
   myDay,
+  offlineFieldOperations,
   timeGps,
   jobExecution,
   approvals,

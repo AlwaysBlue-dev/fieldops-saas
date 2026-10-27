@@ -165,7 +165,12 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       <h2 className="text-xl font-semibold tracking-tight">Compare plans</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         Limits and features come from the live plan catalog. Organization logo
-        uploads are included with Professional and Business.
+        uploads are included with Professional and Business. Offline field
+        preparation and Missing access info warnings are described on the{" "}
+        <Link href="/features" className="font-medium text-primary hover:underline">
+          Features
+        </Link>{" "}
+        page; they are not separate plan add-ons in the catalog.
       </p>
 
       {/* Mobile: stacked plan summaries */}

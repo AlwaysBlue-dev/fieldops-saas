@@ -24,7 +24,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api";
 import { getMe } from "@/lib/auth";
-import { resolveCurrentMembership } from "@/lib/current-org";
+import { canManageCustomers, resolveCurrentMembership } from "@/lib/current-org";
+import type { OrganizationMembership } from "@/lib/auth";
 import {
   activityLabel,
   addJobMaterialRecord,
@@ -33,7 +34,10 @@ import {
   completeJob,
   confirmSafetyControl,
   dispatchJob,
+  formatMissingAccessItems,
   getJobCard,
+  jobMissingAccess,
+  jobMissingAccessItems,
   jobTypeLabel,
   MATERIAL_UNITS,
   outcomeLabel,
@@ -53,6 +57,8 @@ import {
   type JobOutcome,
   type MaterialUnit,
 } from "@/lib/jobs";
+import { MissingAccessBadge } from "./missing-access-badge";
+import { getOfflineJob, isLikelyOfflineNetworkError } from "@/lib/offline/db";
 import {
   formatAccuracy,
   formatDistanceFromSite,
@@ -64,6 +70,7 @@ import { Navigation } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createContext, useContext, useId, useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const MOBILE_TABS = ["Overview", "Work", "Time", "Files", "Activity"] as const;
 
@@ -78,6 +85,9 @@ export function JobDetailWorkspace() {
   const { canMutate } = useCanMutate();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [timezone, setTimezone] = useState("UTC");
+  const [membership, setMembership] = useState<OrganizationMembership | null>(
+    null,
+  );
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [job, setJob] = useState<JobDetail | null>(null);
@@ -85,6 +95,7 @@ export function JobDetailWorkspace() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [offlineSnapshotAt, setOfflineSnapshotAt] = useState<string | null>(null);
   const [completionDraft, setCompletionDraft] = useState<CompletionDraft | null>(null);
 
   useEffect(() => {
@@ -99,11 +110,31 @@ export function JobDetailWorkspace() {
         }
         setOrganizationId(membership.organization.id);
         setTimezone(membership.organization.timezone);
+        setMembership(membership);
         setRole(membership.role);
         setUserId(me.user.id);
       })
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         if (cancelled) return;
+        if (isLikelyOfflineNetworkError(err)) {
+          const { getOfflineShellContext } = await import("@/lib/offline/db");
+          const cached = await getOfflineShellContext(params.orgSlug).catch(
+            () => null,
+          );
+          if (cached) {
+            setOrganizationId(cached.organizationId);
+            setTimezone(cached.timezone);
+            setMembership(cached.membership);
+            setRole(cached.role);
+            setUserId(cached.userId);
+            return;
+          }
+          setError(
+            "You're offline and this workspace isn't prepared on this device. Reconnect and prepare jobs from My Day.",
+          );
+          setStatus("error");
+          return;
+        }
         setError(err instanceof ApiError ? err.message : "Could not load job.");
         setStatus("error");
       });
@@ -113,23 +144,39 @@ export function JobDetailWorkspace() {
   }, [params.orgSlug]);
 
   const load = useCallback(async () => {
-    if (!organizationId) return;
-    const next = await getJobCard(organizationId, params.jobId);
-    setJob(next);
-    setStatus("ready");
-    return next;
-  }, [organizationId, params.jobId]);
+    if (!organizationId || !userId) return;
+    try {
+      const next = await getJobCard(organizationId, params.jobId);
+      setOfflineSnapshotAt(null);
+      setJob(next);
+      setStatus("ready");
+      return next;
+    } catch (err) {
+      const offline = await getOfflineJob(params.jobId);
+      if (
+        offline &&
+        offline.organizationId === organizationId &&
+        offline.userId === userId &&
+        offline.payload &&
+        typeof offline.payload === "object"
+      ) {
+        setJob(offline.payload as JobDetail);
+        setOfflineSnapshotAt(offline.lastSyncedAt ?? offline.downloadedAt);
+        setStatus("ready");
+        return offline.payload as JobDetail;
+      }
+      throw err;
+    }
+  }, [organizationId, params.jobId, userId]);
 
   useRefreshLoader(load);
 
   useEffect(() => {
-    if (!organizationId) return;
+    if (!organizationId || !userId) return;
     let cancelled = false;
-    getJobCard(organizationId, params.jobId)
+    void load()
       .then((next) => {
-        if (cancelled) return;
-        setJob(next);
-        setStatus("ready");
+        if (cancelled || !next) return;
         if (role === "TECHNICIAN" && next.permissions.canExecute) {
           setTab("Work");
         }
@@ -142,7 +189,7 @@ export function JobDetailWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [organizationId, params.jobId, role]);
+  }, [organizationId, params.jobId, role, userId, load]);
 
   async function run(action: () => Promise<unknown>) {
     setPending(true);
@@ -179,6 +226,24 @@ export function JobDetailWorkspace() {
     <CompletionDraftContext.Provider value={{ draft: completionDraft, setDraft: setCompletionDraft }}>
     <div className="mx-auto flex max-w-[1120px] flex-col gap-4">
       <Header job={job} orgSlug={params.orgSlug} />
+      {offlineSnapshotAt ? (
+        <div
+          className="rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+          role="status"
+        >
+          Showing a last-synced offline copy from{" "}
+          {formatDateTimeInZone(offlineSnapshotAt, timezone)}. Reconnect to refresh
+          from the server.
+        </div>
+      ) : null}
+      {jobMissingAccess(job) ? (
+        <MissingAccessWarning
+          job={job}
+          orgSlug={params.orgSlug}
+          canEditSite={canManageCustomers(membership) && !offlineSnapshotAt}
+          stale={Boolean(offlineSnapshotAt)}
+        />
+      ) : null}
 
       {job.status === "RETURNED" && job.returnReason ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm">
@@ -207,7 +272,13 @@ export function JobDetailWorkspace() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-4">
           <div className={tab === "Overview" ? "lg:hidden" : "hidden"}>
-            <OverviewFacts job={job} timezone={timezone} address={address} />
+            <OverviewFacts
+              job={job}
+              timezone={timezone}
+              address={address}
+              orgSlug={params.orgSlug}
+              canEditSite={canManageCustomers(membership)}
+            />
           </div>
           <div className={tab === "Work" || tab === "Overview" ? "space-y-4 max-lg:contents" : "hidden lg:block lg:space-y-4"}>
             <div className={tab === "Work" ? "space-y-4" : "hidden lg:space-y-4 lg:block"}>
@@ -318,6 +389,8 @@ export function JobDetailWorkspace() {
           <PrimaryActions
             job={job}
             organizationId={organizationId}
+            orgSlug={params.orgSlug}
+            canEditSite={canManageCustomers(membership)}
             pending={pending}
             fullWidth
             onAction={(action) => void run(action)}
@@ -344,6 +417,7 @@ function Header({ job, orgSlug }: { job: JobDetail; orgSlug: string }) {
         </h1>
         <StatusPill label={statusLabel(job.status)} tone={statusTone(job.status)} />
         <StatusPill label={job.priority} tone={priorityTone(job.priority)} />
+        {jobMissingAccess(job) ? <MissingAccessBadge /> : null}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {jobTypeLabel(job.jobType)}
@@ -354,16 +428,55 @@ function Header({ job, orgSlug }: { job: JobDetail; orgSlug: string }) {
   );
 }
 
+function MissingAccessWarning({
+  job,
+  orgSlug,
+  canEditSite,
+  stale = false,
+}: {
+  job: JobDetail;
+  orgSlug: string;
+  canEditSite: boolean;
+  stale?: boolean;
+}) {
+  const items = formatMissingAccessItems(jobMissingAccessItems(job));
+  const siteHref = `/app/${orgSlug}/sites?edit=${job.site.id}`;
+  return (
+    <div
+      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+      role="status"
+    >
+      <p className="font-medium">
+        Missing access info
+        {items ? `: ${items}` : ""}. Techs may not be able to get on site.
+        {stale ? " (Last synced — reconnect to refresh.)" : ""}
+      </p>
+      {canEditSite ? (
+        <Button asChild variant="outline" className="mt-2 h-9 border-amber-400 bg-white/70 md:h-8 dark:bg-transparent">
+          <Link href={siteHref}>Add access info</Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 function OverviewFacts({
   job,
   timezone,
   address,
+  orgSlug,
+  canEditSite,
 }: {
   job: JobDetail;
   timezone: string;
   address: string;
+  orgSlug?: string;
+  canEditSite?: boolean;
 }) {
   const maps = job.navigationUrl;
+  const accessNotes = job.site.accessNotes ?? job.site.notes ?? null;
+  const siteContactName = job.site.siteContactName ?? null;
+  const siteContactPhone = job.site.siteContactPhone ?? null;
   return (
     <section className="rounded-lg border border-border bg-card px-4 py-4">
       <h2 className="text-sm font-semibold">Job overview</h2>
@@ -371,6 +484,47 @@ function OverviewFacts({
         <Row label="Client" value={job.client.name} />
         <Row label="Site" value={job.site.name} />
         {address ? <Row label="Address" value={address} /> : null}
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Site access notes
+          </dt>
+          <dd className="mt-1 whitespace-pre-wrap text-sm">
+            {accessNotes?.trim()
+              ? accessNotes
+              : "No access notes recorded for this site."}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Site contact
+          </dt>
+          <dd className="mt-1 text-sm">
+            {siteContactName || siteContactPhone ? (
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                {siteContactName ? <span>{siteContactName}</span> : null}
+                {siteContactPhone ? (
+                  <a
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    href={`tel:${siteContactPhone.replace(/\s+/g, "")}`}
+                  >
+                    {siteContactPhone}
+                  </a>
+                ) : null}
+              </span>
+            ) : (
+              "No site contact on file."
+            )}
+          </dd>
+        </div>
+        {canEditSite && orgSlug && jobMissingAccess(job) ? (
+          <div>
+            <Button asChild variant="outline" className="h-9 md:h-8">
+              <Link href={`/app/${orgSlug}/sites?edit=${job.site.id}`}>
+                Add access info
+              </Link>
+            </Button>
+          </div>
+        ) : null}
         <Row
           label="Scheduled"
           value={formatDateTimeInZone(job.scheduledStart, timezone)}
@@ -397,7 +551,7 @@ function OverviewFacts({
         {job.workOrderNumber ? <Row label="WO / PO" value={job.workOrderNumber} /> : null}
         {(job.representativeName ?? job.clientRepName) ? (
           <Row
-            label="On-site contact"
+            label="Customer contact on site"
             value={[
               job.representativeName ?? job.clientRepName,
               job.representativeRole ?? job.clientRepTitle,
@@ -447,7 +601,12 @@ function Sidebar({
 }) {
   return (
     <div className="sticky top-4 space-y-3">
-      <OverviewFacts job={job} timezone={timezone} address={address} />
+      <OverviewFacts
+        job={job}
+        timezone={timezone}
+        address={address}
+        orgSlug={orgSlug}
+      />
       <section className="rounded-lg border border-border bg-card px-4 py-4">
         <h2 className="text-sm font-semibold">Time on this job</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -466,6 +625,7 @@ function Sidebar({
         <PrimaryActions
           job={job}
           organizationId={organizationId}
+          orgSlug={orgSlug}
           pending={pending}
           onAction={onAction}
         />
@@ -477,15 +637,151 @@ function Sidebar({
   );
 }
 
+function DispatchAction({
+  job,
+  organizationId,
+  orgSlug,
+  canEditSite,
+  pending,
+  className,
+  onAction,
+}: {
+  job: JobDetail;
+  organizationId: string;
+  orgSlug?: string;
+  canEditSite?: boolean;
+  pending: boolean;
+  className: string;
+  onAction: (action: () => Promise<unknown>) => void;
+}) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [liveJob, setLiveJob] = useState(job);
+  const [dispatching, setDispatching] = useState(false);
+  const items = formatMissingAccessItems(jobMissingAccessItems(liveJob));
+  const siteHref = orgSlug
+    ? `/app/${orgSlug}/sites?edit=${liveJob.site.id}`
+    : null;
+
+  useEffect(() => {
+    setLiveJob(job);
+  }, [job]);
+
+  const beginDispatch = async () => {
+    if (pending || checking || dispatching) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      toast.error(
+        "Dispatch requires a connection. Access info shown offline may be last-synced only.",
+      );
+      setConfirmOpen(false);
+      return;
+    }
+    setChecking(true);
+    try {
+      const fresh = await getJobCard(organizationId, job.id);
+      setLiveJob(fresh);
+      if (!jobMissingAccess(fresh)) {
+        setDispatching(true);
+        setConfirmOpen(false);
+        await onAction(() => dispatchJob(organizationId, job.id));
+        return;
+      }
+      setConfirmOpen(true);
+    } catch {
+      // Fall back to last known server-calculated access flags on the open job.
+      if (!jobMissingAccess(liveJob)) {
+        setDispatching(true);
+        await onAction(() => dispatchJob(organizationId, job.id));
+      } else {
+        setConfirmOpen(true);
+      }
+    } finally {
+      setChecking(false);
+      setDispatching(false);
+    }
+  };
+
+  if (!jobMissingAccess(liveJob) && !confirmOpen) {
+    return (
+      <MutationButton
+        className={className}
+        disabled={pending || checking || dispatching}
+        onClick={() => void beginDispatch()}
+      >
+        {checking ? "Checking…" : "Dispatch"}
+      </MutationButton>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <MutationButton
+        className={className}
+        disabled={pending || checking || dispatching}
+        onClick={() => void beginDispatch()}
+      >
+        {checking ? "Checking…" : "Dispatch"}
+      </MutationButton>
+      {confirmOpen ? (
+        <div
+          className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+          role="dialog"
+          aria-label="Missing access info confirmation"
+        >
+          <p className="font-medium">
+            This job is missing access information
+            {items ? ` (missing: ${items})` : ""}. Dispatch anyway?
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {canEditSite && siteHref ? (
+              <Button asChild variant="outline" className="h-11 md:h-8">
+                <Link href={siteHref} onClick={() => setConfirmOpen(false)}>
+                  Add access info
+                </Link>
+              </Button>
+            ) : null}
+            <MutationButton
+              className="h-11 md:h-8"
+              disabled={pending || dispatching}
+              onClick={() => {
+                if (dispatching) return;
+                setDispatching(true);
+                setConfirmOpen(false);
+                void onAction(() => dispatchJob(organizationId, job.id)).finally(
+                  () => setDispatching(false),
+                );
+              }}
+            >
+              Dispatch anyway
+            </MutationButton>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 md:h-8"
+              onClick={() => setConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PrimaryActions({
   job,
   organizationId,
+  orgSlug,
+  canEditSite,
   pending,
   onAction,
   fullWidth,
 }: {
   job: JobDetail;
   organizationId: string;
+  orgSlug?: string;
+  canEditSite?: boolean;
   pending: boolean;
   onAction: (action: () => Promise<unknown>) => void;
   fullWidth?: boolean;
@@ -533,13 +829,15 @@ export function PrimaryActions({
         <MutationButton className={width} disabled={pending} onClick={() => onAction(() => startJob(organizationId, job.id))}>Start work</MutationButton>
       ) : null}
       {job.status === "SCHEDULED" && job.permissions.canDispatch ? (
-        <MutationButton
+        <DispatchAction
+          job={job}
+          organizationId={organizationId}
+          orgSlug={orgSlug}
+          canEditSite={canEditSite}
+          pending={pending}
           className={width}
-          disabled={pending}
-          onClick={() => onAction(() => dispatchJob(organizationId, job.id))}
-        >
-          Dispatch
-        </MutationButton>
+          onAction={onAction}
+        />
       ) : null}
       {job.status === "IN_PROGRESS" && job.permissions.canFieldAdvance ? (
         <>

@@ -25,6 +25,14 @@ export type JobType = (typeof JOB_TYPES)[number];
 
 export type JobPerson = { userId: string; fullName: string; role?: string | null };
 
+export type AccessInfoMissingItem = "access notes" | "site contact";
+
+export type JobAccessInfo = {
+  missingAccessInfo: boolean;
+  accessInfoReady: boolean;
+  missingItems: AccessInfoMissingItem[];
+};
+
 export type JobSummary = {
   id: string;
   organizationId: string;
@@ -42,6 +50,9 @@ export type JobSummary = {
   supervisor: JobPerson | null;
   technicians: JobPerson[];
   updatedAt: string;
+  missingAccessInfo?: boolean;
+  accessInfoReady?: boolean;
+  missingAccessItems?: AccessInfoMissingItem[];
 };
 
 export const MATERIAL_UNITS = [
@@ -119,7 +130,13 @@ export type JobDetail = JobSummary & {
     country?: string | null;
     latitude?: string | null;
     longitude?: string | null;
+    notes?: string | null;
+    accessNotes?: string | null;
+    siteContactName?: string | null;
+    siteContactPhone?: string | null;
+    siteContactEmail?: string | null;
   };
+  accessInfo?: JobAccessInfo;
   allowedTransitions: JobStatus[];
   permissions: {
     canEdit: boolean;
@@ -248,7 +265,8 @@ export type JobListQuery = {
   technicianId?: string;
   clientId?: string;
   date?: string;
-  preset?: "open" | "today" | "unassigned" | "approval" | "";
+  preset?: "open" | "today" | "unassigned" | "approval" | "missing_access" | "";
+  missingAccess?: boolean;
   page?: number;
   pageSize?: number;
   sort?: string;
@@ -265,6 +283,7 @@ export function listJobs(organizationId: string, query: JobListQuery = {}) {
   if (query.clientId) params.set("clientId", query.clientId);
   if (query.date) params.set("date", query.date);
   if (query.preset) params.set("preset", query.preset);
+  if (query.missingAccess) params.set("missingAccess", "true");
   if (query.page) params.set("page", String(query.page));
   if (query.pageSize) params.set("pageSize", String(query.pageSize));
   if (query.sort) params.set("sort", query.sort);
@@ -485,6 +504,29 @@ export function safetyStatusLabel(status: SafetyControlStatus) {
     case "CONFIRMED":
       return "Confirmed";
   }
+}
+
+export function formatMissingAccessItems(
+  items: AccessInfoMissingItem[] | undefined | null,
+): string {
+  if (!items || items.length === 0) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+}
+
+export function jobMissingAccess(job: {
+  missingAccessInfo?: boolean;
+  accessInfo?: JobAccessInfo;
+}): boolean {
+  return Boolean(job.accessInfo?.missingAccessInfo ?? job.missingAccessInfo);
+}
+
+export function jobMissingAccessItems(job: {
+  missingAccessItems?: AccessInfoMissingItem[];
+  accessInfo?: JobAccessInfo;
+}): AccessInfoMissingItem[] {
+  return job.accessInfo?.missingItems ?? job.missingAccessItems ?? [];
 }
 
 export function activityLabel(action: string) {

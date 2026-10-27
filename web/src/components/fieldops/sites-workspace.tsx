@@ -14,11 +14,12 @@ import { ApiError } from "@/lib/api";
 import { canManageCustomers, resolveCurrentMembership } from "@/lib/current-org";
 import {
   formatSiteAddress,
+  getSite,
   listSites,
   type ClientStatus,
   type SiteRecord,
 } from "@/lib/clients";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MutationButton } from "./mutation-control";
 import { SiteFormSheet } from "./site-form-sheet";
@@ -26,6 +27,7 @@ import { SiteFormSheet } from "./site-form-sheet";
 export function SitesWorkspace() {
   const params = useParams<{ orgSlug: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [sites, setSites] = useState<SiteRecord[]>([]);
@@ -37,6 +39,7 @@ export function SitesWorkspace() {
   );
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingSite, setEditingSite] = useState<SiteRecord | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +84,22 @@ export function SitesWorkspace() {
   }, [organizationId, search, status]);
 
   useRefreshLoader(load);
+
+  useEffect(() => {
+    if (!organizationId || !canManage) return;
+    const editId = searchParams.get("edit");
+    if (!editId) return;
+    let cancelled = false;
+    getSite(organizationId, editId)
+      .then((site) => {
+        if (cancelled) return;
+        setEditingSite(site);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, canManage, searchParams]);
 
   useEffect(() => {
     if (!organizationId) return;
@@ -252,10 +271,27 @@ export function SitesWorkspace() {
       ) : null}
 
       <SiteFormSheet
-        open={createOpen}
-        onOpenChange={setCreateOpen}
+        open={createOpen || Boolean(editingSite)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreateOpen(false);
+            setEditingSite(null);
+            if (searchParams.get("edit")) {
+              router.replace(`/app/${params.orgSlug}/sites`);
+            }
+          } else {
+            setCreateOpen(true);
+          }
+        }}
         organizationId={organizationId}
-        onSaved={() => void load()}
+        site={editingSite}
+        onSaved={() => {
+          setEditingSite(null);
+          if (searchParams.get("edit")) {
+            router.replace(`/app/${params.orgSlug}/sites`);
+          }
+          void load();
+        }}
       />
     </div>
   );

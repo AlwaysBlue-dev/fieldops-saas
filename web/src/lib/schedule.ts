@@ -35,6 +35,9 @@ export type ScheduleJob = {
   scope?: string | null;
   jobType?: string;
   updatedAt?: string;
+  missingAccessInfo?: boolean;
+  accessInfoReady?: boolean;
+  missingAccessItems?: Array<"access notes" | "site contact">;
 };
 
 export type ScheduleLane = {
@@ -56,6 +59,7 @@ export type ScheduleBoard = {
   hours: { start: number; end: number };
   defaultWindowMinutes: number;
   canMutate: boolean;
+  missingAccessOnly?: boolean;
   lanes: ScheduleLane[];
   unassigned: ScheduleJob[];
 };
@@ -88,6 +92,7 @@ export function getSchedule(
     clientId?: string;
     status?: JobStatus | "";
     priority?: JobPriority | "";
+    missingAccessOnly?: boolean;
   } = {},
 ) {
   const params = new URLSearchParams();
@@ -98,6 +103,7 @@ export function getSchedule(
   if (query.clientId) params.set("clientId", query.clientId);
   if (query.status) params.set("status", query.status);
   if (query.priority) params.set("priority", query.priority);
+  if (query.missingAccessOnly) params.set("missingAccessOnly", "true");
   const suffix = params.toString();
   return apiRequest<ScheduleBoard>(
     `/organizations/${organizationId}/schedule${suffix ? `?${suffix}` : ""}`,

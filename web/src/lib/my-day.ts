@@ -89,7 +89,11 @@ export function getMyDay(organizationId: string) {
 
 export function clockIn(
   organizationId: string,
-  body: GpsPayload & { jobId?: string } = {},
+  body: GpsPayload & {
+    jobId?: string;
+    clientOccurredAt?: string;
+    clientEventId?: string;
+  } = {},
 ) {
   return apiRequest(`/organizations/${organizationId}/my-day/clock-in`, {
     method: "POST",
@@ -97,7 +101,14 @@ export function clockIn(
   });
 }
 
-export function clockOut(organizationId: string, body: GpsPayload & { jobId?: string } = {}) {
+export function clockOut(
+  organizationId: string,
+  body: GpsPayload & {
+    jobId?: string;
+    clientOccurredAt?: string;
+    clientEventId?: string;
+  } = {},
+) {
   return apiRequest(`/organizations/${organizationId}/my-day/clock-out`, {
     method: "POST",
     body,
@@ -108,17 +119,27 @@ export function addWorkUpdate(
   organizationId: string,
   jobId: string,
   body: string,
+  clientOperationId?: string,
 ) {
   return apiRequest(`/organizations/${organizationId}/jobs/${jobId}/work-logs`, {
     method: "POST",
-    body: { body },
+    body: {
+      body,
+      ...(clientOperationId ? { clientOperationId } : {}),
+    },
   });
 }
 
 export function addJobMaterial(
   organizationId: string,
   jobId: string,
-  input: { name: string; quantity: number; unit: string; notes?: string },
+  input: {
+    name: string;
+    quantity: number;
+    unit: string;
+    notes?: string;
+    clientOperationId?: string;
+  },
 ) {
   return apiRequest(`/organizations/${organizationId}/jobs/${jobId}/materials`, {
     method: "POST",
@@ -129,7 +150,12 @@ export function addJobMaterial(
 export function addJobPhoto(
   organizationId: string,
   jobId: string,
-  input: { fileName: string; mimeType: string; contentBase64: string },
+  input: {
+    fileName: string;
+    mimeType: string;
+    contentBase64: string;
+    clientOperationId?: string;
+  },
 ) {
   return apiRequest(`/organizations/${organizationId}/jobs/${jobId}/photos`, {
     method: "POST",
@@ -140,7 +166,12 @@ export function addJobPhoto(
 export function addJobSignature(
   organizationId: string,
   jobId: string,
-  input: { signerName: string; signerTitle?: string; imageBase64: string },
+  input: {
+    signerName: string;
+    signerTitle?: string;
+    imageBase64: string;
+    clientOperationId?: string;
+  },
 ) {
   return apiRequest(`/organizations/${organizationId}/jobs/${jobId}/signatures`, {
     method: "POST",

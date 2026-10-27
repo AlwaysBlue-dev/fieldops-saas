@@ -15,6 +15,7 @@ import {
   formatDateTimeInZone,
   formatYmdInZone,
 } from "@/lib/timezone";
+import { MissingAccessBadge } from "./missing-access-badge";
 
 export function ScheduleAgenda({
   board,
@@ -77,6 +78,9 @@ export function ScheduleAgenda({
                         label={statusLabel(job.status)}
                         tone={statusTone(job.status)}
                       />
+                      {job.missingAccessInfo ? (
+                        <MissingAccessBadge compact />
+                      ) : null}
                     </div>
                   }
                 />

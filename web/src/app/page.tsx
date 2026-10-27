@@ -56,13 +56,14 @@ export default async function HomePage() {
           },
           {
             title: "Field-ready mobile",
-            copy: "Bottom navigation, large targets, and keyboard-safe forms on a phone.",
+            copy: "Prepare assigned jobs for offline work, then sync when coverage returns. Large targets and keyboard-safe forms on a phone.",
           },
           {
-            title: "Approvals and time",
-            copy: "Clock sessions and review queues stay next to the jobs they belong to.",
+            title: "Access before arrival",
+            copy: "Spot missing site access notes or contacts early—so crews are less likely to waste a site visit.",
           },
         ].map((item) => (
+
           <article
             key={item.title}
             className="rounded-lg border border-border bg-card px-4 py-4"

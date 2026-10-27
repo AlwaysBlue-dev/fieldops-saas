@@ -3,6 +3,10 @@ import type {
   JobPriority,
   JobStatus,
 } from '../generated/prisma/client.js';
+import {
+  accessInfoFromJobRow,
+  type JobAccessInfo,
+} from './job-access-info.js';
 
 export type ScheduleJobView = {
   id: string;
@@ -18,9 +22,12 @@ export type ScheduleJobView = {
   team: { id: string; name: string } | null;
   supervisor: ReturnType<typeof serializeOrganizationPerson> | null;
   technicians: Array<ReturnType<typeof serializeOrganizationPerson>>;
+  missingAccessInfo: boolean;
+  accessInfoReady: boolean;
+  missingAccessItems: JobAccessInfo['missingItems'];
 };
 
-export function serializeScheduleJob(job: {
+type ScheduleJobRow = {
   id: string;
   organizationId: string;
   jobNumber: string;
@@ -29,12 +36,25 @@ export function serializeScheduleJob(job: {
   priority: JobPriority;
   scheduledStart: Date | null;
   expectedFinish: Date | null;
+  clientRepName?: string | null;
+  clientRepPhone?: string | null;
   client: { id: string; name: string };
-  site: { id: string; name: string };
+  site: {
+    id: string;
+    name: string;
+    notes?: string | null;
+    accessNotes?: string | null;
+    siteContactName?: string | null;
+    siteContactPhone?: string | null;
+    contacts?: Array<{ name: string | null; phone: string | null }>;
+  };
   team: { id: string; name: string } | null;
   supervisor: OrganizationPerson | null;
   assignments: Array<{ user: OrganizationPerson }>;
-}): ScheduleJobView {
+};
+
+export function serializeScheduleJob(job: ScheduleJobRow): ScheduleJobView {
+  const access = accessInfoFromJobRow(job);
   return {
     id: job.id,
     organizationId: job.organizationId,
@@ -45,11 +65,16 @@ export function serializeScheduleJob(job: {
     scheduledStart: job.scheduledStart?.toISOString() ?? null,
     expectedFinish: job.expectedFinish?.toISOString() ?? null,
     client: job.client,
-    site: job.site,
+    site: { id: job.site.id, name: job.site.name },
     team: job.team,
     supervisor: job.supervisor
       ? serializeOrganizationPerson(job.supervisor, job.organizationId)
       : null,
-    technicians: job.assignments.map((row) => serializeOrganizationPerson(row.user, job.organizationId)),
+    technicians: job.assignments.map((row) =>
+      serializeOrganizationPerson(row.user, job.organizationId),
+    ),
+    missingAccessInfo: access.missingAccessInfo,
+    accessInfoReady: access.accessInfoReady,
+    missingAccessItems: access.missingItems,
   };
 }

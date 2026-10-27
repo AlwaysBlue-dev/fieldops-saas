@@ -89,7 +89,8 @@ export class ClockService {
       };
     }
 
-    const now = this.clock.now();
+    const receivedAt = this.clock.now();
+    const clockInAt = this.resolveClientOccurredAt(dto.clientOccurredAt, receivedAt);
     const evidence = locationEvidence({
       ...gps,
       siteLatitude: site.latitude,
@@ -106,12 +107,36 @@ export class ClockService {
           throw new ForbiddenException('This job is not available to clock');
         }
         const startedJob = before && (before.status === JobStatus.DISPATCHED || before.status === JobStatus.RETURNED);
+        if (dto.clientEventId) {
+          const existingByClient = await tx.clockSession.findFirst({
+            where: {
+              id: dto.clientEventId,
+              organizationId: ctx.organizationId,
+              technicianUserId: actorUserId,
+            },
+          });
+          if (existingByClient) {
+            return existingByClient;
+          }
+        }
+        // Re-check open session under the transaction to avoid duplicate opens.
+        const openNow = await tx.clockSession.findFirst({
+          where: {
+            organizationId: ctx.organizationId,
+            technicianUserId: actorUserId,
+            status: ClockSessionStatus.OPEN,
+          },
+        });
+        if (openNow) {
+          throw new ConflictException('Already clocked in');
+        }
         const created = await tx.clockSession.create({
           data: {
+            ...(dto.clientEventId ? { id: dto.clientEventId } : {}),
             organizationId: ctx.organizationId,
             technicianUserId: actorUserId,
             jobId,
-            clockInAt: now,
+            clockInAt,
             clockInLatitude: coord(gps.latitude),
             clockInLongitude: coord(gps.longitude),
             clockInAccuracyMeters: coord(gps.accuracyMeters, 2),
@@ -155,8 +180,10 @@ export class ClockService {
             actorUserId,
             newValues: {
               jobId,
-              clockInAt: now.toISOString(),
+              clockInAt: clockInAt.toISOString(),
+              serverReceivedAt: receivedAt.toISOString(),
               clientOccurredAt: dto.clientOccurredAt ?? null,
+              clientEventId: dto.clientEventId ?? null,
               location: auditLocation(evidence),
             },
           },
@@ -170,6 +197,19 @@ export class ClockService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
+        // Duplicate clientEventId or unique open-session race — return existing when possible.
+        if (dto.clientEventId) {
+          const replay = await this.prisma.clockSession.findFirst({
+            where: {
+              id: dto.clientEventId,
+              organizationId: ctx.organizationId,
+              technicianUserId: actorUserId,
+            },
+          });
+          if (replay) {
+            return this.serializeSession(replay, evidence);
+          }
+        }
         throw new ConflictException('Already clocked in');
       }
       throw error;
@@ -183,13 +223,30 @@ export class ClockService {
   ) {
     const settings = await this.requireSettings(ctx.organizationId);
     const gps = this.readGps(dto, settings.requireGps);
-    const now = this.clock.now();
+    const receivedAt = this.clock.now();
+    const clockOutAt = this.resolveClientOccurredAt(
+      dto.clientOccurredAt,
+      receivedAt,
+    );
+
+    // Idempotent replay: same clientEventId already recorded on a closed session.
+    if (dto.clientEventId) {
+      const byClient = await this.findClockOutByClientEventId(
+        ctx.organizationId,
+        actorUserId,
+        dto.clientEventId,
+      );
+      if (byClient) {
+        return byClient;
+      }
+    }
+
     const existing = await this.currentSession(ctx.organizationId, actorUserId);
     if (!existing) {
       const replayed = await this.recentClosedSession(
         ctx.organizationId,
         actorUserId,
-        now,
+        receivedAt,
       );
       if (replayed) {
         return replayed;
@@ -201,12 +258,18 @@ export class ClockService {
       throw new BadRequestException('Your active clock session belongs to a different job');
     }
 
+    if (clockOutAt.getTime() < existing.clockInAt.getTime()) {
+      throw new BadRequestException(
+        'Clock-out time cannot be earlier than clock-in time',
+      );
+    }
+
     const site = existing.jobId
       ? await this.siteCoords(ctx.organizationId, existing.jobId)
       : { latitude: null, longitude: null };
     const durationMinutes = Math.max(
       0,
-      durationMinutesFromRange(existing.clockInAt, now),
+      durationMinutesFromRange(existing.clockInAt, clockOutAt),
     );
     const workDate = formatYmdInZone(existing.clockInAt, settings.timezone);
     const validation = await this.timesheetValidation.evaluate({
@@ -215,11 +278,11 @@ export class ClockService {
       source: TimeEntrySource.CLOCK_SESSION,
       type: TimeEntryType.NORMAL,
       startAt: existing.clockInAt,
-      endAt: now,
+      endAt: clockOutAt,
       workDate,
       description: null,
       jobId: existing.jobId,
-      now,
+      now: receivedAt,
     });
     const outEvidence = locationEvidence({
       ...gps,
@@ -237,6 +300,19 @@ export class ClockService {
     });
 
     const closed = await this.prisma.$transaction(async (tx) => {
+      if (dto.clientEventId) {
+        const prior = await this.findClockOutAudit(
+          tx,
+          ctx.organizationId,
+          actorUserId,
+          dto.clientEventId,
+        );
+        if (prior) {
+          return tx.clockSession.findFirstOrThrow({
+            where: { id: prior.entityId, organizationId: ctx.organizationId },
+          });
+        }
+      }
       const updated = await tx.clockSession.updateMany({
         where: {
           id: existing.id,
@@ -245,7 +321,7 @@ export class ClockService {
         },
         data: {
           status: ClockSessionStatus.CLOSED,
-          clockOutAt: now,
+          clockOutAt,
           clockOutLatitude: coord(gps.latitude),
           clockOutLongitude: coord(gps.longitude),
           clockOutAccuracyMeters: coord(gps.accuracyMeters, 2),
@@ -263,7 +339,7 @@ export class ClockService {
           clockSessionId: existing.id,
           workDate: new Date(`${workDate}T00:00:00.000Z`),
           startedAt: existing.clockInAt,
-          endedAt: now,
+          endedAt: clockOutAt,
           durationMinutes,
           type: TimeEntryType.NORMAL,
           source: TimeEntrySource.CLOCK_SESSION,
@@ -272,7 +348,7 @@ export class ClockService {
         },
         update: {
           workDate: new Date(`${workDate}T00:00:00.000Z`),
-          endedAt: now,
+          endedAt: clockOutAt,
           durationMinutes,
           jobId: existing.jobId,
           type: TimeEntryType.NORMAL,
@@ -288,9 +364,11 @@ export class ClockService {
           organizationId: ctx.organizationId,
           actorUserId,
           newValues: {
-            clockOutAt: now.toISOString(),
+            clockOutAt: clockOutAt.toISOString(),
+            serverReceivedAt: receivedAt.toISOString(),
             durationMinutes,
             clientOccurredAt: dto.clientOccurredAt ?? null,
+            clientEventId: dto.clientEventId ?? null,
             location: auditLocation(outEvidence),
           },
         },
@@ -462,6 +540,112 @@ export class ClockService {
       longitude: dto.longitude ?? null,
       accuracyMeters: dto.accuracyMeters ?? null,
     };
+  }
+
+  /**
+   * Prefer device-recorded time for offline sync; fall back to server receipt.
+   * Reject wildly skewed clocks (more than 5 minutes ahead or 7 days behind).
+   */
+  private resolveClientOccurredAt(
+    clientOccurredAt: string | undefined,
+    receivedAt: Date,
+  ): Date {
+    if (!clientOccurredAt) return receivedAt;
+    const parsed = new Date(clientOccurredAt);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException('Invalid clientOccurredAt');
+    }
+    const skewMs = parsed.getTime() - receivedAt.getTime();
+    if (skewMs > 5 * 60_000) {
+      throw new BadRequestException(
+        'Device clock time is too far ahead of the server',
+      );
+    }
+    if (skewMs < -7 * 24 * 60 * 60_000) {
+      throw new BadRequestException(
+        'Device clock time is too far behind the server',
+      );
+    }
+    return parsed;
+  }
+
+  private async findClockOutAudit(
+    db: Prisma.TransactionClient | PrismaService,
+    organizationId: string,
+    actorUserId: string,
+    clientEventId: string,
+  ) {
+    const rows = await db.auditLog.findMany({
+      where: {
+        organizationId,
+        actorUserId,
+        action: AUDIT_CLOCK_OUT,
+        entityType: 'ClockSession',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+    });
+    for (const row of rows) {
+      const values = row.newValues as { clientEventId?: string } | null;
+      if (values?.clientEventId === clientEventId) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  private async findClockOutByClientEventId(
+    organizationId: string,
+    actorUserId: string,
+    clientEventId: string,
+  ) {
+    const audit = await this.findClockOutAudit(
+      this.prisma,
+      organizationId,
+      actorUserId,
+      clientEventId,
+    );
+    if (!audit) return null;
+    const session = await this.prisma.clockSession.findFirst({
+      where: {
+        id: audit.entityId,
+        organizationId,
+        technicianUserId: actorUserId,
+        status: ClockSessionStatus.CLOSED,
+      },
+    });
+    if (!session) return null;
+    const entry = await this.prisma.timeEntry.findFirst({
+      where: { clockSessionId: session.id, organizationId },
+    });
+    const settings = await this.requireSettings(organizationId);
+    const site = session.jobId
+      ? await this.siteCoords(organizationId, session.jobId)
+      : { latitude: null, longitude: null };
+    const inEvidence = locationEvidence({
+      latitude: toFiniteNumber(session.clockInLatitude),
+      longitude: toFiniteNumber(session.clockInLongitude),
+      accuracyMeters: toFiniteNumber(session.clockInAccuracyMeters),
+      siteLatitude: site.latitude,
+      siteLongitude: site.longitude,
+      reviewDistanceMeters: settings.gpsReviewDistanceMeters,
+    });
+    const outEvidence = session.clockOutAt
+      ? locationEvidence({
+          latitude: toFiniteNumber(session.clockOutLatitude),
+          longitude: toFiniteNumber(session.clockOutLongitude),
+          accuracyMeters: toFiniteNumber(session.clockOutAccuracyMeters),
+          siteLatitude: site.latitude,
+          siteLongitude: site.longitude,
+          reviewDistanceMeters: settings.gpsReviewDistanceMeters,
+        })
+      : null;
+    return this.serializeSession(
+      session,
+      inEvidence,
+      outEvidence,
+      entry?.durationMinutes ?? null,
+    );
   }
 
   private async requireSettings(organizationId: string) {
