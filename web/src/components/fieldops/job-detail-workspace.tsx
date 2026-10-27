@@ -214,7 +214,7 @@ export function JobDetailWorkspace() {
     if (!organizationId || !userId) return;
     const jobId = params.jobId;
     prevJobSyncPendingRef.current = null;
-    return subscribeSync(organizationId, userId, (progress) => {
+    const unsub = subscribeSync(organizationId, userId, (progress) => {
       const jobOps = progress.ops.filter((op) => op.jobId === jobId);
       const waiting = jobOps.filter(
         (op) => op.status === "pending" || op.status === "syncing",
@@ -242,6 +242,9 @@ export function JobDetailWorkspace() {
           });
       }
     });
+    return () => {
+      unsub();
+    };
   }, [organizationId, userId, params.jobId, load]);
 
   async function run(action: () => Promise<unknown>) {
