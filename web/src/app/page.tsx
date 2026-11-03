@@ -6,10 +6,11 @@ import { CompareLinkRow } from "@/components/fieldops/compare-link-row";
 import { APP_HOME_TITLE, APP_TAGLINE } from "@/lib/brand";
 import { catalogPlan, getPublicCatalog } from "@/lib/pricing";
 import { publicPageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
+import Link from "next/link";
 
 export const metadata = publicPageMetadata({
   title: "Field service management software | FieldKeel",
-  description: `${APP_TAGLINE} FieldKeel brings dispatch, crews, job time, and approvals together in one field operations workspace.`,
+  description: `${APP_TAGLINE} FieldKeel keeps dispatch, crews, time, and approvals in one workspace. Professional and Business include read-only AI Workforce help for jobs, schedules, and missing site access.`,
   path: "/",
 });
 
@@ -63,7 +64,6 @@ export default async function HomePage() {
             copy: "Spot missing site access notes or contacts early—so crews are less likely to waste a site visit.",
           },
         ].map((item) => (
-
           <article
             key={item.title}
             className="rounded-lg border border-border bg-card px-4 py-4"
@@ -72,6 +72,36 @@ export default async function HomePage() {
             <p className="mt-2 text-sm text-muted-foreground">{item.copy}</p>
           </article>
         ))}
+      </section>
+
+      <section className="mt-10 max-w-3xl rounded-lg border border-border bg-card px-4 py-5 sm:px-5">
+        <h2 className="text-sm font-semibold">AI Workforce</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Ask questions in plain language about jobs, schedules, and missing
+          site access — then review the answer before you act. Included on
+          Professional and Business plans. Read-only today: it does not assign
+          crews or change jobs for you.
+        </p>
+        <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <Link
+            href="/features"
+            className="font-medium text-primary hover:underline"
+          >
+            See features
+          </Link>
+          <Link
+            href="/pricing"
+            className="font-medium text-primary hover:underline"
+          >
+            View pricing
+          </Link>
+          <Link
+            href="/docs/ai-workforce-overview"
+            className="font-medium text-primary hover:underline"
+          >
+            Read the AI Workforce guide
+          </Link>
+        </p>
       </section>
 
       <CompareLinkRow className="mt-5" />

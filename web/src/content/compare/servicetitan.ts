@@ -4,7 +4,7 @@ export const servicetitanComparison = {
   id: "servicetitan",
   slug: "servicetitan",
   title: "FieldKeel vs ServiceTitan: A ServiceTitan Alternative for Mid-Size Shops | FieldKeel",
-  metaDescription: "Looking for a ServiceTitan alternative? FieldKeel puts dispatch, crews, time, and approvals in one workspace for a published $499/year. Start a 14-day free trial.",
+  metaDescription: "Looking for a ServiceTitan alternative? FieldKeel puts dispatch, crews, time, and approvals in one workspace for a published $499/year. Professional and Business include read-only AI Workforce. Start a 14-day free trial.",
   heading: "FieldKeel vs ServiceTitan: A ServiceTitan Alternative for Mid-Size Shops",
   introduction: [
     "ServiceTitan is a heavyweight in trades software. It describes itself as software for commercial and residential trades, covering dispatch, call booking, invoicing, pricebook, payroll, memberships, marketing attribution, and deep reporting. Large, growth-focused contractors get a lot out of it.",
@@ -154,6 +154,10 @@ export const servicetitanComparison = {
         {
           type: "paragraph",
           text: "**Field-friendly by design.** Bottom navigation, large targets, and keyboard-safe forms make FieldKeel easy to use on a phone at a job site. The office gets a dense desktop layout."
+        },
+        {
+          type: "paragraph",
+          text: "**AI Workforce for operational questions (Professional and Business).** FieldKeel’s assistant answers natural-language questions about authorized jobs, schedules, and missing site access. It is read-only today — it does not assign technicians or change jobs. This comparison does not claim parity with ServiceTitan AI capabilities."
         }
       ]
     },
@@ -213,6 +217,10 @@ export const servicetitanComparison = {
         {
           question: "How do I try FieldKeel?",
           answer: "Start a 14-day free trial at fieldkeel.com. No demo is needed to get started."
+        },
+        {
+          question: "Does FieldKeel include AI?",
+          answer: "Professional and Business include AI Workforce: a read-only assistant for questions about authorized jobs, schedules, and missing site access. It does not assign technicians, reschedule work, or change job statuses. This page does not claim that FieldKeel AI matches ServiceTitan’s AI product."
         }
       ]
     },

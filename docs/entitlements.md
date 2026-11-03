@@ -22,9 +22,9 @@ await usage.assertStorageAvailable(organizationId, bytes, { actorUserId });
 
 Conceptual keys in `plan-features.ts`:
 
-- `JOBS`, `TIMESHEETS`, `GPS`, `CLIENT_SIGNATURE`, `ADVANCED_REPORTS`, `CUSTOM_BRANDING`
+- `JOBS`, `TIMESHEETS`, `GPS`, `CLIENT_SIGNATURE`, `ADVANCED_REPORTS`, `CUSTOM_BRANDING`, `ADVANCED_BRANDING`, `AI_WORKFORCE`
 
-Most field functionality is enabled on all plans; **limits** (`maxUsers`, `maxStorageBytes`) differ. Seeded `Plan.features` JSON carries these flags.
+Most field functionality is enabled on all plans; **limits** (`maxUsers`, `maxStorageBytes`, and when AI is enabled `maxAiTasksPerMonth` in `Plan.features`) differ. Seeded `Plan.features` JSON carries these flags.
 
 ## Limits
 
@@ -32,6 +32,7 @@ From `Plan`:
 
 - `maxUsers` — ACTIVE members + PENDING invites (when inviting) + 1
 - `maxStorageBytes` — sum of `JobFile.sizeBytes` + incoming upload size
+- `maxAiTasksPerMonth` (in `Plan.features`) — monthly AI task quota when `AI_WORKFORCE` is on. Catalog defaults: Starter feature off / 0; Professional 100; Business 500 (configurable in features JSON). Authoritative count is `AiUsageEvent` rows with `status=SUCCEEDED` **plus** active non-expired `PENDING` reservations in the current UTC calendar month (`AiUsageService.beginExecution` / `countTowardLimit`). `FAILED`, `INTERRUPTED`, and `SKIPPED` do **not** consume quota. Soft preflight: `UsageService.assertAiTaskAvailable`. AI quota blocks audit as `PLAN_LIMIT_BLOCKED` with `limitType: AI_TASKS` **after** the reservation transaction releases the organization row (never while `FOR UPDATE` is held).
 
 On breach, API returns **403** with structured body:
 
@@ -51,7 +52,7 @@ On breach, API returns **403** with structured body:
 
 Frontend CTA: **Request plan change** (not Pay now).
 
-Seat/storage blocks also write a single `PLAN_LIMIT_BLOCKED` audit (not on successful checks).
+Seat/storage/AI-task blocks also write a single `PLAN_LIMIT_BLOCKED` audit (not on successful checks). `limitType` may be `USERS`, `STORAGE`, or `AI_TASKS`.
 
 ## Tenant API
 

@@ -6,6 +6,7 @@ import {
   Inbox,
   LayoutDashboard,
   Settings,
+  Sparkles,
   Sun,
   Users,
   BriefcaseBusiness,
@@ -38,6 +39,11 @@ function canApproveNav(role?: OrgNavRole) {
   );
 }
 
+/** Matches API AI Workforce access (technicians excluded). */
+function canUseAiNav(role?: OrgNavRole) {
+  return canApproveNav(role);
+}
+
 /** Filter primary/secondary nav items by organization role. */
 export function filterNavByRole(
   items: AppNavItem[],
@@ -47,6 +53,9 @@ export function filterNavByRole(
   return items.filter((item) => {
     if (item.href.endsWith("/approvals")) {
       return canApproveNav(role);
+    }
+    if (item.href.endsWith("/ai")) {
+      return canUseAiNav(role);
     }
     return true;
   });
@@ -67,6 +76,7 @@ export function desktopPrimaryNav(
     { href: `${base}/teams`, label: "Teams", icon: Users },
     { href: `${base}/time`, label: "Timesheets", icon: Clock3 },
     { href: `${base}/approvals`, label: "Approvals", icon: ClipboardCheck },
+    { href: `${base}/ai`, label: "AI Workforce", icon: Sparkles },
     { href: `${base}/reports`, label: "Reports", icon: BarChart3 },
   ];
   return filterNavByRole(items, role);
@@ -159,6 +169,7 @@ export function pageTitleFromPath(pathname: string) {
     teams: "Teams",
     time: "Timesheets",
     approvals: "Approvals",
+    ai: "AI Workforce",
     reports: "Reports",
     settings: "Settings",
     notifications: "Notifications",

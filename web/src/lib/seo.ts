@@ -51,8 +51,11 @@ export function softwareApplicationJsonLd(catalog: PublicCatalog | null) {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: "FieldKeel",
+    description:
+      "Field service and operations management software for dispatch, crews, time, and approvals. Professional and Business plans include AI Workforce, a read-only assistant for authorized jobs, schedules, and missing site access.",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
+    url: SITE_URL,
     ...(catalog ? { offers } : {}),
   };
 }

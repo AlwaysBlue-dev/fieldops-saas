@@ -5,18 +5,23 @@ import Link from "next/link";
 export const metadata = publicPageMetadata({
   title: "FieldKeel field service management features",
   description:
-    "Explore FieldKeel scheduling, jobs, offline field work, missing access warnings, time tracking, approvals, and workspace tools.",
+    "Explore FieldKeel scheduling, jobs, AI Workforce, offline field work, missing access warnings, time tracking, approvals, and workspace tools.",
   path: "/features",
 });
 
 const features = [
   {
     title: "Schedule",
-    copy: "A shared operational calendar for visits, crews, and capacity.",
+    copy: "A shared operational calendar for planned visits and crew assignments. Scheduled work shows what is on the board — not a separate confirmation of each technician’s real-time availability.",
   },
   {
     title: "Jobs",
     copy: "Job records, sites, and status from draft through completion.",
+  },
+  {
+    title: "AI Workforce",
+    copy: "Ask natural-language questions about authorized jobs, schedules, and missing site access. Get operational summaries and recommendations based on retrieved data. Access is organization-scoped and role-aware. The current assistant is read-only — it does not assign technicians, reschedule work, change statuses, or send customer messages. Included on Professional and Business plans.",
+    href: "/docs/ai-workforce-overview",
   },
   {
     title: "Work Offline, Sync When Connected",
@@ -34,7 +39,7 @@ const features = [
   },
   {
     title: "Teams",
-    copy: "Crews, membership, and who is available to dispatch.",
+    copy: "Crews, membership, and who you can assign on the schedule board. Scheduling and assignment tools are separate from confirming whether someone is free or on shift at a given moment.",
   },
   {
     title: "Time",
@@ -63,7 +68,8 @@ export default function FeaturesPage() {
       </h1>
       <p className="mt-3 max-w-2xl text-muted-foreground">
         FieldKeel is an operations system: schedule, jobs, people, time,
-        and review. Each module is designed for both the office and the van.
+        review, and AI Workforce assistance on Professional and Business.
+        Each module is designed for both the office and the van.
       </p>
       <div className="mt-10 grid gap-3 sm:grid-cols-2">
         {features.map((feature) => (

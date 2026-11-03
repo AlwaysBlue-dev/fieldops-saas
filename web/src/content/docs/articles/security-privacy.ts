@@ -20,6 +20,8 @@ export const securityPrivacy: DocArticle = {
     "storage-overview",
     "forgot-password",
     "verify-work-email",
+    "ai-workforce-roles-access",
+    "ai-workforce-limits-safety",
   ],
   sections: [
     {
@@ -34,8 +36,16 @@ export const securityPrivacy: DocArticle = {
       id: "tenancy",
       heading: "Tenant isolation",
       paragraphs: [
-        "Operational records always belong to one organization. Lookups are scoped to that organization. Cross-organization ids return not found. Forbidden in-org actions are blocked. FieldKeel platform administration is separate and does not silently read tenant job photos or customer files.",
+        "Operational records always belong to one organization. Lookups are scoped to that organization. Cross-organization ids return not found. Forbidden in-org actions are blocked. FieldKeel platform administration is separate and does not silently read tenant job photos or customer files. AI Workforce uses the same organization membership context and cannot retrieve another organization’s jobs or schedules — see Who can use AI Workforce.",
         "Uploads require auth, org scope, size caps, MIME allow-lists, magic-byte checks, and private bucket keys under the organization. Presigned GET URLs are short-lived capability tokens issued only after authorization.",
+      ],
+    },
+    {
+      id: "ai-workforce",
+      heading: "AI Workforce boundaries",
+      paragraphs: [
+        "AI Workforce is read-only in the current product. Answers are based on authorized operational lookups and should be reviewed by users before acting. Generating an answer may involve configured AI service providers that process the conversation and retrieved operational results. See AI Workforce limits and safety and the public Privacy Policy for customer-facing detail.",
+        "This article does not invent AI provider retention periods, training policies, or compliance certifications.",
       ],
     },
     {

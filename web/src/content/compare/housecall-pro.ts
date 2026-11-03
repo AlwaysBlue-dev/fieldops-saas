@@ -4,7 +4,7 @@ export const housecallproComparison = {
   id: "housecall-pro",
   slug: "housecall-pro",
   title: "FieldKeel vs Housecall Pro: A Housecall Pro Alternative for Crews | FieldKeel",
-  metaDescription: "FieldKeel vs Housecall Pro for field service teams. Dispatch, crews, time, and approvals in one workspace, with 10 users for $499/year. Try FieldKeel free for 14 days.",
+  metaDescription: "FieldKeel vs Housecall Pro for field service teams. Dispatch, crews, time, and approvals in one workspace, with 10 users for $499/year. Professional and Business include read-only AI Workforce. Try FieldKeel free for 14 days.",
   heading: "FieldKeel vs Housecall Pro: A Housecall Pro Alternative for Operations-Focused Teams",
   introduction: [
     "Housecall Pro is a popular all-in-one platform for home service businesses. It covers online booking, estimates, invoicing, payments, financing, and reviews, with a long list of add-ons. It's a strong choice if you want the whole customer journey in one place.",
@@ -162,6 +162,10 @@ export const housecallproComparison = {
         {
           type: "paragraph",
           text: "**Designed for hands-on field work.** Bottom navigation, large tap targets, and keyboard-safe forms make it usable on a phone on a job site. Each person gets a My Day view, and the office gets a dense desktop layout with jobs, schedules, and sites."
+        },
+        {
+          type: "paragraph",
+          text: "**AI Workforce for operational questions (Professional and Business).** FieldKeel’s assistant answers natural-language questions about authorized jobs, schedules, and missing site access. It is read-only today — it does not assign technicians or change jobs. This comparison does not claim parity with any Housecall Pro AI features."
         }
       ]
     },
@@ -221,6 +225,10 @@ export const housecallproComparison = {
         {
           question: "Is there a free trial?",
           answer: "Yes. FieldKeel offers a 14-day free trial."
+        },
+        {
+          question: "Does FieldKeel include AI?",
+          answer: "Professional and Business include AI Workforce: a read-only assistant for questions about authorized jobs, schedules, and missing site access. It does not assign technicians, reschedule work, or change job statuses. This page does not claim that FieldKeel AI matches Housecall Pro’s AI product."
         }
       ]
     },

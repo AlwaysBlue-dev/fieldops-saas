@@ -9,6 +9,8 @@ export const PLAN_FEATURES = {
   CUSTOM_BRANDING: 'CUSTOM_BRANDING',
   /** Advanced/custom branding requirements (Business). */
   ADVANCED_BRANDING: 'ADVANCED_BRANDING',
+  /** AI Workforce assistant (Professional+). */
+  AI_WORKFORCE: 'AI_WORKFORCE',
 } as const;
 
 export type PlanFeature = (typeof PLAN_FEATURES)[keyof typeof PLAN_FEATURES];
@@ -24,7 +26,11 @@ export const DEFAULT_PLAN_FEATURES: PlanFeatureFlags = {
   ADVANCED_REPORTS: false,
   CUSTOM_BRANDING: false,
   ADVANCED_BRANDING: false,
+  AI_WORKFORCE: false,
 };
+
+/** Professional launch allowance when AI_WORKFORCE is enabled and catalog omits an override. */
+export const DEFAULT_AI_TASKS_PER_MONTH_PROFESSIONAL = 100;
 
 function readFlag(
   features: Record<string, unknown>,
@@ -90,7 +96,37 @@ export function resolvePlanFeatures(
       ['advancedBranding', 'advanced_branding'],
       DEFAULT_PLAN_FEATURES.ADVANCED_BRANDING,
     ),
+    AI_WORKFORCE: readFlag(
+      raw,
+      PLAN_FEATURES.AI_WORKFORCE,
+      ['aiWorkforce', 'ai_workforce'],
+      DEFAULT_PLAN_FEATURES.AI_WORKFORCE,
+    ),
   };
+}
+
+/**
+ * Monthly AI task allowance from Plan.features JSON (not plan code branching).
+ * Returns 0 when AI_WORKFORCE is disabled.
+ */
+export function resolveMaxAiTasksPerMonth(
+  features: Record<string, unknown> | null | undefined,
+): number {
+  const flags = resolvePlanFeatures(features);
+  if (!flags.AI_WORKFORCE) return 0;
+  const raw = features ?? {};
+  const value =
+    raw.maxAiTasksPerMonth ??
+    raw.max_ai_tasks_per_month ??
+    raw.aiTasksPerMonth;
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    if (Number.isFinite(n) && n >= 0) return Math.trunc(n);
+  }
+  return DEFAULT_AI_TASKS_PER_MONTH_PROFESSIONAL;
 }
 
 export function featureCatalog(flags: PlanFeatureFlags) {
@@ -121,6 +157,11 @@ export function featureCatalog(flags: PlanFeatureFlags) {
       key: PLAN_FEATURES.ADVANCED_BRANDING,
       label: 'Advanced branding',
       enabled: flags.ADVANCED_BRANDING,
+    },
+    {
+      key: PLAN_FEATURES.AI_WORKFORCE,
+      label: 'AI Workforce',
+      enabled: flags.AI_WORKFORCE,
     },
   ] as const;
 }

@@ -20,6 +20,7 @@ export const roles: DocArticle = {
     "approvals",
     "my-day",
     "job-workflow",
+    "ai-workforce-roles-access",
   ],
   sections: [
     {
@@ -35,7 +36,7 @@ export const roles: DocArticle = {
       heading: "Owner and Admin",
       paragraphs: [
         "Owner runs the company commercially and operationally: billing, plan & usage, subscription activation/renewal, membership, settings, and full operational scope. Only the Owner can open Settings → Plan & Subscription, Plan & Usage, and Billing. Admin configures the organization — users, roles, clients, sites, and most settings (including the normal working week and branding) — with broad operational access, but without commercial ownership of the subscription.",
-        "Both roles can manage members and organization profile settings. Admin cannot activate or renew the paid plan; that remains Owner-only. Both should be careful with last-owner protection when changing memberships.",
+        "Both roles can manage members and organization profile settings. Admin cannot activate or renew the paid plan; that remains Owner-only. Both should be careful with last-owner protection when changing memberships. When the plan includes AI Workforce, Owner and Admin can use the assistant — see Who can use AI Workforce.",
       ],
     },
     {
@@ -43,14 +44,14 @@ export const roles: DocArticle = {
       heading: "Operations manager and Supervisor",
       paragraphs: [
         "Operations manager owns the board: jobs, schedule, dispatch, exceptions, and the approvals action center. Expect full-organization visibility for day-to-day dispatch work.",
-        "Supervisor owns a crew. Scope for reports and many lists focuses on led teams and assigned jobs / those technicians’ time. Supervisors review My Day exceptions, timesheets, overtime, incomplete cards, and missing photos or signatures.",
+        "Supervisor owns a crew. Scope for reports and many lists focuses on led teams and assigned jobs / those technicians’ time. Supervisors review My Day exceptions, timesheets, overtime, incomplete cards, and missing photos or signatures. Operations manager and Supervisor can also open AI Workforce when the plan includes it; lookups still follow each role’s normal visibility.",
       ],
     },
     {
       id: "technician",
       heading: "Technician",
       paragraphs: [
-        "Technician is the field role. Lists and reports typically show assigned jobs and own time only. The mobile shell emphasizes My Day, clock in/out, job execution evidence, and time. Technicians do not manage org-wide membership or billing.",
+        "Technician is the field role. Lists and reports typically show assigned jobs and own time only. The mobile shell emphasizes My Day, clock in/out, job execution evidence, and time. Technicians do not manage org-wide membership or billing, and AI Workforce is not currently included in Technician navigation.",
       ],
     },
   ],

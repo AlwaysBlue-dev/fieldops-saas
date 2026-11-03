@@ -28,6 +28,8 @@ export const billingPlans: DocArticle = {
     "trial-onboarding",
     "storage-overview",
     "workspace-readonly",
+    "ai-workforce-plans-usage",
+    "ai-workforce-overview",
   ],
   sections: [
     {
@@ -35,7 +37,7 @@ export const billingPlans: DocArticle = {
       heading: "Public plans",
       paragraphs: [
         "Published plans: Starter at $299 per year with 5 users and 5 GB storage; Professional at $499 per year with 10 users and 20 GB (Most Popular, trial default); Business is contact sales with up to 100 users and 250 GB. Prices and limits come from the live plan catalog shown on Pricing.",
-        "Organization branding (logo upload) is available on Professional and above. Advanced branding options are Business-oriented. Most field functionality is available across plans; seats and storage are the primary commercial limits.",
+        "Organization branding (logo upload) is available on Professional and above. Advanced branding options are Business-oriented. Most field functionality is available across plans; seats and storage are the primary commercial limits. AI Workforce is included on Professional (100 tasks/month) and Business (500 tasks/month by default); it is not available on Starter — see AI Workforce plans and usage.",
       ],
     },
     {

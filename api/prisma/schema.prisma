@@ -220,6 +220,35 @@ enum NotificationStatus {
   READ
 }
 
+enum AiChatSessionStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+enum AiUsageStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  INTERRUPTED
+  SKIPPED
+}
+
+enum AiProposedActionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  EXECUTED
+  FAILED
+}
+
 // ---------------------------------------------------------------------------
 // Platform identity
 // ---------------------------------------------------------------------------
@@ -279,6 +308,11 @@ model User {
   invoicesCreated           Invoice[]                @relation("InvoiceCreator")
   invoicesVerified          Invoice[]                @relation("InvoiceVerifier")
   paymentNotices            InvoicePaymentNotice[]
+  aiChatSessions            AiChatSession[]
+  aiChatMessages            AiChatMessage[]
+  aiUsageEvents             AiUsageEvent[]
+  aiProposedActions         AiProposedAction[]       @relation("AiProposedActionRequester")
+  aiProposedActionDecisions AiProposedAction[]       @relation("AiProposedActionDecider")
 
   @@index([status])
   @@index([platformRole])
@@ -387,6 +421,10 @@ model Organization {
   notifications          Notification[]
   ownerMessages          OwnerMessage[]
   auditLogs              AuditLog[]
+  aiChatSessions         AiChatSession[]
+  aiChatMessages         AiChatMessage[]
+  aiUsageEvents          AiUsageEvent[]
+  aiProposedActions      AiProposedAction[]
 
   @@index([status])
 }
@@ -1295,4 +1333,127 @@ model AuditLog {
   @@index([organizationId, createdAt])
   @@index([entityType, entityId])
   @@index([actorUserId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// AI Workforce (separate from operational Approval inbox)
+// ---------------------------------------------------------------------------
+
+model AiChatSession {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @db.Uuid
+  userId         String              @db.Uuid
+  title          String?
+  status         AiChatSessionStatus @default(ACTIVE)
+  createdAt      DateTime            @default(now()) @db.Timestamptz
+  updatedAt      DateTime            @updatedAt @db.Timestamptz
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  messages     AiChatMessage[]
+  usageEvents  AiUsageEvent[]
+  proposals    AiProposedAction[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, userId, updatedAt])
+  @@index([organizationId, status, updatedAt])
+}
+
+model AiChatMessage {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @db.Uuid
+  sessionId      String        @db.Uuid
+  /// Set for USER turns; null for assistant/system/tool messages.
+  userId         String?       @db.Uuid
+  role           AiMessageRole
+  content        String
+  provider       String?
+  model          String?
+  metadata       Json?
+  /// ASSISTANT: normalized tool-call requests `[{ id, name, arguments }]` (provider-neutral).
+  toolCalls      Json?
+  /// TOOL: links this result to `AiToolCall.id` on the preceding assistant turn.
+  toolCallId     String?
+  /// TOOL: registered tool name for reconstruction (not authorization).
+  toolName       String?
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  session      AiChatSession @relation(fields: [sessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, sessionId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([sessionId, toolCallId])
+}
+
+/// Server-written ledger for AI task metering. Clients never submit token counters as authority.
+/// Accounting: PENDING + SUCCEEDED count toward the monthly limit; FAILED / INTERRUPTED / SKIPPED do not.
+model AiUsageEvent {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @db.Uuid
+  userId          String        @db.Uuid
+  sessionId       String?       @db.Uuid
+  /// Client-supplied UUID; unique per organization for idempotent retries.
+  clientRequestId String?       @db.Uuid
+  /// Secret claim for the single backend execution owner (never returned to clients).
+  executionToken  String?       @db.Uuid
+  provider        String
+  model           String?
+  /// Stable task kind (e.g. chat.turn, tool.getJobs).
+  taskKey         String
+  inputTokens     Int?
+  outputTokens    Int?
+  status          AiUsageStatus @default(PENDING)
+  /// When status=PENDING, lease expiry; heartbeats extend while execution owns the token.
+  expiresAt       DateTime?     @db.Timestamptz
+  /// Stored completion payload for idempotent SUCCEEDED retries (org/user scoped via this row).
+  resultPayload   Json?
+  metadata        Json?
+  createdAt       DateTime      @default(now()) @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @db.Timestamptz
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  session      AiChatSession? @relation(fields: [sessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, clientRequestId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, status, expiresAt])
+  @@index([organizationId, userId, createdAt])
+  @@index([sessionId])
+}
+
+/// AI-suggested mutation pending human review. Not the operational Approval inbox.
+model AiProposedAction {
+  id                      String                 @id @default(uuid()) @db.Uuid
+  organizationId          String                 @db.Uuid
+  userId                  String                 @db.Uuid
+  sessionId               String?                @db.Uuid
+  actionType              String
+  payload                 Json
+  targetEntityType        String?
+  targetEntityId          String?                @db.Uuid
+  /// Target record updatedAt (or equivalent) at proposal time for later stale checks.
+  expectedTargetUpdatedAt DateTime?              @db.Timestamptz
+  status                  AiProposedActionStatus @default(PENDING)
+  decidedByUserId         String?                @db.Uuid
+  decidedAt               DateTime?              @db.Timestamptz
+  decisionComment         String?
+  executedAt              DateTime?              @db.Timestamptz
+  executionResult         Json?
+  expiresAt               DateTime?              @db.Timestamptz
+  createdAt               DateTime               @default(now()) @db.Timestamptz
+  updatedAt               DateTime               @updatedAt @db.Timestamptz
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User           @relation("AiProposedActionRequester", fields: [userId], references: [id], onDelete: Restrict)
+  decidedBy    User?          @relation("AiProposedActionDecider", fields: [decidedByUserId], references: [id], onDelete: Restrict)
+  session      AiChatSession? @relation(fields: [sessionId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([id, organizationId])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, sessionId])
+  @@index([organizationId, targetEntityType, targetEntityId])
 }

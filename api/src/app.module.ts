@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AiModule } from './ai/ai.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { AppThrottlerGuard } from './common/guards/throttler.guard.js';
@@ -46,6 +47,7 @@ import { SubscriptionModule } from './subscription/subscription.module.js';
     MeModule,
     OrganizationsModule,
     SubscriptionModule,
+    AiModule,
     HealthModule,
   ],
   providers: [

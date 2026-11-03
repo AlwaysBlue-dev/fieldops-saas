@@ -11,6 +11,7 @@ import {
 } from './entitlement.js';
 import {
   featureCatalog,
+  resolveMaxAiTasksPerMonth,
   resolvePlanFeatures,
   type PlanFeature,
   type PlanFeatureFlags,
@@ -66,6 +67,7 @@ export class EntitlementService {
     return {
       maxUsers: plan.maxUsers,
       maxStorageBytes: plan.maxStorageBytes,
+      maxAiTasksPerMonth: resolveMaxAiTasksPerMonth(plan.features),
       planCode: plan.code,
       planName: plan.name,
       features: this.featuresForPlan(plan),

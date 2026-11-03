@@ -16,7 +16,8 @@ import { publicPageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "FieldKeel pricing plans",
-  description: "Compare FieldKeel Starter, Professional, and Business plans, including annual pricing, user capacity, storage, and trial details.",
+  description:
+    "Compare FieldKeel Starter, Professional, and Business plans, including annual pricing, user capacity, storage, AI Workforce allowances, and trial details.",
   path: "/pricing",
 });
 
@@ -42,18 +43,7 @@ function PricingCard({
 }) {
   const price = annualPriceParts(plan);
   const source =
-    plan.code === "professional"
-      ? [
-          "Everything in Starter",
-          "Approvals",
-          "Advanced Reports",
-          "Organization Branding",
-          "Standard Support",
-          "Product Updates",
-        ]
-      : plan.highlights?.length > 0
-        ? plan.highlights
-        : plan.inclusions;
+    plan.highlights?.length > 0 ? plan.highlights : plan.inclusions;
   const highlights = source.filter(
     (item) =>
       !/safety\s*&\s*job execution|materials\s*&\s*work logs|technician mobile/i.test(
@@ -185,6 +175,19 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       ),
     },
     {
+      label: "AI Workforce",
+      values: columns.map((p) => {
+        if (!p.featureFlags.AI_WORKFORCE) return "no";
+        const allowance = p.maxAiTasksPerMonth;
+        if (typeof allowance === "number" && allowance > 0) {
+          return p.code === "business"
+            ? `${allowance} tasks/month (default)`
+            : `${allowance} tasks/month`;
+        }
+        return "yes";
+      }),
+    },
+    {
       label: "Safety & job execution",
       values: ["yes", "yes", "yes"],
     },
@@ -203,12 +206,20 @@ function ComparisonSection({ plans }: { plans: PublicPlan[] }) {
       <h2 className="text-xl font-semibold tracking-tight">Compare plans</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         Limits and features come from the live plan catalog. Organization logo
-        uploads are included with Professional and Business. Offline field
-        preparation and Missing access info warnings are described on the{" "}
+        uploads and AI Workforce are included with Professional and Business
+        (Starter does not include AI Workforce). Offline field preparation and
+        Missing access info warnings are described on the{" "}
         <Link href="/features" className="font-medium text-primary hover:underline">
           Features
         </Link>{" "}
-        page; they are not separate plan add-ons in the catalog.
+        page; they are not separate plan add-ons in the catalog. See{" "}
+        <Link
+          href="/docs/ai-workforce-plans-usage"
+          className="font-medium text-primary hover:underline"
+        >
+          AI Workforce plans and usage
+        </Link>{" "}
+        for task counting.
       </p>
 
       {/* Mobile: stacked plan summaries */}
@@ -372,6 +383,26 @@ const FAQ_ITEMS = [
   {
     q: "What is Business?",
     a: "Business is for larger operations with higher user and storage limits and custom commercial requirements. Contact sales for a quote.",
+  },
+  {
+    q: "What is AI Workforce?",
+    a: "AI Workforce is FieldKeel’s natural-language assistant for understanding jobs, schedules, and missing site access information. It retrieves authorized operational data and can summarize what it finds. In the current product it is read-only — it does not assign technicians, reschedule jobs, change statuses, send customer messages, or dispatch work on its own.",
+  },
+  {
+    q: "Which plans include AI Workforce?",
+    a: "Professional includes AI Workforce with 100 AI tasks per month. Business includes AI Workforce with a default allowance of 500 AI tasks per month; that Business allowance is commercially configurable and may differ from the published default for your contract. Starter does not include AI Workforce.",
+  },
+  {
+    q: "What counts as one AI task?",
+    a: "One AI task is one complete user instruction you send in AI Workforce through to a finished outcome for that request. Internal lookups the assistant makes while answering do not each consume an extra task.",
+  },
+  {
+    q: "What happens when the monthly AI allowance is reached?",
+    a: "New AI requests are blocked until the allowance renews with the next usage period or your plan or allowance changes. FieldKeel shows a clear plan-limit message and does not silently start unpaid AI work.",
+  },
+  {
+    q: "Can AI assign technicians or change jobs?",
+    a: "No. AI Workforce does not assign technicians, reschedule visits, update job statuses, send customer messages, or execute proposed actions. Changes still happen through the normal FieldKeel screens and permissions.",
   },
 ] as const;
 

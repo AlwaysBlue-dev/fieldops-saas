@@ -7,6 +7,7 @@ export type PublicPlanFeatureFlags = {
   CUSTOM_BRANDING: boolean;
   ADVANCED_BRANDING: boolean;
   APPROVALS: boolean;
+  AI_WORKFORCE: boolean;
 };
 
 export type PublicPlan = {
@@ -23,6 +24,8 @@ export type PublicPlan = {
   maxStorageBytes: string;
   includedUsers: number;
   includedStorage: string;
+  /** Monthly AI task allowance from the plan catalog (0 when AI Workforce is off). */
+  maxAiTasksPerMonth?: number;
   positioning: string | null;
   badge: string | null;
   highlights: string[];

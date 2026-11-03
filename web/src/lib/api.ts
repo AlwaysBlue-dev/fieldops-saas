@@ -171,7 +171,14 @@ export async function apiRequest<T>(
         body:
           options.body === undefined ? undefined : JSON.stringify(options.body),
       });
-    } catch {
+    } catch (err) {
+      if (
+        options.signal?.aborted ||
+        (err instanceof DOMException && err.name === "AbortError") ||
+        (err instanceof Error && err.name === "AbortError")
+      ) {
+        throw new ApiError(0, "Request was cancelled.", "Aborted");
+      }
       throw new ApiError(
         0,
         "We couldn't reach the server. Check your connection and try again.",

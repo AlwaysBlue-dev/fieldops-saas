@@ -19,6 +19,7 @@ export const navigationTheme: DocArticle = {
     "my-day",
     "workspace-concept",
     "install-fieldkeel-on-phone",
+    "ai-workforce-overview",
   ],
   sections: [
     {
@@ -33,7 +34,7 @@ export const navigationTheme: DocArticle = {
       id: "desktop",
       heading: "Desktop command center",
       paragraphs: [
-        "On viewports about 1024px and wider, FieldKeel uses a collapsible navigation rail plus a top bar. The rail is for primary modules (jobs, schedule, clients, teams, approvals, reports, settings, and related areas depending on role). The top bar surfaces organization context, search/command entry, notifications, quick create, and account/theme controls.",
+        "On viewports about 1024px and wider, FieldKeel uses a collapsible navigation rail plus a top bar. The rail is for primary modules (jobs, schedule, clients, teams, approvals, AI Workforce where your role and plan allow it, reports, settings, and related areas depending on role). The top bar surfaces organization context, search/command entry, notifications, quick create, and account/theme controls.",
         "Use Ctrl+K (or the command affordance) to jump to jobs, people, and other entities without hunting through menus. Keyboard focus rings and Radix dialogs keep dense desktop workflows accessible.",
       ],
     },
