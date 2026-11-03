@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -25,6 +27,7 @@ import { AiService } from './ai.service.js';
 import { CreateAiSessionDto } from './dto/create-ai-session.dto.js';
 import { DecideAiProposalDto } from './dto/decide-ai-proposal.dto.js';
 import { SendAiMessageDto } from './dto/send-ai-message.dto.js';
+import { UpdateAiSessionDto } from './dto/update-ai-session.dto.js';
 
 @Controller('organizations/:organizationId/ai')
 /**
@@ -68,6 +71,26 @@ export class AiController {
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
     return this.ai.getSession(organization, user.id, sessionId);
+  }
+
+  @Patch('sessions/:sessionId')
+  renameSession(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() dto: UpdateAiSessionDto,
+  ) {
+    return this.ai.renameSession(organization, user.id, sessionId, dto.title);
+  }
+
+  @Delete('sessions/:sessionId')
+  @HttpCode(HttpStatus.OK)
+  deleteSession(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+  ) {
+    return this.ai.deleteSession(organization, user.id, sessionId);
   }
 
   @Post('sessions/:sessionId/messages')

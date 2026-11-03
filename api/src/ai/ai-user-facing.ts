@@ -33,6 +33,27 @@ export const AI_USER_MESSAGES = {
     'Execution ownership could not be confirmed; the request may still be running. Retry with the same request — a new AI task will not be started.',
   OWNERSHIP_LOST_GENERIC:
     'The AI request could not be confirmed as complete. Check the conversation before trying again with a new message.',
+  /**
+   * Post-tool rate limit: tools may already have run; final answer generation failed.
+   * Do not imply another provider will automatically continue this request.
+   */
+  POST_TOOL_RATE_LIMITED:
+    'Operational lookups for this request may have completed, but the final AI response could not be generated because the AI provider is temporarily rate-limited. This request only partially finished. Wait a moment, then send a new message.',
+  /**
+   * Post-tool: eligible provider failover exhausted after tools already ran.
+   */
+  POST_TOOL_FAILOVER_EXHAUSTED:
+    'Operational lookups for this request may have completed, but the final AI response could not be generated after trying available AI providers. This request only partially finished. Wait a moment, then send a new message.',
+  /**
+   * Post-tool ambiguous timeout: do not claim total failure or encourage a duplicate parallel request.
+   */
+  POST_TOOL_AMBIGUOUS_OUTCOME:
+    'Operational lookups for this request may have completed, but the final AI response outcome is uncertain after a timeout or interrupted provider call. Do not assume the answer finished. Check the conversation, wait if needed, then send a new message rather than assuming a duplicate retry of the same in-flight request.',
+  /**
+   * Post-tool definitive failure that is not rate-limit (auth/rejection) after tools ran.
+   */
+  POST_TOOL_FINAL_GENERATION_FAILED:
+    'Operational lookups for this request may have completed, but the final AI response could not be generated. This request only partially finished. Check the conversation, then send a new message.',
 } as const;
 
 const BY_FAILURE_CLASS: Record<
@@ -61,4 +82,35 @@ export function userFacingProviderError(error: AiProviderError): string {
       : AI_USER_MESSAGES.PROVIDER_AUTH;
   }
   return BY_FAILURE_CLASS[error.failureClass] ?? AI_USER_MESSAGES.UNEXPECTED;
+}
+
+/**
+ * User copy for failures after tools already ran.
+ * Never claims the whole request failed when operational lookups may have completed.
+ */
+export function userFacingPostToolProviderError(
+  error: AiProviderError,
+  options?: { failoverExhausted?: boolean },
+): string {
+  if (options?.failoverExhausted) {
+    return AI_USER_MESSAGES.POST_TOOL_FAILOVER_EXHAUSTED;
+  }
+  if (error.code === 'RATE_LIMITED') {
+    return AI_USER_MESSAGES.POST_TOOL_RATE_LIMITED;
+  }
+  if (
+    error.failureClass === 'AMBIGUOUS_OUTCOME' ||
+    error.transmissionCertainty === 'ambiguous' ||
+    error.code === 'TIMEOUT'
+  ) {
+    return AI_USER_MESSAGES.POST_TOOL_AMBIGUOUS_OUTCOME;
+  }
+  if (
+    error.code === 'AUTH' ||
+    error.code === 'NOT_CONFIGURED' ||
+    error.failureClass === 'INVALID_CONFIGURATION'
+  ) {
+    return userFacingProviderError(error);
+  }
+  return AI_USER_MESSAGES.POST_TOOL_FINAL_GENERATION_FAILED;
 }

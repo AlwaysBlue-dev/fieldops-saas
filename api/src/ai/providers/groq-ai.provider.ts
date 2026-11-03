@@ -10,6 +10,7 @@ import type { AiProvider } from './ai-provider.interface.js';
 import {
   AiProviderError,
   normalizeAiFinishReason,
+  parseRetryAfterSeconds,
   type AiChatMessageInput,
   type AiGenerateTextRequest,
   type AiGenerateTextResult,
@@ -522,6 +523,12 @@ export class GroqAiProvider implements AiProvider {
     this.logger.warn(`Groq HTTP ${status}`);
 
     if (status === 429) {
+      const retryAfterSeconds = parseRetryAfterSeconds(
+        response.headers.get('retry-after'),
+      );
+      this.logger.warn(
+        `Groq rate limited status=429 retryAfterSeconds=${retryAfterSeconds ?? 'n/a'}`,
+      );
       return new AiProviderError({
         code: 'RATE_LIMITED',
         provider: 'groq',
@@ -531,6 +538,7 @@ export class GroqAiProvider implements AiProvider {
         fallbackEligible: true,
         retryable: true,
         status,
+        retryAfterSeconds,
       });
     }
 

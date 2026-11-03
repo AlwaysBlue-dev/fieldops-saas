@@ -1,3 +1,4 @@
+import { AiMarkdown } from "./ai-markdown";
 import type { AiUiMessage } from "./types";
 import { cn } from "cn";
 
@@ -19,7 +20,7 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
   if (isSystem) {
     return (
       <div className="flex w-full justify-center px-2">
-        <p className="max-w-lg text-center text-xs text-muted-foreground">
+        <p className="max-w-lg text-center text-xs leading-relaxed text-muted-foreground">
           {message.content}
         </p>
       </div>
@@ -38,11 +39,15 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
           "max-w-[min(100%,42rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
           isUser
             ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md border border-border bg-card text-card-foreground",
+            : "rounded-bl-md border border-border bg-card text-card-foreground shadow-sm",
           message.optimistic && "opacity-80",
         )}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        {isUser ? (
+          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+        ) : (
+          <AiMarkdown content={message.content} />
+        )}
       </div>
       <time
         dateTime={message.createdAt}

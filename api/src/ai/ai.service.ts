@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -27,19 +29,29 @@ import { PLAN_FEATURES } from '../subscription/plan-features.js';
 import type { OrganizationContext } from '../tenancy/request-context.js';
 import { withTenant } from '../tenancy/tenant-scope.js';
 import {
+  evaluatePostToolProviderFailure,
+  formatPostToolProviderFailureLog,
+  POST_TOOL_FALLBACK_BLOCKED,
+  POST_TOOL_FALLBACK_ELIGIBLE,
+  POST_TOOL_FALLBACK_EXHAUSTED,
+  resolvePostToolFailoverExhausted,
+  type PostToolFailureResolution,
+} from './ai-post-tool-failure.js';
+import {
   AI_USER_MESSAGES,
   userFacingProviderError,
 } from './ai-user-facing.js';
 import { buildFieldkeelSystemPrompt } from './prompts/fieldkeel-system-prompt.js';
 import { AiProposalService } from './proposals/ai-proposal.service.js';
+import { classifyChainError } from './providers/ai-provider-chain.js';
 import type { AiProvider } from './providers/ai-provider.interface.js';
 import { AiProviderRouter } from './providers/ai-provider.router.js';
-import {
+import type {
+  AiChatMessageInput,
+  AiGenerateTextResult,
   AiProviderError,
-  type AiChatMessageInput,
-  type AiGenerateTextResult,
-  type AiToolCall,
-  type AiToolDefinition,
+  AiToolCall,
+  AiToolDefinition,
 } from './providers/ai-provider.types.js';
 import { startExecutionHeartbeat } from './providers/execution-heartbeat.js';
 import { windowRecentConversationRows } from './tools/ai-conversation-history.js';
@@ -181,6 +193,112 @@ export class AiService {
     });
   }
 
+  async renameSession(
+    organization: OrganizationContext,
+    userId: string,
+    sessionId: string,
+    title: string,
+  ) {
+    this.assertCanUseAi(organization);
+    await this.assertFeatureEnabled(organization.organizationId);
+
+    const trimmed = title.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Conversation title cannot be empty.');
+    }
+    if (trimmed.length > 200) {
+      throw new BadRequestException(
+        'Conversation title must be at most 200 characters.',
+      );
+    }
+
+    const updated = await this.prisma.aiChatSession.updateMany({
+      where: withTenant(organization.organizationId, {
+        id: sessionId,
+        userId,
+        status: AiChatSessionStatus.ACTIVE,
+      }),
+      data: { title: trimmed },
+    });
+    if (updated.count === 0) throw new NotFoundException();
+
+    const session = await this.prisma.aiChatSession.findFirst({
+      where: withTenant(organization.organizationId, {
+        id: sessionId,
+        userId,
+        status: AiChatSessionStatus.ACTIVE,
+      }),
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!session) throw new NotFoundException();
+    return session;
+  }
+
+  /**
+   * Soft-deletes (ARCHIVED) an owned conversation. Removes chat messages and
+   * tool-call history. Preserves AiUsageEvent rows for billing/audit and keeps
+   * AiProposedAction rows (session FK remains on the archived session).
+   */
+  async deleteSession(
+    organization: OrganizationContext,
+    userId: string,
+    sessionId: string,
+  ) {
+    this.assertCanUseAi(organization);
+    await this.assertFeatureEnabled(organization.organizationId);
+
+    const session = await this.prisma.aiChatSession.findFirst({
+      where: withTenant(organization.organizationId, {
+        id: sessionId,
+        userId,
+        status: AiChatSessionStatus.ACTIVE,
+      }),
+      select: { id: true, title: true },
+    });
+    if (!session) throw new NotFoundException();
+
+    const now = this.clock.now();
+    const activeExecution = await this.prisma.aiUsageEvent.findFirst({
+      where: withTenant(organization.organizationId, {
+        sessionId,
+        userId,
+        status: AiUsageStatus.PENDING,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      }),
+      select: { id: true },
+    });
+    if (activeExecution) {
+      throw new ConflictException(
+        'This conversation has a request still in progress. Wait for it to finish, or discard the pending request from the chat, then try deleting again.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.aiChatMessage.deleteMany({
+        where: withTenant(organization.organizationId, { sessionId }),
+      });
+      const archived = await tx.aiChatSession.updateMany({
+        where: withTenant(organization.organizationId, {
+          id: sessionId,
+          userId,
+          status: AiChatSessionStatus.ACTIVE,
+        }),
+        data: { status: AiChatSessionStatus.ARCHIVED },
+      });
+      if (archived.count === 0) {
+        throw new NotFoundException();
+      }
+    });
+
+    return { deleted: true as const, id: session.id };
+  }
+
   async getSession(
     organization: OrganizationContext,
     userId: string,
@@ -193,6 +311,7 @@ export class AiService {
       where: withTenant(organization.organizationId, {
         id: sessionId,
         userId,
+        status: AiChatSessionStatus.ACTIVE,
       }),
       select: {
         id: true,
@@ -564,7 +683,7 @@ export class AiService {
           };
         }
 
-        const decision = this.classifyChainError(error);
+        const decision = classifyChainError(error);
 
         if (decision.kind === 'unexpected') {
           this.logger.warn(
@@ -606,8 +725,10 @@ export class AiService {
         const providerError = decision.error;
         const attemptNumber = index + 1;
         const attemptModel = current.defaultModel();
+        const willFallback =
+          decision.kind === 'continue' && hasNextProvider;
         this.logger.warn(
-          `AI provider=${providerError.provider} model=${attemptModel} attempt=${attemptNumber} class=${providerError.failureClass} status=${providerError.status ?? 'n/a'} fallbackEligible=${providerError.fallbackEligible}`,
+          `AI phase=initial_generation provider=${providerError.provider} model=${attemptModel} attempt=${attemptNumber} class=${providerError.failureClass} code=${providerError.code} status=${providerError.status ?? 'n/a'} fallbackEligible=${providerError.fallbackEligible} fallback=${willFallback ? 'attempted' : decision.kind === 'ambiguous' ? 'skipped_ambiguous' : hasNextProvider ? 'skipped' : 'exhausted'} retryAfterSeconds=${providerError.retryAfterSeconds ?? 'n/a'}`,
         );
 
         if (decision.kind === 'ambiguous') {
@@ -620,10 +741,13 @@ export class AiService {
               code: providerError.code,
               transmissionCertainty: providerError.transmissionCertainty,
               fallbackEligible: false,
+              fallback: 'skipped_ambiguous',
+              phase: 'initial_generation',
               httpStatus: providerError.status,
               provider: providerError.provider,
               model: attemptModel,
               attemptNumber,
+              retryAfterSeconds: providerError.retryAfterSeconds,
             },
           });
           await this.afterUnsuccessfulTurn({
@@ -682,7 +806,7 @@ export class AiService {
           }
           if (providerError.failureClass === 'INVALID_CONFIGURATION') {
             this.logger.warn(
-              `AI configuration issue for provider=${providerError.provider}; skipping to next configured provider`,
+              `AI phase=initial_generation fallback=attempted reason=invalid_configuration provider=${providerError.provider}`,
             );
           }
           continue;
@@ -694,7 +818,7 @@ export class AiService {
         ) {
           const skipped = this.providerRouter.listSkippedProviders();
           this.logger.warn(
-            `AI provider chain exhausted after ${providerError.provider} (${providerError.failureClass}); skipped=${skipped
+            `AI phase=initial_generation fallback=exhausted after ${providerError.provider} (${providerError.failureClass}); skipped=${skipped
               .map((s) => `${s.id}:${s.reason}`)
               .join(',')}`,
           );
@@ -800,6 +924,7 @@ export class AiService {
     let totalOutputTokens = input.totalOutputTokens;
     let toolRounds = 0;
     let toolInvocations = 0;
+    let lockedProvider = input.lockedProvider;
     const {
       organizationId,
       session,
@@ -808,7 +933,6 @@ export class AiService {
       executionToken,
       userMessage,
       trimmed,
-      lockedProvider,
       toolDefinitions,
       toolContext,
       clientRequestId,
@@ -1019,86 +1143,265 @@ export class AiService {
           });
         }
 
-        const decision = this.classifyChainError(error);
-        // After tools ran / were persisted, never failover to another provider.
-        if (decision.kind === 'ambiguous' || decision.kind === 'unexpected') {
-          await this.usage.interruptReservation({
+        const decision = classifyChainError(error);
+        const resolution = evaluatePostToolProviderFailure(decision);
+        const chain = this.providerRouter.resolveExecutionChain();
+        const lockedIndex = chain.findIndex((p) => p.id === lockedProvider.id);
+        const alternates =
+          lockedIndex >= 0 ? chain.slice(lockedIndex + 1) : [];
+        const otherProviderConfigured = alternates.length > 0;
+        const logFailureClass =
+          resolution.failureClass ??
+          (decision.kind === 'unexpected' ? 'UNEXPECTED' : 'UNKNOWN');
+        const logCode =
+          resolution.code ??
+          (decision.kind === 'unexpected' ? 'UNKNOWN' : 'UNKNOWN');
+
+        this.logger.warn(
+          formatPostToolProviderFailureLog({
+            provider: lockedProvider.id,
+            model: lockedProvider.defaultModel(),
+            toolRounds,
+            httpStatus: resolution.httpStatus,
+            failureClass: logFailureClass,
+            code: logCode,
+            fallbackDecision: resolution.fallbackDecision,
+            otherProviderConfigured,
+            retryAfterSeconds: resolution.providerError?.retryAfterSeconds,
+          }),
+        );
+
+        // Safe post-tool generation failover: only when the locked provider
+        // definitively did not execute, tools are already persisted, and later
+        // providers exist. Never re-runs tools; never goes back to earlier providers.
+        if (resolution.mayFailover && otherProviderConfigured) {
+          const noted = await this.usage.noteProviderAttempt({
             organizationId,
             usageEventId: event.id,
             executionToken,
-            metadata: {
-              reason:
-                decision.kind === 'unexpected'
-                  ? 'unexpected_error_after_tools'
-                  : 'ambiguous_after_tools',
+            attempt: {
               provider: lockedProvider.id,
-              toolRounds,
-              toolInvocations,
-              failoverBlocked: true,
+              model: lockedProvider.defaultModel(),
+              attemptNumber: toolRounds + 1,
+              failureClass: resolution.failureClass ?? 'DEFINITIVE_REJECTION',
+              code: resolution.code ?? 'UNKNOWN',
+              httpStatus: resolution.httpStatus,
+              transmissionCertainty:
+                resolution.providerError?.transmissionCertainty ?? 'rejected',
+              at: new Date().toISOString(),
             },
           });
-          await this.afterUnsuccessfulTurn({
+          if (!noted) {
+            return this.reconcileOwnershipLost({
+              organizationId,
+              sessionId: session.id,
+              event,
+              providerStatus: lockedProvider.id,
+              message:
+                'Ownership lost while recording post-tool provider attempt; failover stopped.',
+            });
+          }
+
+          let lastFailoverError: AiProviderError | null =
+            resolution.providerError;
+          let recovered: AiGenerateTextResult | null = null;
+          let recoveredProvider: AiProvider | null = null;
+
+          for (const alternate of alternates) {
+            if (heartbeat.didLoseOwnership() || abort.signal.aborted) {
+              break;
+            }
+            this.logger.warn(
+              `AI phase=post_tool_failover fallback=attempted from=${lockedProvider.id} to=${alternate.id} toolRounds=${toolRounds}`,
+            );
+            try {
+              const providerMessages = await this.buildProviderMessages({
+                organizationId,
+                sessionId: session.id,
+                timeZone,
+              });
+              const nextGeneration = await alternate.generateText({
+                model: alternate.defaultModel(),
+                messages: providerMessages,
+                signal: abort.signal,
+                idempotencyKey: `${organizationId}:${clientRequestId}:r${toolRounds}:${alternate.id}`,
+                ...(toolDefinitions.length > 0
+                  ? { tools: toolDefinitions, toolChoice: 'auto' as const }
+                  : {}),
+              });
+              recovered = nextGeneration;
+              recoveredProvider = alternate;
+              break;
+            } catch (altError) {
+              if (heartbeat.didLoseOwnership()) {
+                break;
+              }
+              const altDecision = classifyChainError(altError);
+              const altResolution =
+                evaluatePostToolProviderFailure(altDecision);
+              lastFailoverError = altResolution.providerError;
+              this.logger.warn(
+                formatPostToolProviderFailureLog({
+                  provider: alternate.id,
+                  model: alternate.defaultModel(),
+                  toolRounds,
+                  httpStatus: altResolution.httpStatus,
+                  failureClass:
+                    altResolution.failureClass ??
+                    (altDecision.kind === 'unexpected'
+                      ? 'UNEXPECTED'
+                      : 'UNKNOWN'),
+                  code:
+                    altResolution.code ??
+                    (altDecision.kind === 'unexpected' ? 'UNKNOWN' : 'UNKNOWN'),
+                  fallbackDecision: altResolution.mayFailover
+                    ? POST_TOOL_FALLBACK_ELIGIBLE
+                    : altResolution.fallbackDecision,
+                  otherProviderConfigured: true,
+                  phase: 'post_tool_failover',
+                  retryAfterSeconds:
+                    altResolution.providerError?.retryAfterSeconds,
+                }),
+              );
+
+              if (!altResolution.mayFailover) {
+                return this.finalizePostToolFailure({
+                  organizationId,
+                  sessionId: session.id,
+                  event,
+                  executionToken,
+                  userMessage,
+                  lockedProviderId: alternate.id,
+                  toolRounds,
+                  toolInvocations,
+                  resolution: altResolution,
+                  otherProviderConfigured: true,
+                  failoverBlocked: !altResolution.mayFailover,
+                });
+              }
+
+              const altNoted = await this.usage.noteProviderAttempt({
+                organizationId,
+                usageEventId: event.id,
+                executionToken,
+                attempt: {
+                  provider: alternate.id,
+                  model: alternate.defaultModel(),
+                  attemptNumber: toolRounds + 1,
+                  failureClass:
+                    altResolution.failureClass ?? 'DEFINITIVE_REJECTION',
+                  code: altResolution.code ?? 'UNKNOWN',
+                  httpStatus: altResolution.httpStatus,
+                  transmissionCertainty:
+                    altResolution.providerError?.transmissionCertainty ??
+                    'rejected',
+                  at: new Date().toISOString(),
+                },
+              });
+              if (!altNoted) {
+                return this.reconcileOwnershipLost({
+                  organizationId,
+                  sessionId: session.id,
+                  event,
+                  providerStatus: alternate.id,
+                  message:
+                    'Ownership lost while recording post-tool failover attempt.',
+                });
+              }
+            }
+          }
+
+          if (recovered && recoveredProvider) {
+            if (heartbeat.didLoseOwnership()) {
+              return this.reconcileOwnershipLost({
+                organizationId,
+                sessionId: session.id,
+                event,
+                providerStatus: recoveredProvider.id,
+                message:
+                  'Ownership lost after post-tool failover generation; not finalized.',
+              });
+            }
+            this.logger.warn(
+              `AI phase=post_tool_failover fallback=succeeded provider=${recoveredProvider.id} toolRounds=${toolRounds}`,
+            );
+            lockedProvider = recoveredProvider;
+            generation = recovered;
+            totalInputTokens += generation.usage.inputTokens ?? 0;
+            totalOutputTokens += generation.usage.outputTokens ?? 0;
+            continue;
+          }
+
+          if (heartbeat.didLoseOwnership()) {
+            return this.reconcileOwnershipLost({
+              organizationId,
+              sessionId: session.id,
+              event,
+              providerStatus: lockedProvider.id,
+              message:
+                'Ownership lost during post-tool failover; not finalized.',
+            });
+          }
+
+          const exhausted = resolvePostToolFailoverExhausted(lastFailoverError);
+          this.logger.warn(
+            formatPostToolProviderFailureLog({
+              provider: lockedProvider.id,
+              model: lockedProvider.defaultModel(),
+              toolRounds,
+              httpStatus: exhausted.httpStatus,
+              failureClass: exhausted.failureClass ?? 'DEFINITIVE_REJECTION',
+              code: exhausted.code ?? 'UNKNOWN',
+              fallbackDecision: POST_TOOL_FALLBACK_EXHAUSTED,
+              otherProviderConfigured: true,
+              phase: 'post_tool_failover',
+            }),
+          );
+          return this.finalizePostToolFailure({
             organizationId,
             sessionId: session.id,
-            usageEventId: event.id,
-            outcome: 'INTERRUPTED',
-          });
-          return {
-            sessionId: session.id,
-            execution: 'INTERRUPTED' as const,
-            usageEvent: {
-              id: event.id,
-              clientRequestId: event.clientRequestId,
-              status: AiUsageStatus.INTERRUPTED,
-            },
+            event,
+            executionToken,
             userMessage,
-            providerStatus: lockedProvider.id,
-            message:
-              decision.kind === 'ambiguous'
-                ? userFacingProviderError(decision.error)
-                : AI_USER_MESSAGES.UNEXPECTED,
-            failureClass:
-              decision.kind === 'ambiguous'
-                ? decision.error.failureClass
-                : undefined,
-            fallbackEligible: false,
-          };
-        }
-
-        const providerError = decision.error;
-        await this.usage.failReservation({
-          organizationId,
-          usageEventId: event.id,
-          executionToken,
-          metadata: {
-            reason: providerError.failureClass,
-            code: providerError.code,
-            provider: providerError.provider,
+            lockedProviderId: lockedProvider.id,
             toolRounds,
             toolInvocations,
-            failoverBlocked: true,
-          },
-        });
-        await this.afterUnsuccessfulTurn({
+            resolution: exhausted,
+            otherProviderConfigured: true,
+            failoverBlocked: false,
+          });
+        }
+
+        if (resolution.mayFailover && !otherProviderConfigured) {
+          this.logger.warn(
+            `AI phase=post_tool fallback=skipped reason=no_alternate provider=${lockedProvider.id} decision=${POST_TOOL_FALLBACK_ELIGIBLE}`,
+          );
+        } else if (!resolution.mayFailover) {
+          this.logger.warn(
+            `AI phase=post_tool fallback=skipped reason=safety provider=${lockedProvider.id} decision=${resolution.fallbackDecision}`,
+          );
+        }
+
+        return this.finalizePostToolFailure({
           organizationId,
           sessionId: session.id,
-          usageEventId: event.id,
-          outcome: 'FAILED',
-        });
-        return {
-          sessionId: session.id,
-          execution: 'FAILED' as const,
-          usageEvent: {
-            id: event.id,
-            clientRequestId: event.clientRequestId,
-            status: AiUsageStatus.FAILED,
-          },
+          event,
+          executionToken,
           userMessage,
-          providerStatus: lockedProvider.id,
-          message: userFacingProviderError(providerError),
-          failureClass: providerError.failureClass,
-          fallbackEligible: false,
-        };
+          lockedProviderId: lockedProvider.id,
+          toolRounds,
+          toolInvocations,
+          resolution: {
+            ...resolution,
+            fallbackDecision: resolution.mayFailover
+              ? POST_TOOL_FALLBACK_EXHAUSTED
+              : resolution.fallbackDecision === POST_TOOL_FALLBACK_ELIGIBLE
+                ? POST_TOOL_FALLBACK_BLOCKED
+                : resolution.fallbackDecision,
+          },
+          otherProviderConfigured,
+          failoverBlocked: !resolution.mayFailover,
+        });
       }
     }
 
@@ -1338,43 +1641,6 @@ export class AiService {
     });
   }
 
-  private classifyChainError(
-    error: unknown,
-  ):
-    | { kind: 'continue'; error: AiProviderError }
-    | { kind: 'ambiguous'; error: AiProviderError }
-    | { kind: 'fail'; error: AiProviderError }
-    | { kind: 'unexpected' } {
-    if (!(error instanceof AiProviderError)) {
-      return { kind: 'unexpected' };
-    }
-
-    if (
-      error.failureClass === 'INVALID_RESPONSE' ||
-      error.transmissionCertainty === 'invalid_response'
-    ) {
-      return { kind: 'fail', error };
-    }
-
-    if (
-      error.failureClass === 'AMBIGUOUS_OUTCOME' ||
-      error.transmissionCertainty === 'ambiguous'
-    ) {
-      return { kind: 'ambiguous', error };
-    }
-
-    if (
-      error.failureClass === 'INVALID_CONFIGURATION' ||
-      (error.fallbackEligible &&
-        (error.failureClass === 'DEFINITIVE_REJECTION' ||
-          error.failureClass === 'PRE_TRANSMISSION_FAILURE'))
-    ) {
-      return { kind: 'continue', error };
-    }
-
-    return { kind: 'fail', error };
-  }
-
   private async finalizeSuccessfulTurn(input: {
     organizationId: string;
     session: { id: string; title: string | null };
@@ -1458,6 +1724,96 @@ export class AiService {
               'Development stub response — not counted toward AI task quota.',
           }
         : {}),
+    };
+  }
+
+  /**
+   * Terminalize a post-tool generation failure. Does not re-execute tools.
+   * Preserves partial-completion user copy from the resolution.
+   */
+  private async finalizePostToolFailure(input: {
+    organizationId: string;
+    sessionId: string;
+    event: AiUsageEvent;
+    executionToken: string;
+    userMessage: AiChatMessage;
+    lockedProviderId: string;
+    toolRounds: number;
+    toolInvocations: number;
+    resolution: PostToolFailureResolution;
+    otherProviderConfigured: boolean;
+    failoverBlocked: boolean;
+  }): Promise<Record<string, unknown>> {
+    const { resolution } = input;
+    const metadata = {
+      reason: resolution.metadataReason,
+      code: resolution.code,
+      provider: input.lockedProviderId,
+      toolRounds: input.toolRounds,
+      toolInvocations: input.toolInvocations,
+      failoverBlocked: input.failoverBlocked,
+      fallbackDecision: resolution.fallbackDecision,
+      failureClass: resolution.failureClass,
+      httpStatus: resolution.httpStatus,
+      otherProviderConfigured: input.otherProviderConfigured,
+      phase: 'post_tool',
+      retryAfterSeconds: resolution.providerError?.retryAfterSeconds ?? null,
+    };
+
+    if (resolution.execution === 'INTERRUPTED') {
+      await this.usage.interruptReservation({
+        organizationId: input.organizationId,
+        usageEventId: input.event.id,
+        executionToken: input.executionToken,
+        metadata,
+      });
+      await this.afterUnsuccessfulTurn({
+        organizationId: input.organizationId,
+        sessionId: input.sessionId,
+        usageEventId: input.event.id,
+        outcome: 'INTERRUPTED',
+      });
+      return {
+        sessionId: input.sessionId,
+        execution: 'INTERRUPTED' as const,
+        usageEvent: {
+          id: input.event.id,
+          clientRequestId: input.event.clientRequestId,
+          status: AiUsageStatus.INTERRUPTED,
+        },
+        userMessage: input.userMessage,
+        providerStatus: input.lockedProviderId,
+        message: resolution.userMessage,
+        failureClass: resolution.failureClass,
+        fallbackEligible: false,
+      };
+    }
+
+    await this.usage.failReservation({
+      organizationId: input.organizationId,
+      usageEventId: input.event.id,
+      executionToken: input.executionToken,
+      metadata,
+    });
+    await this.afterUnsuccessfulTurn({
+      organizationId: input.organizationId,
+      sessionId: input.sessionId,
+      usageEventId: input.event.id,
+      outcome: 'FAILED',
+    });
+    return {
+      sessionId: input.sessionId,
+      execution: 'FAILED' as const,
+      usageEvent: {
+        id: input.event.id,
+        clientRequestId: input.event.clientRequestId,
+        status: AiUsageStatus.FAILED,
+      },
+      userMessage: input.userMessage,
+      providerStatus: input.lockedProviderId,
+      message: resolution.userMessage,
+      failureClass: resolution.failureClass,
+      fallbackEligible: false,
     };
   }
 
