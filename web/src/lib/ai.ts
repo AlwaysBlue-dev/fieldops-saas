@@ -425,7 +425,8 @@ export function isAiAbortError(error: unknown): boolean {
   return error instanceof ApiError && error.error === "Aborted";
 }
 
-export function isAiPlanLimitError(error: unknown): error is ApiError {
+/** Plan/quota block for AI tasks. Returns boolean only — do not use `error is ApiError` (false branch would narrow an ApiError to never). */
+export function isAiPlanLimitError(error: unknown): boolean {
   return (
     error instanceof ApiError &&
     (error.code === "PLAN_LIMIT_REACHED" ||
