@@ -18,6 +18,7 @@ import {
   planApprovalsEnabled,
   planBadge,
   planPositioning,
+  resolveMaxAiTasksPerMonth,
   resolvePlanFeatures,
 } from './plan-features.js';
 
@@ -65,6 +66,7 @@ export class CatalogService {
           badge: planBadge(plan.features),
           highlights,
           inclusions: highlights,
+          maxAiTasksPerMonth: resolveMaxAiTasksPerMonth(plan.features),
           featureFlags: {
             ...featureFlags,
             APPROVALS: planApprovalsEnabled(plan.features),

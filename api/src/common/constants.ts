@@ -54,6 +54,41 @@ export const AUDIT_RENEWAL_REQUESTED = 'RENEWAL_REQUESTED';
 export const AUDIT_PLAN_CHANGED = 'PLAN_CHANGED';
 export const AUDIT_PLAN_CHANGE_REQUESTED = 'PLAN_CHANGE_REQUESTED';
 export const AUDIT_PLAN_LIMIT_BLOCKED = 'PLAN_LIMIT_BLOCKED';
+
+/** How long an AI task PENDING reservation may hold quota before recovery to INTERRUPTED. */
+export const AI_TASK_RESERVATION_TTL_SECONDS = 300;
+/** Backend owner heartbeat while a provider call is in flight (lease TTL is 300s). */
+export const AI_EXECUTION_HEARTBEAT_INTERVAL_MS = 60_000;
+/** Groq OpenAI-compatible chat completions endpoint. */
+export const GROQ_CHAT_COMPLETIONS_URL =
+  'https://api.groq.com/openai/v1/chat/completions';
+/**
+ * Default Groq model when GROQ_MODEL is unset.
+ * Override via env — do not hardcode model ids at call sites.
+ */
+export const DEFAULT_GROQ_MODEL = 'qwen/qwen3.8-27b';
+/** Default Groq request timeout (ms). Abort does not prove non-execution. */
+export const DEFAULT_GROQ_TIMEOUT_MS = 120_000;
+/** Gemini generateContent base (model id appended). */
+export const GEMINI_GENERATE_CONTENT_BASE_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models';
+/**
+ * Default Gemini model when GEMINI_MODEL is unset.
+ * Override via env — confirm against Google’s current model list.
+ */
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+/** Default Gemini request timeout (ms). Abort does not prove non-execution. */
+export const DEFAULT_GEMINI_TIMEOUT_MS = 120_000;
+/** OpenRouter OpenAI-compatible chat completions endpoint. */
+export const OPENROUTER_CHAT_COMPLETIONS_URL =
+  'https://openrouter.ai/api/v1/chat/completions';
+/**
+ * Default OpenRouter model when OPENROUTER_MODEL is unset.
+ * Override via env — confirm against OpenRouter’s current catalog.
+ */
+export const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen3-32b';
+/** Default OpenRouter request timeout (ms). Abort does not prove non-execution. */
+export const DEFAULT_OPENROUTER_TIMEOUT_MS = 120_000;
 export const AUDIT_ORGANIZATION_ACTIVATED = 'ORGANIZATION_ACTIVATED';
 export const AUDIT_ORGANIZATION_SUSPENDED = 'ORGANIZATION_SUSPENDED';
 export const AUDIT_ORGANIZATION_REACTIVATED = 'ORGANIZATION_REACTIVATED';

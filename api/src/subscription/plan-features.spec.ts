@@ -1,4 +1,8 @@
-import { resolvePlanFeatures, PLAN_FEATURES } from './plan-features.js';
+import {
+  resolveMaxAiTasksPerMonth,
+  resolvePlanFeatures,
+  PLAN_FEATURES,
+} from './plan-features.js';
 
 describe('plan-features', () => {
   it('defaults most field features on without plan-code branching', () => {
@@ -10,6 +14,29 @@ describe('plan-features', () => {
     expect(flags.ADVANCED_REPORTS).toBe(false);
     expect(flags.CUSTOM_BRANDING).toBe(false);
     expect(flags.ADVANCED_BRANDING).toBe(false);
+    expect(flags.AI_WORKFORCE).toBe(false);
+  });
+
+  it('resolves AI monthly allowances from features JSON', () => {
+    expect(resolveMaxAiTasksPerMonth({})).toBe(0);
+    expect(
+      resolveMaxAiTasksPerMonth({
+        [PLAN_FEATURES.AI_WORKFORCE]: true,
+        maxAiTasksPerMonth: 100,
+      }),
+    ).toBe(100);
+    expect(
+      resolveMaxAiTasksPerMonth({
+        [PLAN_FEATURES.AI_WORKFORCE]: true,
+        maxAiTasksPerMonth: 500,
+      }),
+    ).toBe(500);
+    expect(
+      resolveMaxAiTasksPerMonth({
+        [PLAN_FEATURES.AI_WORKFORCE]: false,
+        maxAiTasksPerMonth: 100,
+      }),
+    ).toBe(0);
   });
 
   it('honors explicit feature keys and legacy gps/reports aliases', () => {

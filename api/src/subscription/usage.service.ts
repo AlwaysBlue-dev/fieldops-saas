@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { AUDIT_PLAN_LIMIT_BLOCKED } from '../common/constants.js';
 import {
+  AiUsageStatus,
   InvitationStatus,
   MembershipStatus,
 } from '../generated/prisma/client.js';
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageQuotaService } from '../storage/storage-quota.service.js';
 import { EntitlementService } from './entitlement.service.js';
 import { formatStorageBytes } from './plan-catalog.js';
+import { resolveMaxAiTasksPerMonth } from './plan-features.js';
 import { throwPlanLimitReached } from './plan-limit.exception.js';
 
 @Injectable()
@@ -47,6 +49,30 @@ export class UsageService {
   }
 
   /**
+   * AI tasks holding quota in the current UTC calendar month:
+   * SUCCEEDED + non-expired PENDING. FAILED / INTERRUPTED / SKIPPED do not count.
+   * Aligns with jobsCreatedThisMonth calendar-month boundary.
+   */
+  async aiTasksThisMonth(organizationId: string, now = new Date()) {
+    const start = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+    );
+    return this.prisma.aiUsageEvent.count({
+      where: {
+        organizationId,
+        createdAt: { gte: start },
+        OR: [
+          { status: AiUsageStatus.SUCCEEDED },
+          {
+            status: AiUsageStatus.PENDING,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+        ],
+      },
+    });
+  }
+
+  /**
    * Usage nested in subscription DTOs (legacy shape).
    */
   async usageForSubscription(organizationId: string) {
@@ -67,13 +93,20 @@ export class UsageService {
   async getSummary(organizationId: string) {
     const entitlement = await this.entitlements.evaluate(organizationId);
     const plan = entitlement.plan;
-    const [membersUsed, pendingInvites, storageUsed, jobsThisMonth] =
-      await Promise.all([
-        this.countActiveMembers(organizationId),
-        this.countPendingInvites(organizationId),
-        this.storageUsedBytes(organizationId),
-        this.jobsCreatedThisMonth(organizationId),
-      ]);
+    const features = this.entitlements.featuresForPlan(plan);
+    const [
+      membersUsed,
+      pendingInvites,
+      storageUsed,
+      jobsThisMonth,
+      aiTasksThisMonth,
+    ] = await Promise.all([
+      this.countActiveMembers(organizationId),
+      this.countPendingInvites(organizationId),
+      this.storageUsedBytes(organizationId),
+      this.jobsCreatedThisMonth(organizationId),
+      this.aiTasksThisMonth(organizationId),
+    ]);
 
     return {
       plan: {
@@ -101,8 +134,67 @@ export class UsageService {
         limitBytes: plan.maxStorageBytes,
       },
       jobsThisMonth,
+      aiTasks: {
+        used: aiTasksThisMonth,
+        limit: resolveMaxAiTasksPerMonth(plan.features),
+        enabled: features.AI_WORKFORCE,
+      },
       features: this.entitlements.featureList(plan),
     };
+  }
+
+  /**
+   * Soft preflight only. Prefer AiUsageService.beginExecution for concurrent safety
+   * (FOR UPDATE + PENDING insert + execution ownership). Never trust client counters.
+   */
+  async assertAiTaskAvailable(
+    organizationId: string,
+    options: { actorUserId?: string | null } = {},
+  ) {
+    const entitlement = await this.entitlements.evaluate(organizationId);
+    const features = this.entitlements.featuresForPlan(entitlement.plan);
+    if (!features.AI_WORKFORCE) {
+      throw new ForbiddenException(
+        'AI Workforce is not included on your current plan.',
+      );
+    }
+    const limit = resolveMaxAiTasksPerMonth(entitlement.plan.features);
+    const used = await this.aiTasksThisMonth(organizationId);
+    if (used >= limit) {
+      await this.recordAiLimitBlocked({
+        organizationId,
+        actorUserId: options.actorUserId,
+        used,
+        limit,
+        planCode: entitlement.plan.code,
+      });
+      throwPlanLimitReached({
+        limitType: 'AI_TASKS',
+        used,
+        limit,
+        planCode: entitlement.plan.code,
+        planName: entitlement.plan.name,
+        message: `You've reached the ${limit} AI task limit for this month on your ${entitlement.plan.name} plan.`,
+      });
+    }
+  }
+
+  /** Shared audit helper for AI quota blocks (UsageService + AiUsageService). */
+  async recordAiLimitBlocked(input: {
+    organizationId: string;
+    actorUserId?: string | null;
+    used: number | string;
+    limit: number | string;
+    planCode: string;
+  }) {
+    await this.recordLimitBlocked({
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+      limitType: 'AI_TASKS',
+      used: input.used,
+      limit: input.limit,
+      planCode: input.planCode,
+    });
   }
 
   async assertSeatAvailable(
@@ -183,7 +275,7 @@ export class UsageService {
   private async recordLimitBlocked(input: {
     organizationId: string;
     actorUserId?: string | null;
-    limitType: 'USERS' | 'STORAGE';
+    limitType: 'USERS' | 'STORAGE' | 'AI_TASKS';
     used: number | string;
     limit: number | string;
     planCode: string;

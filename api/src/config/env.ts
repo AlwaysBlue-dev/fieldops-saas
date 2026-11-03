@@ -224,4 +224,110 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PADDLE_LIVE_PROFESSIONAL_PRICE_ID?: string;
+
+  /**
+   * AI Workforce primary provider selector.
+   * `stub` is development-only (rejected when NODE_ENV=production at request time).
+   * Keys must never be exposed to the web client.
+   */
+  @IsOptional()
+  @IsIn(['groq', 'gemini', 'openrouter', 'stub', 'none'])
+  AI_PROVIDER?: string;
+
+  /** Backend-only Groq API key. Never send to the web client. */
+  @IsOptional()
+  @IsString()
+  GROQ_API_KEY?: string;
+
+  /**
+   * Groq model id (e.g. a Qwen model on Groq).
+   * Defaults to DEFAULT_GROQ_MODEL when unset.
+   */
+  @IsOptional()
+  @IsString()
+  GROQ_MODEL?: string;
+
+  /** Groq HTTP timeout in ms. Default 120000. Abort ≠ non-execution. */
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+  })
+  @IsInt()
+  @Min(1_000)
+  GROQ_TIMEOUT_MS?: number;
+
+  /** Backend-only Gemini API key. Never send to the web client. */
+  @IsOptional()
+  @IsString()
+  GEMINI_API_KEY?: string;
+
+  /**
+   * Gemini model id (e.g. gemini-2.5-flash).
+   * Defaults to DEFAULT_GEMINI_MODEL when unset.
+   */
+  @IsOptional()
+  @IsString()
+  GEMINI_MODEL?: string;
+
+  /** Gemini HTTP timeout in ms. Default 120000. Abort ≠ non-execution. */
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+  })
+  @IsInt()
+  @Min(1_000)
+  GEMINI_TIMEOUT_MS?: number;
+
+  /** Backend-only OpenRouter API key. Never send to the web client. */
+  @IsOptional()
+  @IsString()
+  OPENROUTER_API_KEY?: string;
+
+  /**
+   * OpenRouter model id (vendor/model).
+   * Defaults to DEFAULT_OPENROUTER_MODEL when unset.
+   */
+  @IsOptional()
+  @IsString()
+  OPENROUTER_MODEL?: string;
+
+  /** OpenRouter HTTP timeout in ms. Default 120000. Abort ≠ non-execution. */
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+  })
+  @IsInt()
+  @Min(1_000)
+  OPENROUTER_TIMEOUT_MS?: number;
+
+  /** Optional OpenRouter HTTP-Referer (site URL attribution). */
+  @IsOptional()
+  @IsString()
+  OPENROUTER_SITE_URL?: string;
+
+  /** Optional OpenRouter X-Title (app name attribution). */
+  @IsOptional()
+  @IsString()
+  OPENROUTER_APP_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  AI_DEFAULT_MODEL?: string;
+
+  /** Optional override for AI PENDING reservation TTL (seconds). Default 300. */
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.trunc(n) : undefined;
+  })
+  @IsInt()
+  @Min(30)
+  AI_TASK_RESERVATION_TTL_SECONDS?: number;
 }

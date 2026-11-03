@@ -20,6 +20,7 @@ export const whatIsFieldkeel: DocArticle = {
     "trial-onboarding",
     "workspace-concept",
     "roles",
+    "ai-workforce-overview",
   ],
   sections: [
     {
@@ -42,7 +43,7 @@ export const whatIsFieldkeel: DocArticle = {
       id: "what-you-get",
       heading: "What you get in the workspace",
       paragraphs: [
-        "Inside an organization you manage clients (your customers) and their sites, teams and technician profiles, job cards with a enforced lifecycle, a schedule board with drag-and-drop, My Day for field crews, clock events with optional GPS, job execution evidence, an approvals inbox for job completions, timesheets, and overtime, operational reports with CSV and job PDF exports, and org-wide file storage under a plan quota.",
+        "Inside an organization you manage clients (your customers) and their sites, teams and technician profiles, job cards with a enforced lifecycle, a schedule board with drag-and-drop, My Day for field crews, clock events with optional GPS, job execution evidence, an approvals inbox for job completions, timesheets, and overtime, operational reports with CSV and job PDF exports, org-wide file storage under a plan quota, and — on Professional and Business — AI Workforce for natural-language questions about jobs, schedules, and missing access (see What is AI Workforce?).",
         "Commercial access is organization-scoped. New workspaces start on a 14-day Professional trial with no card required, then a short grace period before the workspace becomes read-only until FieldKeel activates a paid plan by manual invoice.",
       ],
     },

@@ -5,7 +5,8 @@ import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "FieldKeel trust and security information",
-  description: "Find FieldKeel's current security, privacy, data protection, location, billing, and account policies in one place.",
+  description:
+    "Find FieldKeel's current security, privacy, data protection, AI Workforce boundaries, location, billing, and account policies in one place.",
   path: "/trust",
 });
 
@@ -24,6 +25,11 @@ const sections = [
     title: "Data protection",
     copy: "Organization-scoped records, private object storage, and authorized file access.",
     href: "/security",
+  },
+  {
+    title: "AI Workforce",
+    copy: "Natural-language assistance stays within your organization membership and job visibility. The current assistant is read-only; review answers before acting.",
+    href: "/docs/ai-workforce-limits-safety",
   },
   {
     title: "Account security",
@@ -95,7 +101,8 @@ export default async function TrustPage() {
           <Link href="/security">Security</Link>
           <Link href="/billing-policy">Billing Policy</Link>
           <Link href="/acceptable-use">Acceptable Use</Link>
-          <Link href="/documentation">Documentation</Link>
+          <Link href="/docs">Documentation</Link>
+          <Link href="/docs/ai-workforce-overview">AI Workforce</Link>
           <Link href="/support">Support</Link>
         </div>
       </section>

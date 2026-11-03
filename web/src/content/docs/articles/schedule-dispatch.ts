@@ -19,6 +19,8 @@ export const scheduleDispatch: DocArticle = {
     "teams-technicians-overview",
     "my-day",
     "sites-access-notes",
+    "ai-workforce-capabilities",
+    "ai-workforce-limits-safety",
   ],
   sections: [
     {

@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 
-export type PlanLimitType = 'USERS' | 'STORAGE';
+export type PlanLimitType = 'USERS' | 'STORAGE' | 'AI_TASKS';
 
 export type PlanLimitReachedPayload = {
   statusCode: 403;
@@ -34,4 +34,17 @@ export function throwPlanLimitReached(input: {
     planName: input.planName,
   };
   throw new ForbiddenException(payload);
+}
+
+/** True when `error` is the structured PLAN_LIMIT_REACHED ForbiddenException. */
+export function isPlanLimitReachedException(
+  error: unknown,
+): error is ForbiddenException {
+  if (!(error instanceof ForbiddenException)) return false;
+  const body = error.getResponse();
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
+  const record = body as Record<string, unknown>;
+  return (
+    record.error === 'PLAN_LIMIT_REACHED' || record.code === 'PLAN_LIMIT_REACHED'
+  );
 }

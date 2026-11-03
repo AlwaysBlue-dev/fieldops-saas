@@ -42,6 +42,7 @@ const footer = {
   Product: [
     { href: "/features", label: "Features" },
     { href: "/pricing", label: "Pricing" },
+    { href: "/docs/ai-workforce-overview", label: "AI Workforce" },
     { href: "/docs", label: "Documentation" },
     { href: "/support", label: "Support" },
   ],

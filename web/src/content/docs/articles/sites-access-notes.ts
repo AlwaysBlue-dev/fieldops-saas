@@ -19,6 +19,7 @@ export const sitesAccess: DocArticle = {
     "job-execution",
     "schedule-dispatch",
     "offline-field-operations",
+    "ai-workforce-capabilities",
   ],
   sections: [
     {

@@ -37,6 +37,13 @@ import { approvals } from "./articles/approvals";
 
 import { reports } from "./articles/reports";
 
+import { aiWorkforceOverview } from "./articles/ai-workforce-overview";
+import { aiWorkforceCapabilities } from "./articles/ai-workforce-capabilities";
+import { aiWorkforcePlansUsage } from "./articles/ai-workforce-plans-usage";
+import { aiWorkforceRolesAccess } from "./articles/ai-workforce-roles-access";
+import { aiWorkforceLimitsSafety } from "./articles/ai-workforce-limits-safety";
+import { aiWorkforceTroubleshooting } from "./articles/ai-workforce-troubleshooting";
+
 import { storageOverview } from "./articles/storage-overview";
 import { storageLimitReached } from "./articles/storage-limit-reached";
 
@@ -151,6 +158,14 @@ export const allCategories: DocCategory[] = [
     primarySlug: "reports",
   },
   {
+    id: "ai-workforce",
+    title: "AI Workforce",
+    description:
+      "Learn how FieldKeel AI Workforce helps teams understand jobs, schedules, and operational issues.",
+    order: 125,
+    primarySlug: "ai-workforce-overview",
+  },
+  {
     id: "quick-create",
     title: "Quick Create",
     description: "Top-bar shortcuts to start common records quickly.",
@@ -226,6 +241,12 @@ export const allArticles: DocArticle[] = [
   jobExecution,
   approvals,
   reports,
+  aiWorkforceOverview,
+  aiWorkforceCapabilities,
+  aiWorkforcePlansUsage,
+  aiWorkforceRolesAccess,
+  aiWorkforceLimitsSafety,
+  aiWorkforceTroubleshooting,
   storageOverview,
   storageLimitReached,
   billingPlans,

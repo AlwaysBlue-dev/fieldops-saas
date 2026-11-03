@@ -7,7 +7,8 @@ import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "FieldKeel documentation and guides",
-  description: "Browse FieldKeel guides for workspaces, jobs, crews, time tracking, storage, billing, and troubleshooting.",
+  description:
+    "Browse FieldKeel guides for workspaces, jobs, crews, time tracking, AI Workforce, storage, billing, and troubleshooting.",
   path: "/docs",
 });
 
@@ -19,6 +20,8 @@ const POPULAR = [
   "sites-access-notes",
   "teams-technicians-overview",
   "billing-plans",
+  "ai-workforce-overview",
+  "ai-workforce-capabilities",
 ] as const;
 
 export default function DocsHomePage() {
@@ -34,7 +37,7 @@ export default function DocsHomePage() {
           </h1>
           <p className="mt-3 text-muted-foreground">
             Guides for the features that ship today — workspaces, jobs, crews,
-            time, storage, billing, and troubleshooting.
+            time, AI Workforce, storage, billing, and troubleshooting.
           </p>
 
           <div className="mt-8">

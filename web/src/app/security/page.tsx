@@ -5,7 +5,8 @@ import { publicPageMetadata } from "@/lib/seo";
 
 export const metadata = publicPageMetadata({
   title: "FieldKeel security",
-  description: "Read about FieldKeel's current application security practices, including organization access controls, private file access, and audit logging.",
+  description:
+    "Read about FieldKeel's current application security practices, including organization access controls, private file access, audit logging, and AI Workforce boundaries.",
   path: "/security",
 });
 
@@ -32,11 +33,39 @@ export default async function SecurityPage() {
           <li>Least-privilege checks on platform versus tenant APIs</li>
         </ul>
       </LegalSection>
+      <LegalSection title="AI Workforce">
+        <p>
+          AI Workforce runs inside the signed-in user&apos;s organization
+          membership. Lookups for jobs, schedules, and missing access use the
+          same organization scope and role-based job visibility as the rest of
+          FieldKeel. The assistant cannot open another organization&apos;s data.
+        </p>
+        <p>
+          In the current product, AI Workforce is read-only: it retrieves and
+          summarizes authorized operational information. It does not assign
+          technicians, reschedule jobs, change statuses, send customer messages,
+          or dispatch work on its own. Answers should be reviewed by users
+          before operational decisions.
+        </p>
+        <p>
+          Generating an answer may involve configured AI service providers that
+          process the conversation and the operational results the assistant is
+          allowed to retrieve. FieldKeel does not claim third-party AI provider
+          certifications or retention guarantees on this page. See the{" "}
+          <Link href="/privacy">Privacy Policy</Link> and{" "}
+          <Link href="/docs/ai-workforce-limits-safety">
+            AI Workforce limits and safety
+          </Link>
+          .
+        </p>
+      </LegalSection>
       <LegalSection title="What we do not claim">
         <p>
           This page does not list SOC 2, ISO, HIPAA, or other certifications.
           Backup and hosting-region statements will be added when a production
-          strategy is actually configured.
+          strategy is actually configured. We also do not invent AI provider
+          retention, encryption, or compliance certifications beyond what those
+          providers publish separately.
         </p>
       </LegalSection>
       <LegalSection title="Report a security concern">
@@ -49,8 +78,9 @@ export default async function SecurityPage() {
           customer passwords or payment credentials.
         </p>
         <p>
-          Related: <Link href="/trust">Trust Center</Link> and{" "}
-          <Link href="/privacy">Privacy Policy</Link>.
+          Related: <Link href="/trust">Trust Center</Link>,{" "}
+          <Link href="/privacy">Privacy Policy</Link>, and{" "}
+          <Link href="/docs/ai-workforce-overview">AI Workforce documentation</Link>.
         </p>
       </LegalSection>
     </LegalDocument>

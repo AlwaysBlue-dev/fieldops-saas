@@ -19,6 +19,7 @@ export const jobsOverview: DocArticle = {
     "schedule-dispatch",
     "clients-overview",
     "sites-access-notes",
+    "ai-workforce-capabilities",
   ],
   sections: [
     {
