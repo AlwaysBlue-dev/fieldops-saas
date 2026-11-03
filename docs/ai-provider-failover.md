@@ -256,6 +256,23 @@ Keep `PENDING` + `executionToken`. Call `noteProviderAttempt`. Do **not** create
 | `INVALID_RESPONSE` | `failReservation`; stop chain |
 | Success | Finalize once via `completeTurnAtomically` |
 
+## Post-tool generation failover (Step 4.9)
+
+After the first successful provider response, FieldKeel **locks** that provider for
+tool rounds. Tool handlers run only in NestJS; results are persisted under the same
+`AiUsageEvent` reservation **before** the next generation call.
+
+When the **follow-up generation** (after tools were persisted) fails:
+
+| Condition | Action |
+|-----------|--------|
+| HTTP 429 / definitive rejection / pre-transmission / invalid config (`fallbackEligible`, certainty `rejected` \| `not_transmitted` \| `invalid_configuration`) | May try **later** providers only (never earlier). Rebuild transcript from DB. **Do not** re-execute tools. Same reservation / `clientRequestId`. |
+| Ambiguous timeout / lost response / `INVALID_RESPONSE` | **No** failover. Terminalize as INTERRUPTED or FAILED with partial-completion user copy. |
+| No later provider configured | Terminalize; do not invent a new task. |
+
+HTTP `Retry-After` is parsed and logged when present. FieldKeel does **not** sleep and
+retry the same provider automatically (avoids duplicate upstream work).
+
 ## Idempotency (local vs upstream)
 
 - **`organizationId` + `clientRequestId`**: FieldKeel-local idempotency and quota identity.

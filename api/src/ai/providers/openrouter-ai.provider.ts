@@ -10,6 +10,7 @@ import type { AiProvider } from './ai-provider.interface.js';
 import {
   AiProviderError,
   normalizeAiFinishReason,
+  parseRetryAfterSeconds,
   type AiChatMessageInput,
   type AiGenerateTextRequest,
   type AiGenerateTextResult,
@@ -528,6 +529,12 @@ export class OpenRouterAiProvider implements AiProvider {
     this.logger.warn(`OpenRouter HTTP ${status}`);
 
     if (status === 429) {
+      const retryAfterSeconds = parseRetryAfterSeconds(
+        response.headers.get('retry-after'),
+      );
+      this.logger.warn(
+        `OpenRouter rate limited status=429 retryAfterSeconds=${retryAfterSeconds ?? 'n/a'}`,
+      );
       return new AiProviderError({
         code: 'RATE_LIMITED',
         provider: 'openrouter',
@@ -537,6 +544,7 @@ export class OpenRouterAiProvider implements AiProvider {
         fallbackEligible: true,
         retryable: true,
         status,
+        retryAfterSeconds,
       });
     }
 

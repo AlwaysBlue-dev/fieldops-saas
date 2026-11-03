@@ -259,6 +259,12 @@ export class AiProviderError extends Error {
   readonly fallbackEligible: boolean;
   readonly retryable: boolean;
   readonly status: number | null;
+  /**
+   * Vendor Retry-After guidance in seconds when present (HTTP 429).
+   * Logged for operators; FieldKeel does not auto-sleep/retry the same provider
+   * on this value (avoids duplicate execution risk).
+   */
+  readonly retryAfterSeconds: number | null;
 
   constructor(input: {
     code: AiProviderErrorCode;
@@ -269,6 +275,7 @@ export class AiProviderError extends Error {
     fallbackEligible?: boolean;
     retryable?: boolean;
     status?: number | null;
+    retryAfterSeconds?: number | null;
     cause?: unknown;
   }) {
     super(input.message, { cause: input.cause });
@@ -286,7 +293,26 @@ export class AiProviderError extends Error {
       (input.code === 'RATE_LIMITED' ||
         input.failureClass === 'PRE_TRANSMISSION_FAILURE');
     this.status = input.status ?? null;
+    this.retryAfterSeconds = input.retryAfterSeconds ?? null;
   }
+}
+
+/** Parse HTTP Retry-After (delta-seconds or HTTP-date). Returns seconds or null. */
+export function parseRetryAfterSeconds(
+  header: string | null | undefined,
+  nowMs: number = Date.now(),
+): number | null {
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (!trimmed) return null;
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number.parseInt(trimmed, 10);
+    return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
+  }
+  const when = Date.parse(trimmed);
+  if (Number.isNaN(when)) return null;
+  const delta = Math.ceil((when - nowMs) / 1000);
+  return delta >= 0 ? delta : 0;
 }
 
 export function isRateLimitError(error: unknown): boolean {

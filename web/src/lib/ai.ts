@@ -326,6 +326,36 @@ export function getAiSession(
   );
 }
 
+export function renameAiSession(
+  organizationId: string,
+  sessionId: string,
+  title: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<AiSessionSummary>(
+    `${aiBase(organizationId)}/sessions/${sessionId}`,
+    {
+      method: "PATCH",
+      body: { title },
+      signal,
+    },
+  );
+}
+
+export function deleteAiSession(
+  organizationId: string,
+  sessionId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<{ deleted: true; id: string }>(
+    `${aiBase(organizationId)}/sessions/${sessionId}`,
+    {
+      method: "DELETE",
+      signal,
+    },
+  );
+}
+
 export function sendAiMessage(
   organizationId: string,
   sessionId: string,

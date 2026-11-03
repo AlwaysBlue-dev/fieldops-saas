@@ -17,6 +17,7 @@ import {
   aiFriendlyError,
   clearPendingAiRequest,
   createAiSession,
+  deleteAiSession,
   findNewestPendingAiRequest,
   getAiSession,
   getAiUsage,
@@ -25,6 +26,7 @@ import {
   listAiSessions,
   newAiClientRequestId,
   readPendingAiRequest,
+  renameAiSession,
   sendAiMessageWithReconcile,
   transcriptHasUserContent,
   writePendingAiRequest,
@@ -344,6 +346,73 @@ export function AiWorkforcePage() {
     releaseActionLock,
     showPendingBannerFor,
   ]);
+
+  const isSessionBusy = useCallback(
+    (sessionId: string) => {
+      if (pendingSend?.sessionId === sessionId) return true;
+      if (submitting && activeIdRef.current === sessionId) return true;
+      if (!organizationId) return false;
+      return Boolean(readPendingAiRequest(organizationId, sessionId));
+    },
+    [organizationId, pendingSend, submitting],
+  );
+
+  const handleRenameSession = useCallback(
+    async (sessionId: string, title: string) => {
+      if (!organizationId) {
+        throw new Error("Organization is not ready.");
+      }
+      const updated = await renameAiSession(organizationId, sessionId, title);
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                title: updated.title,
+                updatedAt: updated.updatedAt,
+                status: updated.status,
+              }
+            : s,
+        ),
+      );
+    },
+    [organizationId],
+  );
+
+  const handleDeleteSession = useCallback(
+    async (sessionId: string) => {
+      if (!organizationId) {
+        throw new Error("Organization is not ready.");
+      }
+      if (isSessionBusy(sessionId)) {
+        throw new Error(
+          "A request is still running in this conversation. Wait for it to finish, then try again.",
+        );
+      }
+      await deleteAiSession(organizationId, sessionId);
+      clearPendingAiRequest(organizationId, sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+
+      if (pendingSendRef.current?.sessionId === sessionId) {
+        setPendingSend(null);
+        pendingSendRef.current = null;
+        setBanner(null);
+        setSubmitting(false);
+        setPendingLabel(undefined);
+      }
+
+      if (activeIdRef.current === sessionId) {
+        messagesGenRef.current += 1;
+        setActiveId(null);
+        activeIdRef.current = null;
+        setMessages([]);
+        setMessageLimitReached(false);
+        setMessagesLoading(false);
+        setDraft("");
+      }
+    },
+    [isSessionBusy, organizationId],
+  );
 
   const handleNewChat = useCallback(async () => {
     if (!organizationId || actionLock.current || creatingSession || submitting) {
@@ -918,6 +987,9 @@ export function AiWorkforcePage() {
             activeId={activeId}
             onSelect={(id) => void handleSelect(id)}
             onNewChat={() => void handleNewChat()}
+            onRename={handleRenameSession}
+            onDelete={handleDeleteSession}
+            isSessionBusy={isSessionBusy}
             loading={sessionsLoading && sessions.length === 0}
             creating={creatingSession || submitting}
             listLimit={AI_SESSION_LIST_LIMIT}
@@ -938,6 +1010,9 @@ export function AiWorkforcePage() {
                 activeId={activeId}
                 onSelect={(id) => void handleSelect(id)}
                 onNewChat={() => void handleNewChat()}
+                onRename={handleRenameSession}
+                onDelete={handleDeleteSession}
+                isSessionBusy={isSessionBusy}
                 loading={sessionsLoading && sessions.length === 0}
                 creating={creatingSession || submitting}
                 listLimit={AI_SESSION_LIST_LIMIT}
