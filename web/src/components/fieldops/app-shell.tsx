@@ -332,7 +332,7 @@ function AppShellContent({
           orgName={currentMembership.organization.name}
         />
       ) : null}
-      <div className="flex min-h-dvh overflow-x-hidden bg-workspace">
+      <div className="flex h-dvh overflow-hidden bg-workspace">
         <a
           href="#workspace-main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:bg-card focus:px-3 focus:py-2"
@@ -346,7 +346,7 @@ function AppShellContent({
           onToggle={toggleRail}
           onHelp={() => setHelpOpen(true)}
         />
-        <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+        <div className="flex h-dvh min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
           <TopBar
             orgSlug={orgSlug}
             memberships={memberships}
@@ -375,7 +375,7 @@ function AppShellContent({
           <main
             id="workspace-main"
             className={cn(
-              "min-w-0 flex-1 overflow-x-hidden px-4 py-4 md:px-6 md:py-5",
+              "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-5",
               "pb-mobile-nav lg:pb-5",
             )}
           >

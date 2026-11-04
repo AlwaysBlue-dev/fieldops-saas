@@ -101,6 +101,20 @@ export function AiWorkforcePage() {
     pendingSendRef.current = pendingSend;
   }, [pendingSend]);
 
+  /** Friendly “still working” copy while a live request is in flight. */
+  useEffect(() => {
+    if (!submitting) return;
+    setPendingLabel("Looking up operations data…");
+    const soft = window.setTimeout(() => {
+      setPendingLabel(
+        "Still working — this can take up to about a minute for larger lookups…",
+      );
+    }, 25_000);
+    return () => {
+      window.clearTimeout(soft);
+    };
+  }, [submitting]);
+
   const persistPending = useCallback(
     (
       orgId: string,
@@ -256,7 +270,7 @@ export function AiWorkforcePage() {
   const showPendingBannerFor = useCallback((pending: PendingSend) => {
     setBanner({
       tone: "warning",
-      text: "A previous AI request may still be running on the server. Retry uses the same request id and will not start a new AI task. Check the conversation before sending a new message.",
+      text: "A previous AI request may still be running. Use Retry if shown — that continues the same work and will not start a second AI task. Check the conversation before sending a new message.",
     });
     void pending;
   }, []);
@@ -418,6 +432,17 @@ export function AiWorkforcePage() {
     if (!organizationId || actionLock.current || creatingSession || submitting) {
       return;
     }
+    // Already on an empty draft — reuse it instead of stacking "New chat" rows.
+    if (
+      activeIdRef.current &&
+      !messagesLoading &&
+      messages.length === 0
+    ) {
+      setDraft("");
+      setBanner(null);
+      setMobileSidebarOpen(false);
+      return;
+    }
     actionLock.current = true;
     const owner = Symbol("ai-new-chat");
     lockOwnerRef.current = owner;
@@ -426,16 +451,8 @@ export function AiWorkforcePage() {
     abortFrontendWait();
     try {
       const session = await createAiSession(organizationId);
-      setSessions((prev) => [
-        {
-          id: session.id,
-          title: session.title,
-          status: session.status,
-          createdAt: session.createdAt,
-          updatedAt: session.updatedAt,
-        },
-        ...prev.filter((s) => s.id !== session.id),
-      ]);
+      // Server archives other empty drafts on create — refresh so they leave the sidebar.
+      await refreshSessions(organizationId);
       messagesGenRef.current += 1;
       setActiveId(session.id);
       activeIdRef.current = session.id;
@@ -456,7 +473,10 @@ export function AiWorkforcePage() {
   }, [
     abortFrontendWait,
     creatingSession,
+    messages.length,
+    messagesLoading,
     organizationId,
+    refreshSessions,
     releaseActionLock,
     submitting,
   ]);
@@ -541,10 +561,25 @@ export function AiWorkforcePage() {
       const controller = new AbortController();
       sendAbortRef.current = controller;
 
+      const isRetrySameRequest =
+        pendingSendRef.current?.clientRequestId === input.clientRequestId;
+
       setSubmitting(true);
-      setPendingLabel("Sending to AI Workforce…");
+      setPendingLabel("Looking up operations data…");
       setBanner(null);
       setPending(organizationId, input);
+
+      // Optimistic meter: PENDING holds quota until the server settles.
+      if (!isRetrySameRequest) {
+        setUsage((prev) => {
+          if (!prev?.enabled || prev.remaining <= 0) return prev;
+          return {
+            ...prev,
+            used: Math.min(prev.limit, prev.used + 1),
+            remaining: Math.max(0, prev.remaining - 1),
+          };
+        });
+      }
 
       const viewingThisSession = () => activeIdRef.current === input.sessionId;
       const optimisticId = `optimistic-${input.clientRequestId}`;
@@ -650,13 +685,13 @@ export function AiWorkforcePage() {
                 ];
               });
               setBanner({
-                tone: "warning",
-                text: "This request is still pending and the message could not be confirmed in history yet. Retry uses the same request id and will not start a new AI task.",
+                tone: "info",
+                text: "Still working on this request. Use Retry to keep waiting on the same question — that will not start a second AI task.",
               });
             } else {
               setBanner({
-                tone: "warning",
-                text: "This request is still in progress on the server. We will not start a new AI task. You can retry with the same request, or check the conversation shortly.",
+                tone: "info",
+                text: "Still working on this request — larger lookups can take about a minute. Retry continues the same work without using another AI task.",
               });
             }
           }
@@ -720,7 +755,7 @@ export function AiWorkforcePage() {
           if (viewingThisSession()) {
             setBanner({
               tone: "warning",
-              text: "We couldn't reach the server. Your request may still be running — retry uses the same request id and will not start a new AI task.",
+              text: "We could not reach FieldKeel. Your request may still be running — use Retry if shown to continue the same request.",
             });
           }
         } else {
@@ -784,7 +819,7 @@ export function AiWorkforcePage() {
       ) {
         setBanner({
           tone: "error",
-          text: "You've reached your monthly AI task allowance. New AI requests are blocked until the next billing period or a plan change.",
+          text: "You've used this month's AI task allowance. New questions are blocked until next month (UTC) or a plan change. You can still read past conversations.",
         });
         return;
       }
@@ -803,16 +838,7 @@ export function AiWorkforcePage() {
         try {
           const session = await createAiSession(organizationId);
           sessionId = session.id;
-          setSessions((prev) => [
-            {
-              id: session.id,
-              title: session.title,
-              status: session.status,
-              createdAt: session.createdAt,
-              updatedAt: session.updatedAt,
-            },
-            ...prev.filter((s) => s.id !== session.id),
-          ]);
+          await refreshSessions(organizationId);
           messagesGenRef.current += 1;
           setActiveId(session.id);
           activeIdRef.current = session.id;
@@ -849,7 +875,7 @@ export function AiWorkforcePage() {
         pendingSendRef.current = existing;
         setBanner({
           tone: "warning",
-          text: "A request is still pending in this conversation. Retry or discard it before sending a different message. Retry keeps the same request id.",
+          text: "A request is still pending in this conversation. Use Retry to continue it, or Discard before sending a different message. Retry continues the same request.",
         });
         if (lockOwnerRef.current === preSendOwner) {
           releaseActionLock();
@@ -876,6 +902,7 @@ export function AiWorkforcePage() {
       creatingSession,
       draft,
       organizationId,
+      refreshSessions,
       releaseActionLock,
       runSend,
       submitting,
@@ -923,7 +950,7 @@ export function AiWorkforcePage() {
 
   if (bootLoading) {
     return (
-      <div className="mx-auto max-w-[1500px] rounded-xl border border-border bg-card p-6">
+      <div className="mx-auto w-full max-w-[1500px] flex-1 rounded-xl border border-border bg-card p-6">
         <SkeletonBlock rows={8} />
       </div>
     );
@@ -931,7 +958,7 @@ export function AiWorkforcePage() {
 
   if (bootError || !organizationId) {
     return (
-      <div className="mx-auto max-w-[1500px] rounded-xl border border-border bg-card p-6">
+      <div className="mx-auto w-full max-w-[1500px] flex-1 rounded-xl border border-border bg-card p-6">
         <ErrorState
           title="Could not open AI Workforce"
           description={bootError ?? "Organization context is unavailable."}
@@ -942,7 +969,7 @@ export function AiWorkforcePage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] max-w-[1500px] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-border bg-workspace shadow-raise md:h-[calc(100dvh-6.5rem)] lg:h-[calc(100dvh-5.5rem)]">
+    <div className="mx-auto flex h-full min-h-[28rem] w-full max-w-[1500px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-workspace shadow-raise">
       <AiChatHeader
         onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
         sidebarOpen={mobileSidebarOpen}
@@ -1054,7 +1081,7 @@ export function AiWorkforcePage() {
                 {pendingSend ? (
                   <p className="text-sm text-muted-foreground">
                     You have a pending AI request in another conversation. Open
-                    that chat to retry with the same request id.
+                    that chat to retry the same request.
                   </p>
                 ) : null}
                 <Button
@@ -1089,20 +1116,28 @@ export function AiWorkforcePage() {
                 pendingLabel={pendingLabel}
                 messageLimitReached={messageLimitReached}
                 messageLimit={AI_SESSION_MESSAGE_LIMIT}
+                onPickFollowUp={handlePickPrompt}
+                followUpsDisabled={
+                  submitting ||
+                  creatingSession ||
+                  (Boolean(usage?.enabled) &&
+                    typeof usage?.remaining === "number" &&
+                    usage.remaining <= 0)
+                }
               />
             )}
           </div>
-          {pendingForActive && !banner ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber/40 bg-amber/10 px-3 py-2 text-xs text-foreground md:px-4">
+          {pendingForActive && !banner && !submitting ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/50 px-3 py-2 text-xs text-foreground md:px-4">
               <p className="min-w-0 flex-1">
-                Pending AI request — retry keeps the same request id.
+                A previous request may still be finishing. Retry continues the
+                same work without starting a new AI task.
               </p>
               <div className="flex shrink-0 gap-2">
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={submitting}
                   onClick={() => void handleRetryPending()}
                 >
                   Retry same request
@@ -1111,10 +1146,9 @@ export function AiWorkforcePage() {
                   type="button"
                   size="sm"
                   variant="ghost"
-                  disabled={submitting}
                   onClick={handleAbandonPending}
                 >
-                  Discard retry
+                  Discard
                 </Button>
               </div>
             </div>
@@ -1125,7 +1159,7 @@ export function AiWorkforcePage() {
             onSubmit={() => void handleSend()}
             onPickPrompt={handlePickPrompt}
             showPromptChips={
-              !showWelcome && !messagesLoading && messages.length === 0
+              Boolean(activeId) && !showWelcome && !messagesLoading
             }
             submitting={submitting || creatingSession}
             disabled={!organizationId}

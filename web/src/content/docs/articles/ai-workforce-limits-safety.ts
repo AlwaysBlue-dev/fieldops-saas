@@ -18,6 +18,7 @@ export const aiWorkforceLimitsSafety: DocArticle = {
     "review",
   ],
   relatedSlugs: [
+    "ai-workforce-troubleshooting",
     "ai-workforce-capabilities",
     "ai-workforce-overview",
     "schedule-dispatch",

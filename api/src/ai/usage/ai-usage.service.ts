@@ -572,7 +572,13 @@ export class AiUsageService {
     outputTokens?: number | null;
     finishReason?: string | null;
     sessionTitle?: string | null;
-    /** When true, finalize as SKIPPED (non-billable stub) instead of SUCCEEDED. */
+    /**
+     * When true, finalize as SKIPPED (non-billable) instead of SUCCEEDED.
+     * Used for development stubs and incomplete outcomes that must not hold quota
+     * (e.g. tool-execution limit exceeded).
+     */
+    nonBillable?: boolean;
+    /** @deprecated Prefer `nonBillable`. Kept for call-site compatibility. */
     nonBillableStub?: boolean;
     metadata?: Prisma.InputJsonValue;
   }): Promise<
@@ -599,6 +605,9 @@ export class AiUsageService {
           return { ok: false as const };
         }
 
+        const nonBillable =
+          input.nonBillable === true || input.nonBillableStub === true;
+
         const assistantMessage = await tx.aiChatMessage.create({
           data: {
             organizationId: input.organizationId,
@@ -613,6 +622,7 @@ export class AiUsageService {
               historySequence: 1,
               finishReason: input.finishReason ?? null,
               stub: input.nonBillableStub === true,
+              nonBillable,
               usage: {
                 inputTokens: input.inputTokens ?? null,
                 outputTokens: input.outputTokens ?? null,
@@ -629,9 +639,10 @@ export class AiUsageService {
           provider: input.provider,
           model: input.model,
           stub: input.nonBillableStub === true,
+          nonBillable,
         };
 
-        const terminalStatus = input.nonBillableStub
+        const terminalStatus = nonBillable
           ? AiUsageStatus.SKIPPED
           : AiUsageStatus.SUCCEEDED;
 
@@ -1026,6 +1037,10 @@ export class AiUsageService {
   async summaryForOrganization(organizationId: string) {
     await this.expireStaleReservations(organizationId);
     const summary = await this.usage.getSummary(organizationId);
+    const now = new Date();
+    const periodResetsAt = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+    ).toISOString();
     return {
       enabled: summary.aiTasks.enabled,
       used: summary.aiTasks.used,
@@ -1033,6 +1048,8 @@ export class AiUsageService {
       remaining: Math.max(0, summary.aiTasks.limit - summary.aiTasks.used),
       planCode: summary.plan.code,
       planName: summary.plan.name,
+      /** Next UTC calendar-month boundary when the AI task counter resets. */
+      periodResetsAt,
     };
   }
 

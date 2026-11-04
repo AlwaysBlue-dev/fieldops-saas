@@ -20,13 +20,15 @@ export const AI_PROMPT_CHIPS: ReadonlyArray<{
   {
     id: "jobs-today",
     label: "Jobs for today",
-    prompt: "What jobs are scheduled for today?",
+    prompt:
+      "What jobs are scheduled for today? If none, say today only and offer to check this week.",
     icon: ListTodo,
   },
   {
     id: "missing-access",
     label: "Missing access",
-    prompt: "Who is missing access for today's jobs?",
+    prompt:
+      "Which open jobs are missing site access information? Do not limit to today unless I ask.",
     icon: LockKeyhole,
   },
   {

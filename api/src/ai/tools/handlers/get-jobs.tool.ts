@@ -42,7 +42,7 @@ export const GET_JOBS_TOOL_NAME = 'getJobs';
 export const GET_JOBS_TOOL_DEFINITION: AiToolDefinition = {
   name: GET_JOBS_TOOL_NAME,
   description:
-    'List and search jobs the current user is authorized to see. Use for job lists, filters (status, priority, date, technician, team, client), presets (open/today/unassigned/approval/missing_access), search by job number/title/client/site, paginated summaries, and status/priority breakdowns of returned jobs. Envelope: jobs (page), total (matching count), page, pageSize, truncated (more pages). Use total for matching size — never treat the page length alone as the global total when truncated. Returns job number, title, status, priority, schedule window, client/site, team, technicians, missing-access flags. Does not create or modify jobs. Does not establish technician availability.',
+    'List and search jobs the current user is authorized to see. Use for job lists, filters (status, priority, date, technician, team, client), presets (open/today/unassigned/approval/missing_access), search by job number/title/client/site, paginated summaries, and status/priority breakdowns of returned jobs. Envelope: jobs (page), total (matching count), page, pageSize, truncated (more pages), timezone. Use total for matching size — never treat the page length alone as the global total when truncated. Returns job number, title, status, priority, schedule window, client/site/team names, technician names (no user ids), deepLink, missing-access flags. Single-day date only — for week unassigned prefer getSchedule. Does not create or modify jobs. Does not establish technician availability.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -130,14 +130,16 @@ type GetJobsProjectedItem = {
   scheduledStart: string | null;
   expectedFinish: string | null;
   workOrderNumber: string | null;
-  client: { id: string; name: string };
-  site: { id: string; name: string; city: string | null };
-  team: { id: string; name: string } | null;
-  supervisor: { userId: string; fullName: string } | null;
-  technicians: Array<{ userId: string; fullName: string }>;
+  clientName: string;
+  siteName: string;
+  siteCity: string | null;
+  teamName: string | null;
+  supervisorName: string | null;
+  technicians: string[];
   missingAccessInfo: boolean;
   accessInfoReady: boolean;
   missingAccessItems: string[];
+  deepLink: string;
   updatedAt: string;
 };
 
@@ -184,7 +186,9 @@ export class GetJobsAiTool implements OnModuleInit {
       throw new Error('getJobs cancelled after service call');
     }
 
-    const items = listed.items.map((row) => this.projectJob(row));
+    const items = listed.items.map((row) =>
+      this.projectJob(row, context.organizationSlug),
+    );
     const fetched = (listed.page - 1) * listed.pageSize + items.length;
     const truncated = fetched < listed.total;
 
@@ -195,6 +199,7 @@ export class GetJobsAiTool implements OnModuleInit {
       pageSize: listed.pageSize,
       truncated,
       appliedFilters: this.appliedFilters(query),
+      timezone: context.timezone,
     };
   }
 
@@ -329,7 +334,10 @@ export class GetJobsAiTool implements OnModuleInit {
     return value;
   }
 
-  private projectJob(job: JobSummaryView): GetJobsProjectedItem {
+  private projectJob(
+    job: JobSummaryView,
+    organizationSlug: string,
+  ): GetJobsProjectedItem {
     return {
       id: job.id,
       jobNumber: job.jobNumber,
@@ -340,23 +348,16 @@ export class GetJobsAiTool implements OnModuleInit {
       scheduledStart: job.scheduledStart,
       expectedFinish: job.expectedFinish,
       workOrderNumber: job.workOrderNumber,
-      client: { id: job.client.id, name: job.client.name },
-      site: {
-        id: job.site.id,
-        name: job.site.name,
-        city: job.site.city ?? null,
-      },
-      team: job.team,
-      supervisor: job.supervisor
-        ? { userId: job.supervisor.userId, fullName: job.supervisor.fullName }
-        : null,
-      technicians: job.technicians.map((t) => ({
-        userId: t.userId,
-        fullName: t.fullName,
-      })),
+      clientName: job.client.name,
+      siteName: job.site.name,
+      siteCity: job.site.city ?? null,
+      teamName: job.team?.name ?? null,
+      supervisorName: job.supervisor?.fullName ?? null,
+      technicians: job.technicians.map((t) => t.fullName),
       missingAccessInfo: job.missingAccessInfo,
       accessInfoReady: job.accessInfoReady,
       missingAccessItems: [...job.missingAccessItems],
+      deepLink: `/app/${organizationSlug}/jobs/${job.id}`,
       updatedAt: job.updatedAt,
     };
   }

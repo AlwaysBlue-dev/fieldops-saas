@@ -104,7 +104,7 @@ const HISTORY_MESSAGE_LIMIT = 80;
 const HISTORY_FETCH_LIMIT = HISTORY_MESSAGE_LIMIT + 1;
 
 const TOOL_LIMIT_ASSISTANT_MESSAGE =
-  'I reached the tool-execution limit for this request (maximum tool rounds or invocations). Please narrow the question or send a new message so I can continue with a fresh request.';
+  'I could not finish looking that up in one pass (too many tool steps for a single request). This did not use an AI task from your monthly allowance. Try a narrower question — for example one day, one status, or “unassigned this week” via the schedule — or send the same question again.';
 
 const MALFORMED_TOOL_CALLS_ASSISTANT_MESSAGE =
   'I received an invalid tool request from the model and could not run tools for this turn. Please try again with a new message.';
@@ -161,6 +161,28 @@ export class AiService {
   ) {
     this.assertCanUseAi(organization);
     await this.assertFeatureEnabled(organization.organizationId);
+
+    // Archive empty untitled drafts so "New chat" does not pile up sidebar rows.
+    const emptyDrafts = await this.prisma.aiChatSession.findMany({
+      where: withTenant(organization.organizationId, {
+        userId,
+        status: AiChatSessionStatus.ACTIVE,
+        title: null,
+        messages: { none: {} },
+      }),
+      select: { id: true },
+      take: 50,
+    });
+    if (emptyDrafts.length > 0) {
+      await this.prisma.aiChatSession.updateMany({
+        where: withTenant(organization.organizationId, {
+          userId,
+          status: AiChatSessionStatus.ACTIVE,
+          id: { in: emptyDrafts.map((row: { id: string }) => row.id) },
+        }),
+        data: { status: AiChatSessionStatus.ARCHIVED },
+      });
+    }
 
     return this.prisma.aiChatSession.create({
       data: {
@@ -535,6 +557,7 @@ export class AiService {
         orgId,
         sessionId: session.id,
         timeZone: organization.timezone,
+        organizationSlug: organization.slug,
         event,
         executionToken,
         clientRequestId,
@@ -552,6 +575,7 @@ export class AiService {
         organizationId: orgId,
         session,
         timeZone: organization.timezone,
+        organizationSlug: organization.slug,
         event,
         executionToken,
         userMessage,
@@ -580,6 +604,7 @@ export class AiService {
     orgId: string;
     sessionId: string;
     timeZone: string;
+    organizationSlug: string;
     event: AiUsageEvent;
     executionToken: string;
     clientRequestId: string;
@@ -603,6 +628,7 @@ export class AiService {
       orgId,
       sessionId,
       timeZone,
+      organizationSlug,
       event,
       executionToken,
       clientRequestId,
@@ -636,6 +662,7 @@ export class AiService {
           organizationId: orgId,
           sessionId,
           timeZone,
+          organizationSlug,
         });
         const generation = await current.generateText({
           model: current.defaultModel(),
@@ -905,6 +932,7 @@ export class AiService {
     organizationId: string;
     session: { id: string; title: string | null };
     timeZone: string;
+    organizationSlug: string;
     event: AiUsageEvent;
     executionToken: string;
     userMessage: AiChatMessage;
@@ -927,6 +955,7 @@ export class AiService {
     let lockedProvider = input.lockedProvider;
     const {
       organizationId,
+      organizationSlug,
       session,
       timeZone,
       event,
@@ -1119,6 +1148,7 @@ export class AiService {
           organizationId,
           sessionId: session.id,
           timeZone,
+          organizationSlug,
         });
         generation = await lockedProvider.generateText({
           model: lockedProvider.defaultModel(),
@@ -1219,6 +1249,7 @@ export class AiService {
                 organizationId,
                 sessionId: session.id,
                 timeZone,
+                organizationSlug,
               });
               const nextGeneration = await alternate.generateText({
                 model: alternate.defaultModel(),
@@ -1504,6 +1535,7 @@ export class AiService {
     assistantContent: string;
     totalInputTokens: number;
     totalOutputTokens: number;
+    nonBillable?: boolean;
     metadataExtra: Record<string, unknown>;
   }) {
     return this.finalizeSuccessfulTurn({
@@ -1521,6 +1553,7 @@ export class AiService {
       },
       inputTokens: input.totalInputTokens,
       outputTokens: input.totalOutputTokens,
+      nonBillable: input.nonBillable,
       metadataExtra: input.metadataExtra,
     });
   }
@@ -1575,8 +1608,10 @@ export class AiService {
         assistantContent: TOOL_LIMIT_ASSISTANT_MESSAGE,
         totalInputTokens: input.totalInputTokens,
         totalOutputTokens: input.totalOutputTokens,
+        nonBillable: true,
         metadataExtra: {
           toolLimitExceeded: true,
+          nonBillable: true,
           toolRoundPersistenceRejected: true,
           validationCode: persistenceCheck.code,
           toolRounds: input.toolRounds,
@@ -1616,6 +1651,7 @@ export class AiService {
     }
 
     // `totalInputTokens` / `totalOutputTokens` already include this generation.
+    // Non-billable: the user did not receive a successful operational answer.
     return this.finalizeSuccessfulTurn({
       organizationId: input.organizationId,
       session: input.session,
@@ -1631,8 +1667,10 @@ export class AiService {
       },
       inputTokens: input.totalInputTokens,
       outputTokens: input.totalOutputTokens,
+      nonBillable: true,
       metadataExtra: {
         toolLimitExceeded: true,
+        nonBillable: true,
         toolRounds: input.toolRounds,
         toolInvocations: input.toolInvocations,
         maxRounds: AI_TOOL_MAX_ROUNDS_PER_REQUEST,
@@ -1651,6 +1689,8 @@ export class AiService {
     generation: AiGenerateTextResult;
     inputTokens?: number;
     outputTokens?: number;
+    /** Finalize as SKIPPED (does not hold monthly quota). */
+    nonBillable?: boolean;
     metadataExtra?: Record<string, unknown>;
   }) {
     const {
@@ -1672,6 +1712,9 @@ export class AiService {
     const outputTokens =
       input.outputTokens ?? generation.usage.outputTokens ?? null;
 
+    const nonBillable =
+      input.nonBillable === true || generation.provider === 'stub';
+
     const completed = await this.usage.completeTurnAtomically({
       organizationId,
       usageEventId: event.id,
@@ -1685,12 +1728,12 @@ export class AiService {
       outputTokens,
       finishReason: generation.finishReason,
       sessionTitle,
-      nonBillableStub: generation.provider === 'stub',
+      nonBillable,
       metadata: {
         finishReason: generation.finishReason,
         provider: generation.provider,
         stub: generation.provider === 'stub',
-        nonBillable: generation.provider === 'stub',
+        nonBillable,
         ...(input.metadataExtra ?? {}),
       },
     });
@@ -1718,10 +1761,12 @@ export class AiService {
       userMessage,
       assistantMessage: completed.assistantMessage,
       providerStatus: generation.provider,
-      ...(generation.provider === 'stub'
+      ...(nonBillable
         ? {
             message:
-              'Development stub response — not counted toward AI task quota.',
+              generation.provider === 'stub'
+                ? 'Development stub response — not counted toward AI task quota.'
+                : 'This reply was not counted toward your monthly AI task allowance.',
           }
         : {}),
     };
@@ -1913,6 +1958,7 @@ export class AiService {
     organizationId: string;
     sessionId: string;
     timeZone: string;
+    organizationSlug?: string | null;
   }): Promise<AiChatMessageInput[]> {
     const calendar = this.resolveTrustedCalendar(input.timeZone);
     const loaded = await this.loadConversationMessages(
@@ -1922,6 +1968,7 @@ export class AiService {
     const systemContent = buildFieldkeelSystemPrompt({
       timeZone: calendar.timeZone,
       todayYmd: calendar.todayYmd,
+      organizationSlug: input.organizationSlug?.trim() || null,
       historyTruncated: loaded.truncated,
     });
 

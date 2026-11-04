@@ -19,10 +19,10 @@ export const AI_TOOL_DEFAULT_TIMEOUT_MS = 8_000;
 export const AI_TOOL_MAX_TIMEOUT_MS = 15_000;
 
 /** Max provider→tools→provider rounds within one user sendMessage / reservation. */
-export const AI_TOOL_MAX_ROUNDS_PER_REQUEST = 4;
+export const AI_TOOL_MAX_ROUNDS_PER_REQUEST = 6;
 
 /** Max individual tool invocations within one user sendMessage / reservation. */
-export const AI_TOOL_MAX_INVOCATIONS_PER_REQUEST = 8;
+export const AI_TOOL_MAX_INVOCATIONS_PER_REQUEST = 12;
 
 /** Max concurrent tool executions within a single round. */
 export const AI_TOOL_MAX_CONCURRENT_PER_ROUND = 2;

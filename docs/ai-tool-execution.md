@@ -292,8 +292,8 @@ so the existing chat UI keeps showing user + final assistant text only.
 
 | Limit | Value | Constant |
 |-------|------:|----------|
-| Tool rounds per user request | 4 | `AI_TOOL_MAX_ROUNDS_PER_REQUEST` |
-| Tool invocations per user request | 8 | `AI_TOOL_MAX_INVOCATIONS_PER_REQUEST` |
+| Tool rounds per user request | 6 | `AI_TOOL_MAX_ROUNDS_PER_REQUEST` |
+| Tool invocations per user request | 12 | `AI_TOOL_MAX_INVOCATIONS_PER_REQUEST` |
 | Concurrent tools per round | 2 | `AI_TOOL_MAX_CONCURRENT_PER_ROUND` |
 | Per-tool timeout | 8 s (max 15 s) | `AI_TOOL_DEFAULT_TIMEOUT_MS` / `AI_TOOL_MAX_TIMEOUT_MS` |
 | Tool result size (executor) | 64 KiB | `AI_TOOL_MAX_RESULT_BYTES` |
@@ -306,7 +306,8 @@ When the model requests more tools after the round/invocation cap:
 1. Persist the assistant `toolCalls` turn.
 2. Persist synthetic tool results (`ok: false`, safe limit message) — **not**
    silent discard; tools are **not** executed.
-3. Finalize with a clear assistant text explaining the limit.
+3. Finalize with a clear assistant text explaining the limit as **`SKIPPED`**
+   (non-billable — does not hold monthly AI task quota).
 4. No further provider tool rounds.
 
 ## Tool authorization and safety
