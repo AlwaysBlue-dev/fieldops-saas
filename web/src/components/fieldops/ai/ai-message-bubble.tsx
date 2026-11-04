@@ -20,7 +20,7 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
   if (isSystem) {
     return (
       <div className="flex w-full justify-center px-2">
-        <p className="max-w-lg text-center text-xs leading-relaxed text-muted-foreground">
+        <p className="max-w-lg rounded-md border border-border/70 bg-muted/40 px-3 py-1.5 text-center text-xs leading-relaxed text-muted-foreground">
           {message.content}
         </p>
       </div>
@@ -32,14 +32,15 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
       className={cn(
         "flex w-full flex-col gap-1",
         isUser ? "items-end" : "items-start",
+        "animate-in fade-in-0 slide-in-from-bottom-1 duration-200",
       )}
     >
       <div
         className={cn(
           "max-w-[min(100%,42rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
           isUser
-            ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md border border-border bg-card text-card-foreground shadow-sm",
+            ? "rounded-br-md bg-primary text-primary-foreground shadow-raise"
+            : "rounded-bl-md border border-border bg-card text-card-foreground shadow-raise",
           message.optimistic && "opacity-80",
         )}
       >
