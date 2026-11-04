@@ -516,10 +516,6 @@ export function AiWorkforcePage() {
     ],
   );
 
-  const handlePickPrompt = useCallback((prompt: string) => {
-    setDraft(prompt);
-  }, []);
-
   const handleAbandonPending = useCallback(() => {
     if (!organizationId) return;
     abortFrontendWait();
@@ -776,101 +772,111 @@ export function AiWorkforcePage() {
     ],
   );
 
-  const handleSend = useCallback(async () => {
-    if (!organizationId || submitting || actionLock.current || creatingSession) {
-      return;
-    }
-    const content = draft.trim();
-    if (!content) return;
+  const handleSend = useCallback(
+    async (overrideContent?: string) => {
+      if (!organizationId || submitting || actionLock.current || creatingSession) {
+        return;
+      }
+      const content = (overrideContent ?? draft).trim();
+      if (!content) return;
 
-    // Take the shared lock before session creation to prevent duplicate sessions.
-    actionLock.current = true;
-    const preSendOwner = Symbol("ai-pre-send");
-    lockOwnerRef.current = preSendOwner;
-    setBanner(null);
+      // Take the shared lock before session creation to prevent duplicate sessions.
+      actionLock.current = true;
+      const preSendOwner = Symbol("ai-pre-send");
+      lockOwnerRef.current = preSendOwner;
+      setBanner(null);
 
-    let sessionId = activeId;
-    if (!sessionId) {
-      setCreatingSession(true);
-      try {
-        const session = await createAiSession(organizationId);
-        sessionId = session.id;
-        setSessions((prev) => [
-          {
-            id: session.id,
-            title: session.title,
-            status: session.status,
-            createdAt: session.createdAt,
-            updatedAt: session.updatedAt,
-          },
-          ...prev.filter((s) => s.id !== session.id),
-        ]);
-        messagesGenRef.current += 1;
-        setActiveId(session.id);
-        activeIdRef.current = session.id;
-        setMessages([]);
-        setMessageLimitReached(false);
-      } catch (error) {
-        setBanner({ tone: "error", text: aiFriendlyError(error) });
-        setCreatingSession(false);
+      let sessionId = activeId;
+      if (!sessionId) {
+        setCreatingSession(true);
+        try {
+          const session = await createAiSession(organizationId);
+          sessionId = session.id;
+          setSessions((prev) => [
+            {
+              id: session.id,
+              title: session.title,
+              status: session.status,
+              createdAt: session.createdAt,
+              updatedAt: session.updatedAt,
+            },
+            ...prev.filter((s) => s.id !== session.id),
+          ]);
+          messagesGenRef.current += 1;
+          setActiveId(session.id);
+          activeIdRef.current = session.id;
+          setMessages([]);
+          setMessageLimitReached(false);
+        } catch (error) {
+          setBanner({ tone: "error", text: aiFriendlyError(error) });
+          setCreatingSession(false);
+          if (lockOwnerRef.current === preSendOwner) {
+            releaseActionLock();
+          }
+          return;
+        } finally {
+          setCreatingSession(false);
+        }
+      }
+
+      const memoryPending =
+        pendingSendRef.current?.sessionId === sessionId
+          ? pendingSendRef.current
+          : null;
+      const storedPending = readPendingAiRequest(organizationId, sessionId);
+      const existing = memoryPending ?? (storedPending
+        ? {
+            sessionId: storedPending.sessionId,
+            clientRequestId: storedPending.clientRequestId,
+            content: storedPending.content,
+            createdAt: storedPending.createdAt,
+          }
+        : null);
+
+      if (existing && existing.content !== content) {
+        setPendingSend(existing);
+        pendingSendRef.current = existing;
+        setBanner({
+          tone: "warning",
+          text: "A request is still pending in this conversation. Retry or discard it before sending a different message. Retry keeps the same request id.",
+        });
         if (lockOwnerRef.current === preSendOwner) {
           releaseActionLock();
         }
         return;
-      } finally {
-        setCreatingSession(false);
       }
-    }
 
-    const memoryPending =
-      pendingSendRef.current?.sessionId === sessionId
-        ? pendingSendRef.current
-        : null;
-    const storedPending = readPendingAiRequest(organizationId, sessionId);
-    const existing = memoryPending ?? (storedPending
-      ? {
-          sessionId: storedPending.sessionId,
-          clientRequestId: storedPending.clientRequestId,
-          content: storedPending.content,
-          createdAt: storedPending.createdAt,
-        }
-      : null);
+      const clientRequestId = existing
+        ? existing.clientRequestId
+        : newAiClientRequestId();
 
-    if (existing && existing.content !== content) {
-      setPendingSend(existing);
-      pendingSendRef.current = existing;
-      setBanner({
-        tone: "warning",
-        text: "A request is still pending in this conversation. Retry or discard it before sending a different message. Retry keeps the same request id.",
-      });
-      if (lockOwnerRef.current === preSendOwner) {
-        releaseActionLock();
-      }
-      return;
-    }
+      const pending: PendingSend = {
+        sessionId,
+        clientRequestId,
+        content: existing?.content ?? content,
+        createdAt: existing?.createdAt ?? Date.now(),
+      };
 
-    const clientRequestId = existing
-      ? existing.clientRequestId
-      : newAiClientRequestId();
+      setDraft("");
+      await runSend(pending, { alreadyLocked: true });
+    },
+    [
+      activeId,
+      creatingSession,
+      draft,
+      organizationId,
+      releaseActionLock,
+      runSend,
+      submitting,
+    ],
+  );
 
-    const pending: PendingSend = {
-      sessionId,
-      clientRequestId,
-      content: existing?.content ?? content,
-      createdAt: existing?.createdAt ?? Date.now(),
-    };
-
-    setDraft("");
-    await runSend(pending, { alreadyLocked: true });
-  }, [
-    activeId,
-    creatingSession,
-    draft,
-    organizationId,
-    releaseActionLock,
-    runSend,
-    submitting,
-  ]);
+  const handlePickPrompt = useCallback(
+    (prompt: string) => {
+      void handleSend(prompt);
+    },
+    [handleSend],
+  );
 
   const handleRetryPending = useCallback(async () => {
     const pending = pendingSendRef.current;
@@ -1052,7 +1058,10 @@ export function AiWorkforcePage() {
                 <SkeletonBlock rows={6} />
               </div>
             ) : showWelcome ? (
-              <AiWelcomeScreen onPickPrompt={handlePickPrompt} />
+              <AiWelcomeScreen
+                onPickPrompt={handlePickPrompt}
+                disabled={submitting || creatingSession || !organizationId}
+              />
             ) : (
               <AiMessageList
                 messages={messages}
@@ -1094,6 +1103,10 @@ export function AiWorkforcePage() {
             value={draft}
             onChange={setDraft}
             onSubmit={() => void handleSend()}
+            onPickPrompt={handlePickPrompt}
+            showPromptChips={
+              !showWelcome && !messagesLoading && messages.length === 0
+            }
             submitting={submitting || creatingSession}
             disabled={!organizationId}
           />

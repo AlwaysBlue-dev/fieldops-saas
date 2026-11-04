@@ -1,3 +1,4 @@
+import { AiPromptChips } from "./ai-prompt-chips";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "cn";
@@ -13,14 +14,19 @@ export function AiMessageComposer({
   value,
   onChange,
   onSubmit,
+  onPickPrompt,
   submitting,
   disabled,
+  showPromptChips,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onPickPrompt?: (prompt: string) => void;
   submitting?: boolean;
   disabled?: boolean;
+  /** Compact chips above the input (empty chat or after welcome). */
+  showPromptChips?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const trimmed = value.trim();
@@ -50,13 +56,22 @@ export function AiMessageComposer({
       onSubmit={handleSubmit}
       className="border-t border-border bg-card px-3 py-3 md:px-4"
     >
+      {showPromptChips && onPickPrompt ? (
+        <div className="mx-auto mb-2.5 w-full max-w-3xl">
+          <AiPromptChips
+            layout="wrap"
+            onPick={onPickPrompt}
+            disabled={submitting || disabled}
+          />
+        </div>
+      ) : null}
       <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
         <Textarea
           ref={ref}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about field operations…"
+          placeholder="Ask about jobs, schedule, or access…"
           rows={1}
           disabled={submitting || disabled}
           aria-label="Message"

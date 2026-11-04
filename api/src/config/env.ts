@@ -264,7 +264,7 @@ export class EnvironmentVariables {
   GEMINI_API_KEY?: string;
 
   /**
-   * Gemini model id (e.g. gemini-2.5-flash).
+   * Gemini model id (e.g. gemini-3.5-flash-lite).
    * Defaults to DEFAULT_GEMINI_MODEL when unset.
    */
   @IsOptional()
