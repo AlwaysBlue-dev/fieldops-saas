@@ -226,7 +226,7 @@ export function AiConversationSidebar({
                         {formatUpdatedAt(conversation.updatedAt)}
                       </span>
                     </button>
-                    <DropdownMenu>
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           type="button"

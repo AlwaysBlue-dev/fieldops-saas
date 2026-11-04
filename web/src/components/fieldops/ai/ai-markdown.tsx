@@ -118,8 +118,8 @@ const markdownComponents: Components = {
     </pre>
   ),
   table: ({ children }) => (
-    <div className="mb-2.5 max-w-full overflow-x-auto last:mb-0">
-      <table className="w-full min-w-[16rem] border-collapse text-left text-sm">
+    <div className="mb-2.5 max-w-full overflow-x-auto last:mb-0 [-webkit-overflow-scrolling:touch]">
+      <table className="w-full max-w-full table-fixed border-collapse text-left text-sm">
         {children}
       </table>
     </div>
@@ -132,10 +132,14 @@ const markdownComponents: Components = {
     <tr className="border-b border-border/70 last:border-0">{children}</tr>
   ),
   th: ({ children }) => (
-    <th className="px-2 py-1.5 text-xs font-semibold text-foreground">{children}</th>
+    <th className="break-words px-2 py-1.5 text-xs font-semibold text-foreground">
+      {children}
+    </th>
   ),
   td: ({ children }) => (
-    <td className="px-2 py-1.5 align-top text-sm text-card-foreground">{children}</td>
+    <td className="break-words px-2 py-1.5 align-top text-sm text-card-foreground">
+      {children}
+    </td>
   ),
   hr: () => <hr className="my-3 border-border" />,
 };

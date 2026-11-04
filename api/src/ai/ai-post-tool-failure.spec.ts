@@ -126,7 +126,7 @@ describe('post-tool provider failure (Step 4.9)', () => {
     expect(resolution.userMessage).toBe(
       AI_USER_MESSAGES.POST_TOOL_FAILOVER_EXHAUSTED,
     );
-    expect(resolution.userMessage).toMatch(/partially finished/i);
+    expect(resolution.userMessage).toMatch(/partially completed/i);
     expect(resolution.userMessage.toLowerCase()).not.toContain(
       'completely failed',
     );

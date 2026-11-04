@@ -1,6 +1,7 @@
+import { AiFollowUpChips, suggestFollowUps } from "./ai-follow-up-chips";
 import { AiMessageBubble } from "./ai-message-bubble";
 import type { AiUiMessage } from "./types";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 export function AiMessageList({
   messages,
@@ -8,6 +9,8 @@ export function AiMessageList({
   pendingLabel,
   messageLimitReached,
   messageLimit,
+  onPickFollowUp,
+  followUpsDisabled,
 }: {
   messages: AiUiMessage[];
   submitting?: boolean;
@@ -15,12 +18,30 @@ export function AiMessageList({
   /** True when the API returned a full page of messages (cap hit). */
   messageLimitReached?: boolean;
   messageLimit?: number;
+  onPickFollowUp?: (prompt: string) => void;
+  followUpsDisabled?: boolean;
 }) {
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, submitting, pendingLabel]);
+
+  const followUps = useMemo(() => {
+    if (submitting || !onPickFollowUp) return [];
+    const visible = messages.filter(
+      (m) => m.role === "user" || m.role === "assistant",
+    );
+    const last = visible[visible.length - 1];
+    if (!last || last.role !== "assistant" || last.optimistic) return [];
+    const lastUser = [...visible]
+      .reverse()
+      .find((m) => m.role === "user");
+    return suggestFollowUps({
+      lastUserContent: lastUser?.content ?? null,
+      lastAssistantContent: last.content,
+    });
+  }, [messages, onPickFollowUp, submitting]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-1 py-4">
@@ -46,6 +67,14 @@ export function AiMessageList({
           </span>
           <span>{pendingLabel ?? "Looking up operations data…"}</span>
         </div>
+      ) : null}
+      {!submitting && followUps.length > 0 ? (
+        <AiFollowUpChips
+          prompts={followUps}
+          onPick={onPickFollowUp!}
+          disabled={followUpsDisabled}
+          className="max-w-[min(100%,42rem)]"
+        />
       ) : null}
       <div ref={endRef} />
     </div>

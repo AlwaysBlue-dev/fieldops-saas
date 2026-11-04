@@ -27,7 +27,7 @@ export const FIND_MISSING_ACCESS_TOOL_NAME = 'findMissingAccess';
 export const FIND_MISSING_ACCESS_TOOL_DEFINITION: AiToolDefinition = {
   name: FIND_MISSING_ACCESS_TOOL_NAME,
   description:
-    'Find authorized jobs missing site access information: access notes and/or usable site contact, with concise missing-access reasons. Use for missing-access / missing-contact operational summaries. Envelope: jobs (page), total (matching count), page, pageSize, truncated. Use total for matching size; disclose when the page is partial. Uses FieldKeel’s existing missing-access rules; completed and cancelled jobs are never flagged. Do NOT use for incomplete safety or time approvals. Does not create or modify jobs.',
+    'Find authorized jobs missing site access information: access notes and/or usable site contact, with concise missing-access reasons. Omit date unless the user asked for a specific day or “today” — without date, returns open missing-access jobs across the board (same idea as the Jobs page). Envelope: jobs (page), total (matching count), page, pageSize, truncated, timezone. Use total for matching size; disclose when the page is partial. Uses FieldKeel’s existing missing-access rules; completed and cancelled jobs are never flagged. Do NOT use for incomplete safety or time approvals. Does not create or modify jobs.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -35,7 +35,7 @@ export const FIND_MISSING_ACCESS_TOOL_DEFINITION: AiToolDefinition = {
       date: {
         type: 'string',
         description:
-          'Optional calendar date YYYY-MM-DD in the organization timezone; filters by scheduledStart day.',
+          'Optional calendar date YYYY-MM-DD in the organization timezone; filters by scheduledStart day. Omit for all open missing-access jobs.',
       },
       search: {
         type: 'string',
@@ -71,6 +71,7 @@ type MissingAccessProjectedItem = {
   missingSiteContact: boolean;
   missingItems: AccessInfoMissingItem[];
   reason: string;
+  deepLink: string;
 };
 
 @Injectable()
@@ -118,7 +119,9 @@ export class FindMissingAccessAiTool implements OnModuleInit {
       throw new Error('findMissingAccess cancelled after service call');
     }
 
-    const jobs = listed.items.map((row) => this.projectJob(row));
+    const jobs = listed.items.map((row) =>
+      this.projectJob(row, context.organizationSlug),
+    );
     const fetched = (listed.page - 1) * listed.pageSize + jobs.length;
     const truncated = fetched < listed.total;
 
@@ -129,6 +132,7 @@ export class FindMissingAccessAiTool implements OnModuleInit {
       pageSize: listed.pageSize,
       truncated,
       appliedFilters: this.appliedFilters(query),
+      timezone: context.timezone,
     };
   }
 
@@ -194,7 +198,10 @@ export class FindMissingAccessAiTool implements OnModuleInit {
     return query;
   }
 
-  private projectJob(job: JobSummaryView): MissingAccessProjectedItem {
+  private projectJob(
+    job: JobSummaryView,
+    organizationSlug: string,
+  ): MissingAccessProjectedItem {
     const missingItems = [...job.missingAccessItems] as AccessInfoMissingItem[];
     const missingAccessNotes = missingItems.includes('access notes');
     const missingSiteContact = missingItems.includes('site contact');
@@ -215,6 +222,7 @@ export class FindMissingAccessAiTool implements OnModuleInit {
       missingSiteContact,
       missingItems,
       reason: `Missing ${reason}.`,
+      deepLink: `/app/${organizationSlug}/jobs/${job.id}`,
     };
   }
 

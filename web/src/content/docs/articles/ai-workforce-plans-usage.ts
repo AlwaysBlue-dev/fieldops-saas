@@ -41,20 +41,21 @@ export const aiWorkforcePlansUsage: DocArticle = {
       paragraphs: [
         "One AI task is one complete user instruction you send in AI Workforce — the question or request you submit — through to a finished outcome for that request.",
         "When the assistant looks up jobs, schedule, or missing access while answering that instruction, those internal lookups do not each consume an extra task from your monthly allowance. The allowance is tied to your request, not to each internal lookup.",
+        "If FieldKeel cannot finish a request because it hit an internal lookup limit before answering, that incomplete outcome does not count against your monthly allowance. Failed or interrupted requests also do not hold quota once they settle.",
       ],
     },
     {
       id: "where-to-see",
       heading: "Where to see usage",
       paragraphs: [
-        "Authorized users can review AI usage in the product (including the AI Workforce screen and Plan & Usage where your role allows). Counts are maintained by FieldKeel for your organization — not entered by the browser.",
+        "Authorized users can review AI usage in the product (including the AI Workforce screen and Plan & Usage where your role allows). The AI meter shows your plan name, used/remaining tasks, and when the UTC-month allowance resets. Counts are maintained by FieldKeel for your organization — not entered by the browser.",
       ],
     },
     {
       id: "at-limit",
       heading: "When you reach the monthly allowance",
       paragraphs: [
-        "When your organization has used its monthly AI task allowance, new AI requests are blocked until the allowance renews with the next usage period or your plan/allowance changes. FieldKeel shows a clear plan-limit message; it does not silently start unpaid AI work.",
+        "When your organization has used its monthly AI task allowance, new AI requests are blocked until the allowance renews at the next UTC calendar month or your plan/allowance changes. FieldKeel shows a clear plan-limit message; it does not silently start unpaid AI work.",
         "This documentation does not describe automatic overage charges or unused-task rollover. For plan changes, contact FieldKeel as you would for other commercial adjustments — see Plans, pricing, and billing.",
       ],
     },

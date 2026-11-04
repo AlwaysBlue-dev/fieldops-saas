@@ -33,7 +33,7 @@ export const GET_SCHEDULE_TOOL_NAME = 'getSchedule';
 export const GET_SCHEDULE_TOOL_DEFINITION: AiToolDefinition = {
   name: GET_SCHEDULE_TOOL_NAME,
   description:
-    'Retrieve the authorized operational schedule for a day or week in the organization timezone (Monday-based weeks). Use for daily/weekly schedule summaries and scheduled workload by technician/team/date (job counts only). Envelope: totalScheduledJobs (full count in window), jobs (may be capped), truncated, from/to/timezone. Cite totalScheduledJobs for window size; if truncated, attribute breakdowns of jobs[] are based on the returned subset. Does NOT calculate availability, free capacity, working hours, or that an empty/light schedule means someone is free. Does not create or modify schedule entries.',
+    'Retrieve the authorized operational schedule for a day or week in the organization timezone (Monday-based weeks). Use for daily/weekly schedule summaries, unassigned jobs in the window (empty technicians; see unassignedJobCount), and scheduled workload by technician/team/date (job counts only). Prefer this (view=week) for “unassigned this week” instead of many getJobs day calls. Envelope: totalScheduledJobs, unassignedJobCount, jobs (may be capped; includes id + deepLink), truncated, from/to/timezone. Cite totalScheduledJobs for window size; if truncated, attribute breakdowns of jobs[] are based on the returned subset. Does NOT calculate availability, free capacity, working hours, or that an empty/light schedule means someone is free. Does not create or modify schedule entries.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -64,6 +64,7 @@ export const GET_SCHEDULE_TOOL_DEFINITION: AiToolDefinition = {
 };
 
 type ScheduleProjectedJob = {
+  id: string;
   jobNumber: string;
   title: string;
   status: string;
@@ -76,6 +77,7 @@ type ScheduleProjectedJob = {
   technicians: string[];
   missingAccessInfo: boolean;
   missingAccessItems: string[];
+  deepLink: string;
 };
 
 @Injectable()
@@ -134,9 +136,12 @@ export class GetScheduleAiTool implements OnModuleInit {
     );
     const totalScheduledJobs = unique.length;
     const truncated = totalScheduledJobs > GET_SCHEDULE_MAX_JOBS;
+    const unassignedJobCount = unique.filter(
+      (job) => job.technicians.length === 0,
+    ).length;
     const jobs = unique
       .slice(0, GET_SCHEDULE_MAX_JOBS)
-      .map((job) => this.projectJob(job));
+      .map((job) => this.projectJob(job, context.organizationSlug));
 
     return {
       view,
@@ -145,6 +150,7 @@ export class GetScheduleAiTool implements OnModuleInit {
       to: board.to,
       timezone: board.timezone,
       totalScheduledJobs,
+      unassignedJobCount,
       jobs,
       truncated,
       appliedFilters: this.appliedFilters(query, view, board.date),
@@ -237,8 +243,12 @@ export class GetScheduleAiTool implements OnModuleInit {
     });
   }
 
-  private projectJob(job: ScheduleJobView): ScheduleProjectedJob {
+  private projectJob(
+    job: ScheduleJobView,
+    organizationSlug: string,
+  ): ScheduleProjectedJob {
     return {
+      id: job.id,
       jobNumber: job.jobNumber,
       title: job.title,
       status: job.status,
@@ -251,6 +261,7 @@ export class GetScheduleAiTool implements OnModuleInit {
       technicians: job.technicians.map((t) => t.fullName),
       missingAccessInfo: job.missingAccessInfo,
       missingAccessItems: [...job.missingAccessItems],
+      deepLink: `/app/${organizationSlug}/jobs/${job.id}`,
     };
   }
 

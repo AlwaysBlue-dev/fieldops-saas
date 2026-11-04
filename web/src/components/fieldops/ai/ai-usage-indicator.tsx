@@ -1,6 +1,22 @@
 import type { AiUsageSummary } from "@/lib/ai";
 import { cn } from "cn";
 
+function formatResetLabel(iso: string | undefined): string | null {
+  if (!iso) return null;
+  try {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const label = new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(date);
+    return `resets ${label}`;
+  } catch {
+    return null;
+  }
+}
+
 export function AiUsageIndicator({
   usage,
   loading,
@@ -68,11 +84,12 @@ export function AiUsageIndicator({
     usage.limit > 0 ? Math.min(1, Math.max(0, usage.used / usage.limit)) : 0;
   const exhausted = usage.remaining <= 0;
   const low = !exhausted && usage.remaining <= Math.max(5, usage.limit * 0.1);
+  const resetLabel = formatResetLabel(usage.periodResetsAt);
 
   return (
     <div
       className={cn(
-        "inline-flex min-w-[11rem] flex-col gap-1.5 rounded-lg border px-3 py-2",
+        "inline-flex min-w-[12rem] flex-col gap-1.5 rounded-lg border px-3 py-2",
         exhausted
           ? "border-destructive/35 bg-destructive/5"
           : low
@@ -80,7 +97,7 @@ export function AiUsageIndicator({
             : "border-border bg-card",
         className,
       )}
-      title={`${usage.planName}: ${usage.used} of ${usage.limit} AI tasks used this month (UTC)`}
+      title={`${usage.planName}: ${usage.used} of ${usage.limit} AI tasks used this UTC month${resetLabel ? ` · ${resetLabel}` : ""}`}
     >
       <div className="flex items-center justify-between gap-3 text-xs">
         <span className="text-muted-foreground">
@@ -127,6 +144,10 @@ export function AiUsageIndicator({
           style={{ width: `${Math.max(ratio * 100, exhausted ? 100 : 2)}%` }}
         />
       </div>
+      <p className="truncate text-[10px] leading-tight text-muted-foreground">
+        {usage.planName}
+        {resetLabel ? ` · ${resetLabel}` : " · UTC month"}
+      </p>
     </div>
   );
 }

@@ -21,6 +21,7 @@ export const aiWorkforceOverview: DocArticle = {
     "ai-workforce-plans-usage",
     "ai-workforce-roles-access",
     "ai-workforce-limits-safety",
+    "ai-workforce-troubleshooting",
     "billing-plans",
   ],
   sections: [

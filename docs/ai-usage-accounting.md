@@ -10,7 +10,7 @@ Server-authoritative ledger: `AiUsageEvent`. Clients never submit used/limit cou
 | `SUCCEEDED` | **Yes** | Provider (or billable) execution completed successfully |
 | `FAILED` | No | Execution failed after reservation; quota released |
 | `INTERRUPTED` | No | Stopped unexpectedly, timed out, or scaffold/no-provider path; quota released |
-| `SKIPPED` | No | Non-billable completion (development stub); stores `resultPayload` for idempotent retries; does not hold quota |
+| `SKIPPED` | No | Non-billable completion (development stub, or incomplete outcomes such as tool-execution limit exceeded); stores `resultPayload` for idempotent retries; does not hold quota |
 
 ## Monthly limit
 

@@ -65,8 +65,8 @@ export function AiMessageComposer({
           className="mx-auto mb-2.5 w-full max-w-3xl rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-foreground"
           role="status"
         >
-          Monthly AI task limit reached. New requests are blocked until the next
-          UTC month or a plan change. You can still read past conversations.
+          Monthly AI task limit reached. New questions are blocked until next
+          month (UTC) or a plan change. You can still read past conversations.
         </div>
       ) : null}
       {showPromptChips && onPickPrompt && !limitReached ? (

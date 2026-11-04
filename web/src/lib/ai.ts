@@ -41,6 +41,8 @@ export type AiUsageSummary = {
   remaining: number;
   planCode: string;
   planName: string;
+  /** ISO timestamp of the next UTC calendar-month reset for AI tasks. */
+  periodResetsAt?: string;
 };
 
 export type AiExecutionStatus =
@@ -468,40 +470,40 @@ export function isAiPlanLimitError(error: unknown): boolean {
 export function aiFriendlyError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.error === "Aborted") {
-      return "Waiting for the AI response was stopped. The request may still be running on the server — retry uses the same request and will not start a new AI task.";
+      return "Waiting stopped on this screen, but the assistant may still be working. Use Retry if shown — that continues the same request and will not start a second AI task.";
     }
     if (error.status === 0 || error.error === "NetworkError") {
-      return "We couldn't reach the server. Your request may still be running — retry uses the same request and will not start a new AI task.";
+      return "We could not reach FieldKeel. Your request may still be running. Wait a moment, then use Retry if shown — that continues the same request.";
     }
     if (error.status === 401 || error.code === "SESSION_EXPIRED") {
       return "Your session has expired. Please sign in again.";
     }
     if (error.status === 429) {
-      return "Too many attempts. Please wait a moment and try again.";
+      return "Too many attempts just now. Please wait a moment, then try again.";
     }
     if (isAiPlanLimitError(error)) {
       return (
         error.message?.trim() ||
-        "You've reached your monthly AI task allowance. New AI requests are blocked until the next billing period or a plan change."
+        "You've used this month's AI task allowance. New questions are blocked until next month (UTC) or a plan change. You can still read past conversations."
       );
     }
     if (error.status === 403) {
       return (
         error.message?.trim() ||
-        "AI Workforce is not available for your account or plan."
+        "AI Workforce is not available for your role or plan in this organization."
       );
     }
     if (error.status === 404) {
       return (
         error.message?.trim() ||
-        "That AI conversation could not be found. Refresh and try again."
+        "That conversation could not be found. Refresh the page or open another chat."
       );
     }
     if (error.status === 503) {
-      return "AI is temporarily unavailable. Please try again later or contact an administrator.";
+      return "AI Workforce is temporarily unavailable. Please try again later or contact your administrator.";
     }
     if (error.status >= 500) {
-      return "AI is temporarily unavailable. Please try again later.";
+      return "AI Workforce is temporarily unavailable. Please try again in a few minutes.";
     }
     if (error.message?.trim()) return error.message.trim();
   }
@@ -512,8 +514,7 @@ export function aiFriendlyError(error: unknown): string {
 }
 
 /**
- * Banner copy for typed send-message outcomes. Preserves API contracts;
- * clarifies completed vs interrupted vs in-progress and whether retry is safe.
+ * Banner copy for typed send-message outcomes. Prefer API message when present.
  */
 export function aiExecutionBannerText(
   response: Pick<AiSendMessageResponse, "execution" | "message">,
@@ -523,21 +524,21 @@ export function aiExecutionBannerText(
   if (response.execution === "IN_PROGRESS") {
     return (
       fromApi ||
-      "This request is still in progress on the server. Retry uses the same request and will not start a new AI task."
+      "This request is still running. Use Retry if shown — that continues the same work and will not start a second AI task."
     );
   }
 
   if (response.execution === "FAILED") {
     return (
       fromApi ||
-      "The AI request failed and did not complete. Check the conversation, then send a new message to try again."
+      "The assistant could not finish this answer. Check the conversation, then send a new message to try again."
     );
   }
 
   if (response.execution === "INTERRUPTED") {
     return (
       fromApi ||
-      "The request outcome is uncertain. Do not assume it completed. Check the conversation, then send a new message if you need to try again."
+      "The outcome is uncertain — do not assume an answer finished. Check the conversation, then send a new message if you still need help."
     );
   }
 

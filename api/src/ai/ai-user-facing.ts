@@ -4,56 +4,56 @@ import {
 } from './providers/ai-provider.types.js';
 
 /**
- * Safe, user-facing copy for AI Workforce (Step 4.4.4).
+ * Safe, user-facing copy for AI Workforce.
  * Never include API keys, tokens, stack traces, or raw provider payloads.
+ * Prefer: what happened + what to do next (plain language).
  */
 
 export const AI_USER_MESSAGES = {
   DEFINITIVE_REJECTION:
-    'The AI provider rejected this request. Please try again with a new message.',
+    'The assistant could not process that question. Check the conversation, then try again with a clearer new message or a suggested prompt.',
   RATE_LIMITED:
-    'The AI provider is temporarily rate-limited. Please wait a moment, then try again with a new message.',
+    'The assistant is temporarily busy. Wait about a minute, then send your question again as a new message. Avoid tapping Send repeatedly.',
   PRE_TRANSMISSION_FAILURE:
-    'The AI provider could not be reached before the request was sent. Please try again with a new message.',
+    'We could not reach the assistant just now. Check your connection, wait a moment, then send a new message.',
   AMBIGUOUS_OUTCOME:
-    'The AI request timed out or returned an uncertain result after it may have been sent. Do not assume it completed. Check the conversation, then try again with a new message.',
+    'The assistant timed out and we cannot confirm whether an answer finished. Check this conversation first. If nothing useful appeared, wait briefly, then send a new message.',
   INVALID_CONFIGURATION:
-    'AI is not correctly configured for this environment. Please contact an administrator.',
+    'AI Workforce is not set up correctly for this workspace. Please contact your administrator.',
   INVALID_RESPONSE:
-    'The AI provider returned an unusable response. Please try again with a new message.',
+    'The assistant returned an answer we could not use. Please send a new message to try again.',
   UNEXPECTED:
-    'The AI request failed unexpectedly. Please try again with a new message.',
+    'Something went wrong while getting an answer. Please wait a moment, then send a new message.',
   PROVIDER_AUTH:
-    'AI provider authentication failed. Please contact an administrator.',
+    'The assistant could not authenticate with its AI service. Please contact your administrator.',
   NO_PROVIDERS_CONFIGURED:
-    'AI is temporarily unavailable. Please try again later or contact an administrator.',
+    'AI Workforce is temporarily unavailable. Please try again later or contact your administrator.',
   CLIENT_REQUEST_FINISHED:
-    'This request already finished. Send a new message to try again (a new request id is required).',
+    'This request already finished. To ask again, send a new message in the conversation.',
   OWNERSHIP_IN_PROGRESS:
-    'Execution ownership could not be confirmed; the request may still be running. Retry with the same request — a new AI task will not be started.',
+    'This request may still be running. Use Retry on the same request if shown — that continues the same work and will not start a second AI task.',
   OWNERSHIP_LOST_GENERIC:
-    'The AI request could not be confirmed as complete. Check the conversation before trying again with a new message.',
+    'We could not confirm that the assistant finished. Check the conversation before sending a new message.',
   /**
    * Post-tool rate limit: tools may already have run; final answer generation failed.
-   * Do not imply another provider will automatically continue this request.
    */
   POST_TOOL_RATE_LIMITED:
-    'Operational lookups for this request may have completed, but the final AI response could not be generated because the AI provider is temporarily rate-limited. This request only partially finished. Wait a moment, then send a new message.',
+    'We may have already looked up your jobs or schedule, but the final written answer did not finish because the assistant is temporarily busy. This only partially completed. Wait about a minute, then send a new message.',
   /**
    * Post-tool: eligible provider failover exhausted after tools already ran.
    */
   POST_TOOL_FAILOVER_EXHAUSTED:
-    'Operational lookups for this request may have completed, but the final AI response could not be generated after trying available AI providers. This request only partially finished. Wait a moment, then send a new message.',
+    'We may have already looked up your jobs or schedule, but the final written answer still could not be generated. This only partially completed. Wait a moment, then send a new message.',
   /**
-   * Post-tool ambiguous timeout: do not claim total failure or encourage a duplicate parallel request.
+   * Post-tool ambiguous timeout.
    */
   POST_TOOL_AMBIGUOUS_OUTCOME:
-    'Operational lookups for this request may have completed, but the final AI response outcome is uncertain after a timeout or interrupted provider call. Do not assume the answer finished. Check the conversation, wait if needed, then send a new message rather than assuming a duplicate retry of the same in-flight request.',
+    'We may have already looked up your jobs or schedule, but the final answer timed out and may be incomplete. Check the conversation, wait if needed, then send a new message — do not assume the previous answer finished.',
   /**
-   * Post-tool definitive failure that is not rate-limit (auth/rejection) after tools ran.
+   * Post-tool definitive failure that is not rate-limit after tools ran.
    */
   POST_TOOL_FINAL_GENERATION_FAILED:
-    'Operational lookups for this request may have completed, but the final AI response could not be generated. This request only partially finished. Check the conversation, then send a new message.',
+    'We may have already looked up your jobs or schedule, but the final written answer could not be generated. This only partially completed. Check the conversation, then send a new message.',
 } as const;
 
 const BY_FAILURE_CLASS: Record<
