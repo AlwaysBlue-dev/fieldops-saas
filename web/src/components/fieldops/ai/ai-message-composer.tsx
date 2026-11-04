@@ -18,6 +18,7 @@ export function AiMessageComposer({
   submitting,
   disabled,
   showPromptChips,
+  limitReached,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -27,10 +28,13 @@ export function AiMessageComposer({
   disabled?: boolean;
   /** Compact chips above the input (empty chat or after welcome). */
   showPromptChips?: boolean;
+  /** Monthly AI task allowance exhausted. */
+  limitReached?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const trimmed = value.trim();
-  const canSend = trimmed.length > 0 && !submitting && !disabled;
+  const blocked = Boolean(disabled || limitReached);
+  const canSend = trimmed.length > 0 && !submitting && !blocked;
 
   useEffect(() => {
     const el = ref.current;
@@ -56,29 +60,45 @@ export function AiMessageComposer({
       onSubmit={handleSubmit}
       className="border-t border-border bg-card px-3 py-3 md:px-4"
     >
-      {showPromptChips && onPickPrompt ? (
+      {limitReached ? (
+        <div
+          className="mx-auto mb-2.5 w-full max-w-3xl rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-foreground"
+          role="status"
+        >
+          Monthly AI task limit reached. New requests are blocked until the next
+          UTC month or a plan change. You can still read past conversations.
+        </div>
+      ) : null}
+      {showPromptChips && onPickPrompt && !limitReached ? (
         <div className="mx-auto mb-2.5 w-full max-w-3xl">
           <AiPromptChips
             layout="wrap"
             onPick={onPickPrompt}
-            disabled={submitting || disabled}
+            disabled={submitting || blocked}
           />
         </div>
       ) : null}
       <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
-        <Textarea
-          ref={ref}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask about jobs, schedule, or access…"
-          rows={1}
-          disabled={submitting || disabled}
-          aria-label="Message"
-          className={cn(
-            "min-h-11 max-h-40 flex-1 resize-none bg-background py-2.5 text-sm",
-          )}
-        />
+        <div className="relative min-w-0 flex-1">
+          <Textarea
+            ref={ref}
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              limitReached
+                ? "Monthly AI limit reached…"
+                : "Ask about jobs, schedule, or access…"
+            }
+            rows={1}
+            disabled={submitting || blocked}
+            aria-label="Message"
+            className={cn(
+              "min-h-11 max-h-40 w-full resize-none bg-background py-2.5 text-sm shadow-none",
+              "focus-visible:border-primary/40",
+            )}
+          />
+        </div>
         <Button
           type="submit"
           size="icon"

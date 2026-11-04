@@ -34,13 +34,17 @@ export function AiMessageList({
         <AiMessageBubble key={message.id} message={message} />
       ))}
       {submitting ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div
+          className="flex max-w-[min(100%,42rem)] items-center gap-3 rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-3 text-sm text-muted-foreground shadow-raise"
+          role="status"
+          aria-live="polite"
+        >
           <span className="inline-flex gap-1" aria-hidden>
-            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/70" />
-            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/70 [animation-delay:120ms]" />
-            <span className="size-1.5 animate-pulse rounded-full bg-muted-foreground/70 [animation-delay:240ms]" />
+            <span className="size-1.5 animate-pulse rounded-full bg-primary/70" />
+            <span className="size-1.5 animate-pulse rounded-full bg-primary/70 [animation-delay:120ms]" />
+            <span className="size-1.5 animate-pulse rounded-full bg-primary/70 [animation-delay:240ms]" />
           </span>
-          {pendingLabel ?? "Assistant is working…"}
+          <span>{pendingLabel ?? "Looking up operations data…"}</span>
         </div>
       ) : null}
       <div ref={endRef} />

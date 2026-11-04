@@ -777,6 +777,17 @@ export function AiWorkforcePage() {
       if (!organizationId || submitting || actionLock.current || creatingSession) {
         return;
       }
+      if (
+        usage?.enabled &&
+        typeof usage.remaining === "number" &&
+        usage.remaining <= 0
+      ) {
+        setBanner({
+          tone: "error",
+          text: "You've reached your monthly AI task allowance. New AI requests are blocked until the next billing period or a plan change.",
+        });
+        return;
+      }
       const content = (overrideContent ?? draft).trim();
       if (!content) return;
 
@@ -868,6 +879,8 @@ export function AiWorkforcePage() {
       releaseActionLock,
       runSend,
       submitting,
+      usage?.enabled,
+      usage?.remaining,
     ],
   );
 
@@ -1060,7 +1073,14 @@ export function AiWorkforcePage() {
             ) : showWelcome ? (
               <AiWelcomeScreen
                 onPickPrompt={handlePickPrompt}
-                disabled={submitting || creatingSession || !organizationId}
+                disabled={
+                  submitting ||
+                  creatingSession ||
+                  !organizationId ||
+                  (Boolean(usage?.enabled) &&
+                    typeof usage?.remaining === "number" &&
+                    usage.remaining <= 0)
+                }
               />
             ) : (
               <AiMessageList
@@ -1109,6 +1129,11 @@ export function AiWorkforcePage() {
             }
             submitting={submitting || creatingSession}
             disabled={!organizationId}
+            limitReached={
+              Boolean(usage?.enabled) &&
+              typeof usage?.remaining === "number" &&
+              usage.remaining <= 0
+            }
           />
           {activeSession?.title ? (
             <p className="sr-only">Active conversation: {activeSession.title}</p>

@@ -164,9 +164,7 @@ export function AiConversationSidebar({
       )}
     >
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3">
-        <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Conversations
-        </p>
+        <p className="type-label text-muted-foreground">Conversations</p>
         <Button
           type="button"
           size="sm"
