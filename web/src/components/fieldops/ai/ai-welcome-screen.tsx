@@ -1,16 +1,12 @@
-import { Button } from "@/components/ui/button";
+import { AiPromptChips } from "./ai-prompt-chips";
 import { Sparkles } from "lucide-react";
-
-export const AI_SUGGESTED_PROMPTS = [
-  "Summarize what FieldKeel AI Workforce is designed to help with.",
-  "Suggest a clear checklist for reviewing today’s field jobs.",
-  "Help me draft a short status update for operations leadership.",
-] as const;
 
 export function AiWelcomeScreen({
   onPickPrompt,
+  disabled,
 }: {
   onPickPrompt: (prompt: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col items-start gap-5 px-1 py-6 md:py-10">
@@ -22,29 +18,19 @@ export function AiWelcomeScreen({
           Hello! I&apos;m your FieldKeel AI assistant.
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          I can help you understand your field operations, organize information
-          and make better operational decisions. Ask a question below to start
-          this conversation.
+          Ask about today&apos;s jobs, schedules, and field readiness. Use a
+          suggested prompt or type your own question below.
         </p>
       </div>
       <div className="w-full space-y-2">
         <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Try an example
+          Suggested prompts
         </p>
-        <ul className="flex flex-col gap-2">
-          {AI_SUGGESTED_PROMPTS.map((prompt) => (
-            <li key={prompt}>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-auto w-full justify-start whitespace-normal px-3 py-2.5 text-left text-sm font-normal"
-                onClick={() => onPickPrompt(prompt)}
-              >
-                {prompt}
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <AiPromptChips
+          layout="stack"
+          onPick={onPickPrompt}
+          disabled={disabled}
+        />
       </div>
     </div>
   );

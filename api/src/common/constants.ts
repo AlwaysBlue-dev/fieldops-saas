@@ -64,7 +64,7 @@ export const GROQ_CHAT_COMPLETIONS_URL =
   'https://api.groq.com/openai/v1/chat/completions';
 /**
  * Default Groq model when GROQ_MODEL is unset.
- * Override via env — do not hardcode model ids at call sites.
+ * Free-tier friendly on Groq; supports tool calling. Override via env.
  */
 export const DEFAULT_GROQ_MODEL = 'qwen/qwen3.8-27b';
 /** Default Groq request timeout (ms). Abort does not prove non-execution. */
@@ -74,9 +74,10 @@ export const GEMINI_GENERATE_CONTENT_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/models';
 /**
  * Default Gemini model when GEMINI_MODEL is unset.
- * Override via env — confirm against Google’s current model list.
+ * Prefer a free-tier Flash-Lite id — `gemini-2.5-flash` often 404s for new keys.
+ * Confirm against Google’s current model list before production changes.
  */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 /** Default Gemini request timeout (ms). Abort does not prove non-execution. */
 export const DEFAULT_GEMINI_TIMEOUT_MS = 120_000;
 /** OpenRouter OpenAI-compatible chat completions endpoint. */
@@ -84,9 +85,9 @@ export const OPENROUTER_CHAT_COMPLETIONS_URL =
   'https://openrouter.ai/api/v1/chat/completions';
 /**
  * Default OpenRouter model when OPENROUTER_MODEL is unset.
- * Override via env — confirm against OpenRouter’s current catalog.
+ * Free `:free` variant with tool calling. Catalog changes — verify on OpenRouter.
  */
-export const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen3-32b';
+export const DEFAULT_OPENROUTER_MODEL = 'qwen/qwen3.8-27b:free';
 /** Default OpenRouter request timeout (ms). Abort does not prove non-execution. */
 export const DEFAULT_OPENROUTER_TIMEOUT_MS = 120_000;
 export const AUDIT_ORGANIZATION_ACTIVATED = 'ORGANIZATION_ACTIVATED';

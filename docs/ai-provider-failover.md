@@ -182,11 +182,11 @@ call providers again. Never retry an earlier provider within the same execution 
 | 3 | OpenRouter | `OPENROUTER_API_KEY` set | `OPENROUTER_MODEL`, `OPENROUTER_TIMEOUT_MS` (default 120000); optional `OPENROUTER_SITE_URL`, `OPENROUTER_APP_NAME` |
 | — | Stub | `AI_PROVIDER=stub` and non-production | — |
 
-Defaults (override in env; confirm against vendor catalogs before production):
+Defaults (free-tier oriented; override in env; confirm against vendor catalogs):
 
 - Groq model: `qwen/qwen3.8-27b`
-- Gemini model: `gemini-2.5-flash`
-- OpenRouter model: `qwen/qwen3-32b`
+- Gemini model: `gemini-3.5-flash-lite` (prefer over `gemini-2.5-flash` for new API keys)
+- OpenRouter model: `qwen/qwen3.8-27b:free` (tool-capable free variant)
 
 Endpoints:
 
