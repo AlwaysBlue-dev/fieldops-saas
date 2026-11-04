@@ -18,6 +18,10 @@ export function sanitizeMarkdownUrl(url: string): string {
   if (!trimmed || trimmed.startsWith("#")) {
     return trimmed;
   }
+  // Drop model-invented placeholders (e.g. /jobs/<id> → %3Cid%3E).
+  if (/<id>|%3Cid%3E|\{id\}|%7Bid%7D/i.test(trimmed)) {
+    return "";
+  }
   try {
     const parsed = new URL(trimmed, "https://fieldkeel.invalid");
     if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
@@ -119,7 +123,7 @@ const markdownComponents: Components = {
   ),
   table: ({ children }) => (
     <div className="mb-2.5 max-w-full overflow-x-auto last:mb-0 [-webkit-overflow-scrolling:touch]">
-      <table className="w-full max-w-full table-fixed border-collapse text-left text-sm">
+      <table className="w-max min-w-full border-collapse text-left text-sm">
         {children}
       </table>
     </div>
@@ -132,12 +136,12 @@ const markdownComponents: Components = {
     <tr className="border-b border-border/70 last:border-0">{children}</tr>
   ),
   th: ({ children }) => (
-    <th className="break-words px-2 py-1.5 text-xs font-semibold text-foreground">
+    <th className="whitespace-nowrap px-2 py-1.5 text-xs font-semibold text-foreground">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="break-words px-2 py-1.5 align-top text-sm text-card-foreground">
+    <td className="max-w-[16rem] whitespace-nowrap px-2 py-1.5 align-top text-sm text-card-foreground">
       {children}
     </td>
   ),

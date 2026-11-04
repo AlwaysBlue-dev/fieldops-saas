@@ -109,6 +109,19 @@ async function refreshSession(): Promise<boolean> {
   return refreshPromise;
 }
 
+/**
+ * Refresh the access cookie before a burst of authenticated calls so the
+ * browser network log is not flooded with expected 401→retry pairs while the
+ * user is still signed in.
+ */
+export async function ensureAuthSession(): Promise<boolean> {
+  try {
+    return await refreshSession();
+  } catch {
+    return false;
+  }
+}
+
 function parseErrorPayload(payload: {
   message?: string | string[];
   error?: string;

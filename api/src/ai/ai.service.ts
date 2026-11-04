@@ -167,7 +167,7 @@ export class AiService {
       where: withTenant(organization.organizationId, {
         userId,
         status: AiChatSessionStatus.ACTIVE,
-        title: null,
+        OR: [{ title: null }, { title: '' }],
         messages: { none: {} },
       }),
       select: { id: true },
@@ -197,6 +197,34 @@ export class AiService {
   async listSessions(organization: OrganizationContext, userId: string) {
     this.assertCanUseAi(organization);
     await this.assertFeatureEnabled(organization.organizationId);
+
+    // Opportunistic cleanup: keep at most one empty untitled draft per user.
+    const emptyDrafts = await this.prisma.aiChatSession.findMany({
+      where: withTenant(organization.organizationId, {
+        userId,
+        status: AiChatSessionStatus.ACTIVE,
+        OR: [{ title: null }, { title: '' }],
+        messages: { none: {} },
+      }),
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true },
+      take: 50,
+    });
+    if (emptyDrafts.length > 1) {
+      const keepId = emptyDrafts[0]!.id;
+      await this.prisma.aiChatSession.updateMany({
+        where: withTenant(organization.organizationId, {
+          userId,
+          status: AiChatSessionStatus.ACTIVE,
+          id: {
+            in: emptyDrafts
+              .filter((row: { id: string }) => row.id !== keepId)
+              .map((row: { id: string }) => row.id),
+          },
+        }),
+        data: { status: AiChatSessionStatus.ARCHIVED },
+      });
+    }
 
     return this.prisma.aiChatSession.findMany({
       where: withTenant(organization.organizationId, {
@@ -500,21 +528,47 @@ export class AiService {
     const trimmed = content.trim();
     let userMessage: AiChatMessage;
     try {
-      userMessage = await this.prisma.aiChatMessage.create({
-        data: {
-          organizationId: orgId,
-          sessionId: session.id,
-          userId,
-          role: AiMessageRole.USER,
-          content: trimmed,
-          metadata: {
-            kind: 'user_turn',
-            usageEventId: event.id,
-            clientRequestId,
-            historySequence: 0,
-          },
-        },
+      // Avoid duplicate USER bubbles when the user resends the same text after a
+      // failed/timed-out turn (new clientRequestId, trailing USER with no reply).
+      const trailing = await this.prisma.aiChatMessage.findFirst({
+        where: withTenant(orgId, { sessionId: session.id }),
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });
+      if (
+        trailing &&
+        trailing.role === AiMessageRole.USER &&
+        trailing.content.trim() === trimmed
+      ) {
+        userMessage = trailing;
+      } else {
+        userMessage = await this.prisma.aiChatMessage.create({
+          data: {
+            organizationId: orgId,
+            sessionId: session.id,
+            userId,
+            role: AiMessageRole.USER,
+            content: trimmed,
+            metadata: {
+              kind: 'user_turn',
+              usageEventId: event.id,
+              clientRequestId,
+              historySequence: 0,
+            },
+          },
+        });
+      }
+      // Title the chat as soon as the first user message lands (including failed turns).
+      if (!session.title?.trim()) {
+        await this.prisma.aiChatSession.updateMany({
+          where: withTenant(orgId, {
+            id: session.id,
+            userId,
+            status: AiChatSessionStatus.ACTIVE,
+            OR: [{ title: null }, { title: '' }],
+          }),
+          data: { title: trimmed.slice(0, 80) || null },
+        });
+      }
     } catch (error) {
       await this.usage.failReservation({
         organizationId: orgId,

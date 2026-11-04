@@ -5,7 +5,7 @@ import { BrandMark } from "./brand-mark";
 
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ApiError, SessionExpiredError } from "@/lib/api";
+import { ApiError, SessionExpiredError, ensureAuthSession } from "@/lib/api";
 import {
   getMe,
   getMyOrganizations,
@@ -194,6 +194,9 @@ function AppShellContent({
       if (checking || document.visibilityState !== "visible") return;
       checking = true;
       try {
+        // Refresh first so a quiet expiry does not log a 401 on /me/organizations.
+        await ensureAuthSession();
+        if (cancelled) return;
         const current = await getMyOrganizations();
         if (!cancelled && !current.some((item) => item.organization.slug === orgSlug)) {
           clearPreferredOrgSlug(orgSlug);
