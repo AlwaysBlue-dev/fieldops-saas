@@ -622,7 +622,9 @@ export function AiWorkforcePage() {
             clientRequestId: input.clientRequestId,
           },
           {
-            maxPolls: 40,
+            // Free-tier providers can exceed ~2 minutes; keep waiting longer before
+            // showing the “still working / retry” banner.
+            maxPolls: 60,
             pollIntervalMs: 3_000,
             signal: controller.signal,
           },
@@ -1018,7 +1020,13 @@ export function AiWorkforcePage() {
               type="button"
               size="sm"
               variant="ghost"
-              onClick={() => setBanner(null)}
+              onClick={() => {
+                if (pendingForActive && !submitting) {
+                  handleAbandonPending();
+                } else {
+                  setBanner(null);
+                }
+              }}
             >
               Dismiss
             </Button>
