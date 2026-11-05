@@ -337,7 +337,7 @@ function AppShellContent({
           orgName={currentMembership.organization.name}
         />
       ) : null}
-      <div className="flex h-dvh overflow-hidden bg-workspace">
+      <div className="flex h-dvh max-w-[100vw] overflow-hidden bg-workspace">
         <a
           href="#workspace-main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:bg-card focus:px-3 focus:py-2"
@@ -380,10 +380,10 @@ function AppShellContent({
           <main
             id="workspace-main"
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden",
+              "flex min-h-0 min-w-0 flex-1 flex-col",
               isAiWorkspace
                 ? "overflow-hidden p-0 pb-mobile-nav lg:pb-0"
-                : "overflow-y-auto px-4 py-4 md:px-6 md:py-5 pb-mobile-nav lg:pb-5",
+                : "overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5 pb-mobile-nav lg:pb-5",
             )}
           >
             {children}

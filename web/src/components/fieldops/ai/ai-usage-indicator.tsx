@@ -32,11 +32,11 @@ export function AiUsageIndicator({
     return (
       <div
         className={cn(
-          "inline-flex min-w-[10.5rem] flex-col gap-1.5 rounded-lg border border-border bg-card px-3 py-2",
+          "inline-flex min-w-0 max-w-[9.5rem] flex-col gap-1 rounded-lg border border-border bg-card px-2 py-1.5 sm:max-w-none sm:min-w-[10.5rem] sm:gap-1.5 sm:px-3 sm:py-2",
           className,
         )}
       >
-        <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-3 w-16 animate-pulse rounded bg-muted sm:w-24" />
         <div className="h-1.5 w-full animate-pulse rounded-full bg-muted" />
       </div>
     );
@@ -46,7 +46,7 @@ export function AiUsageIndicator({
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground",
+          "inline-flex max-w-[9.5rem] items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] text-muted-foreground sm:max-w-none sm:gap-2 sm:px-3 sm:py-2 sm:text-xs",
           className,
         )}
         title="AI usage could not be loaded"
@@ -55,7 +55,7 @@ export function AiUsageIndicator({
           className="size-1.5 shrink-0 rounded-full bg-muted-foreground/50"
           aria-hidden
         />
-        <span>
+        <span className="truncate">
           Usage{" "}
           <span className="font-medium text-foreground/80">unavailable</span>
         </span>
@@ -67,13 +67,13 @@ export function AiUsageIndicator({
     return (
       <div
         className={cn(
-          "inline-flex items-center gap-2 rounded-lg border border-amber/40 bg-amber/10 px-3 py-2 text-xs text-foreground",
+          "inline-flex max-w-[9.5rem] items-center gap-1.5 rounded-lg border border-amber/40 bg-amber/10 px-2 py-1.5 text-[11px] text-foreground sm:max-w-none sm:gap-2 sm:px-3 sm:py-2 sm:text-xs",
           className,
         )}
       >
         <span className="size-1.5 shrink-0 rounded-full bg-amber" aria-hidden />
-        <span>
-          AI tasks{" "}
+        <span className="truncate">
+          AI{" "}
           <span className="font-medium">not on plan</span>
         </span>
       </div>
@@ -89,7 +89,7 @@ export function AiUsageIndicator({
   return (
     <div
       className={cn(
-        "inline-flex min-w-[12rem] flex-col gap-1.5 rounded-lg border px-3 py-2",
+        "inline-flex min-w-0 max-w-[9.5rem] flex-col gap-1 rounded-lg border px-2 py-1.5 sm:max-w-none sm:min-w-[11rem] sm:gap-1.5 sm:px-3 sm:py-2",
         exhausted
           ? "border-destructive/35 bg-destructive/5"
           : low
@@ -99,8 +99,8 @@ export function AiUsageIndicator({
       )}
       title={`${usage.planName}: ${usage.used} of ${usage.limit} AI tasks used this UTC month${resetLabel ? ` · ${resetLabel}` : ""}`}
     >
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-[11px] sm:gap-3 sm:text-xs">
+        <span className="truncate text-muted-foreground">
           <span
             className={cn(
               "font-semibold tabular-nums",
@@ -109,11 +109,11 @@ export function AiUsageIndicator({
           >
             {usage.used}/{usage.limit}
           </span>{" "}
-          tasks
+          <span className="hidden sm:inline">tasks</span>
         </span>
         <span
           className={cn(
-            "tabular-nums font-medium",
+            "shrink-0 tabular-nums font-medium",
             exhausted
               ? "text-destructive"
               : low
@@ -121,7 +121,7 @@ export function AiUsageIndicator({
                 : "text-muted-foreground",
           )}
         >
-          {exhausted ? "Limit reached" : `${usage.remaining} left`}
+          {exhausted ? "Max" : `${usage.remaining} left`}
         </span>
       </div>
       <div
@@ -144,7 +144,7 @@ export function AiUsageIndicator({
           style={{ width: `${Math.max(ratio * 100, exhausted ? 100 : 2)}%` }}
         />
       </div>
-      <p className="truncate text-[10px] leading-tight text-muted-foreground">
+      <p className="hidden truncate text-[10px] leading-tight text-muted-foreground sm:block">
         {usage.planName}
         {resetLabel ? ` · ${resetLabel}` : " · UTC month"}
       </p>

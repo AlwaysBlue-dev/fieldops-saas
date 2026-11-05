@@ -281,7 +281,7 @@ export function ScheduleWorkspace() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1500px] flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <PageHeader
         title="Schedule"
         description={`Dispatch board in ${visibleBoard.timezone}. Times are stored in UTC.`}

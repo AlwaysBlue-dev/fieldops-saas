@@ -199,7 +199,7 @@ export function JobsWorkspace() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1500px] flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <JobActionsDrawer jobId={actionJobId} organizationId={organizationId} orgSlug={params.orgSlug} onClose={() => setActionJobId(null)} onChanged={load} />
       <PageHeader
         title="Jobs"

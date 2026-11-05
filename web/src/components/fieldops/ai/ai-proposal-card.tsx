@@ -40,7 +40,7 @@ export function AiProposalCard({
   return (
     <div
       className={cn(
-        "max-w-[min(100%,42rem)] rounded-xl border border-border bg-card px-3.5 py-3 shadow-raise",
+        "w-full max-w-5xl rounded-xl border border-border bg-card px-3.5 py-3 shadow-raise",
         className,
       )}
     >

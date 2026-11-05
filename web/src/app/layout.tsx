@@ -117,9 +117,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased [scrollbar-gutter:stable]`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-x-hidden antialiased`}
     >
-      <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground [scrollbar-gutter:stable]">
+      <body className="min-h-full overflow-x-hidden bg-workspace font-sans text-foreground">
         <ThemeProvider>
           {children}
 

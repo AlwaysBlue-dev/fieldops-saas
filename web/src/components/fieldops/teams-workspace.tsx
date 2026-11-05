@@ -148,7 +148,7 @@ export function TeamsWorkspace() {
   }
 
   return (
-    <div className="mx-auto flex max-w-350 flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <PageHeader
         title="Teams"
         description="Crews, supervisors, and field coverage for this organization."
