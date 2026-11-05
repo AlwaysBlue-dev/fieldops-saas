@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
+import type { Prisma } from '../../../generated/prisma/client.js';
 import type { AiJsonObject, AiToolDefinition } from '../../providers/ai-provider.types.js';
 import {
   AI_ACTION_TYPES,
@@ -130,7 +131,7 @@ export class ProposeActionAiTool implements OnModuleInit {
       userId: context.userId,
       sessionId: context.sessionId ?? null,
       actionType,
-      payload,
+      payload: payload as Prisma.InputJsonValue,
       targetEntityType: entityTypeForAction(actionType),
       targetEntityId: target?.id ?? null,
       expectedTargetUpdatedAt: target?.updatedAt ?? null,
