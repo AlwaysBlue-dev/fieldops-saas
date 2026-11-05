@@ -37,10 +37,10 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
     >
       <div
         className={cn(
-          "max-w-[min(100%,42rem)] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+          "max-w-[min(100%,48rem)] rounded-2xl px-3.5 py-2.5 text-[15px] leading-relaxed sm:text-sm",
           isUser
             ? "rounded-br-md bg-primary text-primary-foreground shadow-raise"
-            : "rounded-bl-md border border-border bg-card text-card-foreground shadow-raise",
+            : "w-full rounded-bl-md border border-border bg-card text-card-foreground shadow-raise sm:w-auto",
           message.optimistic && "opacity-80",
         )}
       >

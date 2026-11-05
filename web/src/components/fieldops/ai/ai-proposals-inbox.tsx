@@ -24,18 +24,19 @@ export function AiProposalsInboxButton({
       variant="outline"
       size="sm"
       className={cn(
-        "h-9 gap-2",
+        "h-11 min-w-11 gap-1.5 px-2.5 sm:h-9 sm:gap-2 sm:px-3",
         open && "border-primary/40 bg-accent/50",
       )}
       onClick={onToggle}
       aria-expanded={open}
+      aria-label={`Pending AI actions${count > 0 ? ` (${count})` : ""}`}
     >
       {loading ? (
         <Loader2 className="size-3.5 animate-spin" />
       ) : (
         <ClipboardList className="size-3.5" />
       )}
-      Pending AI
+      <span className="hidden sm:inline">Pending AI</span>
       {count > 0 ? (
         <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
           {count}

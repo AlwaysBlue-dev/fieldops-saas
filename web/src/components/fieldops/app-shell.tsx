@@ -28,7 +28,7 @@ import {
   workspaceHomePath,
 } from "@/lib/workspace-home";
 import { cn } from "cn";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   useCallback,
@@ -82,6 +82,8 @@ function AppShellContent({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isAiWorkspace = /\/app\/[^/]+\/ai(?:\/|$)/.test(pathname ?? "");
   const persistedCollapsed = useSyncExternalStore(
     subscribeRail,
     getRailCollapsed,
@@ -378,8 +380,10 @@ function AppShellContent({
           <main
             id="workspace-main"
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-5",
-              "pb-mobile-nav lg:pb-5",
+              "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden",
+              isAiWorkspace
+                ? "overflow-hidden p-0 pb-mobile-nav lg:pb-0"
+                : "overflow-y-auto px-4 py-4 md:px-6 md:py-5 pb-mobile-nav lg:pb-5",
             )}
           >
             {children}

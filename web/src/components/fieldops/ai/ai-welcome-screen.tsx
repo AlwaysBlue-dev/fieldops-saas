@@ -27,13 +27,13 @@ export function AiWelcomeScreen({
   disabled?: boolean;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-1 py-6 md:py-10">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-0 py-5 sm:gap-6 sm:py-8 md:py-10">
       <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-raise">
         <div
           className="absolute inset-y-0 left-0 w-1 bg-primary"
           aria-hidden
         />
-        <div className="flex flex-col gap-4 p-5 pl-6">
+        <div className="flex flex-col gap-4 p-4 pl-5 sm:p-5 sm:pl-6">
           <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-5" aria-hidden />
           </div>
@@ -42,12 +42,12 @@ export function AiWelcomeScreen({
             <h2 className="text-lg font-semibold tracking-tight text-foreground md:text-xl">
               Ask your operations desk
             </h2>
-            <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+            <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
               Live answers from your FieldKeel data — jobs, schedules, and
-              access readiness. Pick a prompt or type your own question.
+              access readiness. Propose client or job changes for approval.
             </p>
           </div>
-          <ul className="grid gap-2 sm:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {CAPABILITIES.map((item) => (
               <li
                 key={item.title}

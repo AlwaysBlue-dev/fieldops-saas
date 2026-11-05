@@ -168,7 +168,7 @@ export function AiConversationSidebar({
         <Button
           type="button"
           size="sm"
-          className="h-8 gap-1.5"
+          className="h-11 min-w-11 gap-1.5 sm:h-8"
           onClick={onNewChat}
           disabled={creating || loading}
         >
@@ -209,7 +209,7 @@ export function AiConversationSidebar({
                     <button
                       type="button"
                       onClick={() => onSelect(conversation.id)}
-                      className="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-2.5 py-2 text-left transition-colors"
+                      className="flex min-h-11 min-w-0 flex-1 flex-col items-start justify-center gap-0.5 px-2.5 py-2 text-left transition-colors"
                       aria-current={active ? "true" : undefined}
                     >
                       <span className="line-clamp-1 w-full text-sm font-medium">

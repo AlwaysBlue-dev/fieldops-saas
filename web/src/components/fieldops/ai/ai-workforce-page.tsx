@@ -1074,7 +1074,7 @@ export function AiWorkforcePage() {
 
   if (bootLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1500px] flex-1 rounded-xl border border-border bg-card p-6">
+      <div className="flex min-h-0 flex-1 flex-col bg-card p-4 md:p-6">
         <SkeletonBlock rows={8} />
       </div>
     );
@@ -1082,7 +1082,7 @@ export function AiWorkforcePage() {
 
   if (bootError || !organizationId) {
     return (
-      <div className="mx-auto w-full max-w-[1500px] flex-1 rounded-xl border border-border bg-card p-6">
+      <div className="flex min-h-0 flex-1 flex-col bg-card p-4 md:p-6">
         <ErrorState
           title="Could not open AI Workforce"
           description={bootError ?? "Organization context is unavailable."}
@@ -1093,7 +1093,7 @@ export function AiWorkforcePage() {
   }
 
   return (
-    <div className="mx-auto flex h-full min-h-[28rem] w-full max-w-[1500px] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-workspace shadow-raise">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-workspace lg:border-t lg:border-border">
       <AiChatHeader
         onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
         sidebarOpen={mobileSidebarOpen}
@@ -1124,7 +1124,7 @@ export function AiWorkforcePage() {
       {banner ? (
         <div
           className={cn(
-            "flex flex-wrap items-start justify-between gap-2 border-b px-4 py-2.5 text-sm md:px-5",
+            "flex flex-wrap items-start justify-between gap-2 border-b px-3 py-2.5 text-sm sm:px-4 md:px-5",
             banner.tone === "error" &&
               "border-destructive/30 bg-destructive/10 text-destructive",
             banner.tone === "warning" &&
@@ -1133,7 +1133,7 @@ export function AiWorkforcePage() {
           )}
           role="status"
         >
-          <p className="min-w-0 flex-1">{banner.text}</p>
+          <p className="min-w-0 flex-1 leading-snug">{banner.text}</p>
           <div className="flex shrink-0 flex-wrap gap-2">
             {pendingForActive ? (
               <>
@@ -1141,6 +1141,7 @@ export function AiWorkforcePage() {
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="min-h-11 sm:min-h-9"
                   disabled={submitting}
                   onClick={() => void handleRetryPending()}
                 >
@@ -1150,6 +1151,7 @@ export function AiWorkforcePage() {
                   type="button"
                   size="sm"
                   variant="ghost"
+                  className="min-h-11 sm:min-h-9"
                   disabled={submitting}
                   onClick={handleAbandonPending}
                 >
@@ -1161,6 +1163,7 @@ export function AiWorkforcePage() {
               type="button"
               size="sm"
               variant="ghost"
+              className="min-h-11 sm:min-h-9"
               onClick={() => {
                 if (pendingForActive && !submitting) {
                   handleAbandonPending();
@@ -1176,7 +1179,7 @@ export function AiWorkforcePage() {
       ) : null}
 
       <div className="relative flex min-h-0 flex-1">
-        <div className="hidden w-72 shrink-0 border-r border-border lg:block">
+        <div className="hidden w-72 shrink-0 border-r border-border xl:w-80 lg:block">
           <AiConversationSidebar
             conversations={sessions}
             activeId={activeId}
@@ -1192,19 +1195,25 @@ export function AiWorkforcePage() {
         </div>
 
         {mobileSidebarOpen ? (
-          <div className="absolute inset-0 z-20 flex lg:hidden">
+          <div className="absolute inset-0 z-30 flex lg:hidden">
             <button
               type="button"
-              className="absolute inset-0 bg-foreground/20"
+              className="absolute inset-0 bg-foreground/35"
               aria-label="Close conversations"
               onClick={() => setMobileSidebarOpen(false)}
             />
-            <div className="relative z-10 h-full w-[min(100%,18rem)] border-r border-border shadow-float">
+            <div className="relative z-10 flex h-full w-[min(100%,20rem)] max-w-[92vw] flex-col border-r border-border bg-card shadow-float">
               <AiConversationSidebar
                 conversations={sessions}
                 activeId={activeId}
-                onSelect={(id) => void handleSelect(id)}
-                onNewChat={() => void handleNewChat()}
+                onSelect={(id) => {
+                  setMobileSidebarOpen(false);
+                  void handleSelect(id);
+                }}
+                onNewChat={() => {
+                  setMobileSidebarOpen(false);
+                  void handleNewChat();
+                }}
                 onRename={handleRenameSession}
                 onDelete={handleDeleteSession}
                 isSessionBusy={isSessionBusy}
@@ -1216,10 +1225,10 @@ export function AiWorkforcePage() {
           </div>
         ) : null}
 
-        <div className="flex min-w-0 flex-1 flex-col bg-workspace">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 md:px-5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-workspace">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 sm:px-4 md:px-6">
             {!activeId ? (
-              <div className="mx-auto flex max-w-xl flex-col gap-3 px-1 py-10">
+              <div className="mx-auto flex max-w-2xl flex-col gap-3 px-1 py-8 md:py-12">
                 <h2 className="text-lg font-semibold text-foreground">
                   Start a conversation
                 </h2>
@@ -1235,7 +1244,7 @@ export function AiWorkforcePage() {
                 ) : null}
                 <Button
                   type="button"
-                  className="w-fit"
+                  className="min-h-11 w-full sm:w-fit"
                   disabled={creatingSession || submitting}
                   onClick={() => void handleNewChat()}
                 >
@@ -1243,7 +1252,7 @@ export function AiWorkforcePage() {
                 </Button>
               </div>
             ) : messagesLoading ? (
-              <div className="mx-auto max-w-3xl py-6">
+              <div className="mx-auto max-w-4xl py-6">
                 <SkeletonBlock rows={6} />
               </div>
             ) : showWelcome ? (
@@ -1279,8 +1288,8 @@ export function AiWorkforcePage() {
             )}
           </div>
           {pendingForActive && !banner && !submitting ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/50 px-3 py-2 text-xs text-foreground md:px-4">
-              <p className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/50 px-3 py-2.5 text-xs text-foreground sm:px-4">
+              <p className="min-w-0 flex-1 leading-snug">
                 A previous request may still be finishing. Retry continues the
                 same work without starting a new AI task.
               </p>
@@ -1289,6 +1298,7 @@ export function AiWorkforcePage() {
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="min-h-11 sm:min-h-9"
                   onClick={() => void handleRetryPending()}
                 >
                   Retry same request
@@ -1297,6 +1307,7 @@ export function AiWorkforcePage() {
                   type="button"
                   size="sm"
                   variant="ghost"
+                  className="min-h-11 sm:min-h-9"
                   onClick={handleAbandonPending}
                 >
                   Discard
