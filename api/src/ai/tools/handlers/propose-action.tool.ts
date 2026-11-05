@@ -27,7 +27,7 @@ export const PROPOSE_ACTION_TOOL_NAME = 'proposeAction';
 export const PROPOSE_ACTION_TOOL_DEFINITION: AiToolDefinition = {
   name: PROPOSE_ACTION_TOOL_NAME,
   description:
-    'Propose a FieldKeel mutation for human Approve/Reject. Does NOT apply changes. Use after confirming facts with getJobs/getSchedule/findMissingAccess when needed. actionType must be one of the allow-listed values. For updates/cancels include the target id in payload (jobId, clientId, siteId, or teamId). Always tell the user a manager must approve before anything changes.',
+    'Propose a FieldKeel mutation for human Approve/Reject. Does NOT apply changes. Use after confirming facts with getJobs/getSchedule/findMissingAccess when needed. actionType must be one of the allow-listed values. Put action fields inside payload (never flatten them next to actionType). Example client.create: {"actionType":"client.create","payload":{"name":"Emily"},"rationale":"New customer"}. Always tell the user a manager must approve before anything changes.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -40,8 +40,39 @@ export const PROPOSE_ACTION_TOOL_DEFINITION: AiToolDefinition = {
       },
       payload: {
         type: 'object',
+        // Validator defaults additionalProperties to false; without this, any
+        // payload key (e.g. name) is rejected as "Unknown property".
+        additionalProperties: true,
         description:
-          'Action-specific fields. Examples: job.create needs title, clientId, siteId, jobType; job.update/schedule/assign/dispatch/cancel need jobId; client.create needs name; site.create needs clientId, name, addressLine1, city, country; team.create needs name.',
+          'Action-specific fields only. client.create: {name, primaryContactName?, primaryContactEmail?, primaryContactPhone?, email?, phone?, notes?}. client.update/deactivate: {clientId, ...}. job.create: {title, clientId, siteId, jobType, ...}. job.* mutations: {jobId, ...}. site.create: {clientId, name, addressLine1, city, country}. site.*/team.*: include siteId/teamId. team.create: {name}.',
+        properties: {
+          name: { type: 'string', description: 'Client, site, or team name.' },
+          title: { type: 'string', description: 'Job title.' },
+          jobType: { type: 'string', description: 'Job type string.' },
+          jobId: { type: 'string', description: 'Target job UUID.' },
+          clientId: { type: 'string', description: 'Client UUID.' },
+          siteId: { type: 'string', description: 'Site UUID.' },
+          teamId: { type: 'string', description: 'Team UUID.' },
+          primaryContactName: {
+            type: 'string',
+            description: 'Optional client contact name.',
+          },
+          primaryContactEmail: {
+            type: 'string',
+            description: 'Optional client contact email.',
+          },
+          primaryContactPhone: {
+            type: 'string',
+            description: 'Optional client contact phone.',
+          },
+          email: { type: 'string', description: 'Optional client email alias.' },
+          phone: { type: 'string', description: 'Optional client phone alias.' },
+          addressLine1: { type: 'string' },
+          city: { type: 'string' },
+          country: { type: 'string' },
+          reason: { type: 'string', description: 'Cancel/deactivate reason.' },
+          notes: { type: 'string' },
+        },
       },
       rationale: {
         type: 'string',

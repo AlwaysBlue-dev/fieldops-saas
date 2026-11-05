@@ -53,7 +53,7 @@ export function AiMessageList({
   }, [messages, onPickFollowUp, submitting]);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-1 py-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-0 py-3 sm:gap-4 sm:py-5 md:py-6">
       {messageLimitReached && messageLimit ? (
         <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-center text-[11px] leading-relaxed text-muted-foreground">
           Showing up to {messageLimit} messages in this conversation. Additional
@@ -74,7 +74,7 @@ export function AiMessageList({
         : null}
       {submitting ? (
         <div
-          className="flex max-w-[min(100%,42rem)] items-center gap-3 rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-3 text-sm text-muted-foreground shadow-raise"
+          className="flex max-w-[min(100%,48rem)] items-center gap-3 rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-3 text-sm text-muted-foreground shadow-raise"
           role="status"
           aria-live="polite"
         >
@@ -91,10 +91,10 @@ export function AiMessageList({
           prompts={followUps}
           onPick={onPickFollowUp!}
           disabled={followUpsDisabled}
-          className="max-w-[min(100%,42rem)]"
+          className="max-w-[min(100%,48rem)]"
         />
       ) : null}
-      <div ref={endRef} />
+      <div ref={endRef} className="h-2 shrink-0" />
     </div>
   );
 }

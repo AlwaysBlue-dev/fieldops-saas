@@ -73,7 +73,7 @@ export const AI_PROMPT_CHIPS: ReadonlyArray<{
     id: "create-client",
     label: "Create client",
     prompt:
-      "Propose creating a new client. Collect the name (and optional contact), then proposeAction with client.create for approval.",
+      "Propose creating a new client. Ask for the client name (and optional primaryContactEmail/phone). When ready, call proposeAction with actionType client.create and payload { name } — do not claim it was created until approved.",
     icon: Building2,
   },
   {
@@ -124,10 +124,10 @@ export function AiPromptChips({
               size="sm"
               disabled={disabled}
               className={cn(
-                "h-auto min-h-9 gap-2 border-border/90 bg-card font-normal text-foreground shadow-none transition-colors hover:border-primary/35 hover:bg-accent/60",
+                "h-auto min-h-11 gap-2 border-border/90 bg-card font-normal text-foreground shadow-none transition-colors hover:border-primary/35 hover:bg-accent/60 sm:min-h-9",
                 layout === "stack"
                   ? "w-full justify-start whitespace-normal px-3 py-2.5 text-left text-sm"
-                  : "rounded-lg px-3 py-1.5 text-xs md:text-sm",
+                  : "rounded-lg px-3 py-2 text-xs sm:py-1.5 md:text-sm",
               )}
               onClick={() => onPick(chip.prompt)}
             >
