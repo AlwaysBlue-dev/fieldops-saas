@@ -30,7 +30,7 @@ export const aiWorkforceLimitsSafety: DocArticle = {
       id: "propose-approve",
       heading: "Propose, then approve",
       paragraphs: [
-        "AI Workforce can look up authorized jobs, schedules, and missing access information. When you ask it to create or change jobs, clients, sites, or teams, it creates a pending proposal — it does not apply the change by itself.",
+        "AI Workforce can look up authorized jobs, clients, teams, schedules, and missing access information. When more than one match exists, it offers tap-to-select choices instead of asking for technical IDs. When you ask it to create or change jobs, clients, sites, or teams, it creates a pending proposal — it does not apply the change by itself.",
         "An owner, admin, or operations manager must Approve or Reject each proposal in AI Workforce. Approval runs the same FieldKeel services and permission checks used by the normal screens.",
       ],
     },

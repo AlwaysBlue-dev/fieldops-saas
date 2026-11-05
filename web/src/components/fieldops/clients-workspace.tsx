@@ -127,7 +127,7 @@ export function ClientsWorkspace() {
   return (
     <div className="flex w-full min-w-0 flex-col gap-4">
       <PageHeader
-        title="Customers"
+        title="Clients"
         description="Accounts and service locations for this organization."
         hideTitleOnMobile
         actions={

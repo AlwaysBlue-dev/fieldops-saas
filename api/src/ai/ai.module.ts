@@ -16,8 +16,10 @@ import { GroqAiProvider } from './providers/groq-ai.provider.js';
 import { OpenRouterAiProvider } from './providers/openrouter-ai.provider.js';
 import { StubAiProvider } from './providers/stub-ai.provider.js';
 import { FindMissingAccessAiTool } from './tools/handlers/find-missing-access.tool.js';
+import { GetClientsAiTool } from './tools/handlers/get-clients.tool.js';
 import { GetJobsAiTool } from './tools/handlers/get-jobs.tool.js';
 import { GetScheduleAiTool } from './tools/handlers/get-schedule.tool.js';
+import { GetTeamsAiTool } from './tools/handlers/get-teams.tool.js';
 import { ProposeActionAiTool } from './tools/handlers/propose-action.tool.js';
 import { AiToolExecutorService } from './tools/ai-tool-executor.service.js';
 import { AiToolRegistry } from './tools/ai-tool.registry.js';
@@ -34,6 +36,8 @@ import { AiUsageService } from './usage/ai-usage.service.js';
     AiToolRegistry,
     AiToolExecutorService,
     GetJobsAiTool,
+    GetClientsAiTool,
+    GetTeamsAiTool,
     FindMissingAccessAiTool,
     GetScheduleAiTool,
     ProposeActionAiTool,
