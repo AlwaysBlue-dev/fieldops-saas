@@ -4,7 +4,7 @@ export const aiWorkforceOverview: DocArticle = {
   slug: "ai-workforce-overview",
   title: "What is AI Workforce?",
   description:
-    "FieldKeel’s natural-language assistant for understanding jobs, schedules, and operational gaps — available on Professional and Business plans.",
+    "FieldKeel’s natural-language assistant for jobs, schedules, missing access, and propose-then-approve changes — available on Professional and Business plans.",
   categoryId: "ai-workforce",
   keywords: [
     "AI Workforce",
@@ -30,15 +30,15 @@ export const aiWorkforceOverview: DocArticle = {
       heading: "What AI Workforce is",
       paragraphs: [
         "AI Workforce is FieldKeel’s in-product assistant for office and supervisory roles. You ask questions in everyday language, and the assistant retrieves information you are already allowed to see — jobs, schedules, and missing site access signals — then summarizes what it found.",
-        "It is designed to help operations staff understand the current board faster: what is scheduled, what is unassigned, what is high priority, and where access details are incomplete. It does not replace your schedule board, job cards, or approval workflows.",
+        "It can also propose allow-listed changes to jobs, clients, sites, and teams. Those proposals stay pending until an owner, admin, or operations manager Approves them. It does not replace your schedule board, job cards, or approval workflows.",
       ],
     },
     {
       id: "how-you-use-it",
       heading: "How you interact with it",
       paragraphs: [
-        "Open AI Workforce from the workspace navigation (where your role and plan allow it). Start a conversation, type a question, and review the answer in the same thread.",
-        "Each message is a natural-language instruction. The assistant may look up operational data before answering. FieldKeel may use more than one configured AI service and can try another when one is temporarily unavailable. You stay in control: use the answer to decide what to do next in the normal FieldKeel screens.",
+        "Open AI Workforce from the workspace navigation (where your role and plan allow it). Start a conversation, type a question, and review the answer in the same thread. Pending proposals appear for review when a mutation was suggested.",
+        "Each message is a natural-language instruction. The assistant may look up operational data or create a proposal before answering. FieldKeel may use more than one configured AI service and can try another when one is temporarily unavailable. You stay in control: Approve or Reject proposals, and confirm important decisions in the normal FieldKeel screens.",
       ],
     },
     {

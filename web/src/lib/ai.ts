@@ -1,4 +1,4 @@
-import { apiRequest, ApiError, ensureAuthSession } from "./api";
+import { apiRequest, ApiError } from "./api";
 
 /** Matches backend listSessions take: 50 */
 export const AI_SESSION_LIST_LIMIT = 50;
@@ -501,15 +501,13 @@ export async function sendAiMessageWithReconcile(
   const pollIntervalMs = options?.pollIntervalMs ?? 3_000;
   let polls = 0;
 
-  // Long reconciles can outlive the access cookie; refresh once up front and
-  // periodically so polls do not each log a 401→refresh pair.
-  await ensureAuthSession();
-
   for (;;) {
     if (options?.signal?.aborted) {
       throw new ApiError(0, "Request was cancelled.", "Aborted");
     }
 
+    // apiRequest refreshes once on a real 401 — do not rotate refresh tokens
+    // proactively here (concurrent refresh reuse can revoke the whole session).
     const response = await sendAiMessage(
       organizationId,
       sessionId,
@@ -525,9 +523,6 @@ export async function sendAiMessageWithReconcile(
       return response;
     }
     polls += 1;
-    if (polls % 10 === 0) {
-      await ensureAuthSession();
-    }
     await sleep(pollIntervalMs, options?.signal);
   }
 }

@@ -20,7 +20,7 @@ const features = [
   },
   {
     title: "AI Workforce",
-    copy: "Ask natural-language questions about authorized jobs, schedules, and missing site access. Get operational summaries and recommendations based on retrieved data. Access is organization-scoped and role-aware. The current assistant is read-only — it does not assign technicians, reschedule work, change statuses, or send customer messages. Included on Professional and Business plans.",
+    copy: "Ask natural-language questions about authorized jobs, schedules, and missing site access. Propose allow-listed changes to jobs, clients, sites, and teams — each proposal stays pending until an owner, admin, or operations manager Approves it. Access is organization-scoped and role-aware. It does not send customer messages or apply changes without approval. Included on Professional and Business plans.",
     href: "/docs/ai-workforce-overview",
   },
   {
