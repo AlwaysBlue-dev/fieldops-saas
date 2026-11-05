@@ -56,9 +56,11 @@ export default async function PrivacyPage() {
           role, and existing job visibility rules.
         </p>
         <p>
-          The current AI Workforce product is read-only. It does not change jobs,
-          schedules, or memberships on its own. Users should review
-          AI-generated answers before acting on them.
+          AI Workforce may create pending proposals for allow-listed changes
+          (such as jobs, clients, sites, or teams). Those proposals do not
+          change records until an owner, admin, or operations manager Approves
+          them. Users should review AI-generated answers and proposals before
+          acting on them.
         </p>
         <p>
           Answering a request may involve configured third-party AI providers

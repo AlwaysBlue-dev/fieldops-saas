@@ -143,10 +143,11 @@ access notes, tool JSON, or user messages. History cannot override system
 instructions or expand authorization. Every tool call uses the current trusted
 membership context.
 
-### Explicit read-only limitations
+### Explicit mutation limitations
 
-The assistant must not claim mutations. Available tools are read-only only.
-No technician availability calculator. No write tools in this stage.
+The assistant must not claim mutations were applied. Lookup tools are read-only;
+`proposeAction` only creates PENDING proposals. Domain writes run only after
+human Approve. No technician availability calculator. No autonomous write tools.
 No cross-session memory beyond the selected chat session’s persisted messages.
 
 ## Errors, retries, and partial results (Step 4.4.4)
@@ -395,13 +396,14 @@ Unchanged core policy (`docs/ai-provider-failover.md`), plus tool rules:
 - Idempotency keys: `{orgId}:{clientRequestId}:r{n}` per generation round
   (local reservation identity remains `organizationId` + `clientRequestId`).
 
-## Current available tools (read-only)
+## Current available tools
 
 | Name | Handler | Service |
 |------|---------|---------|
 | `getJobs` | `get-jobs.tool.ts` | `JobsService.list` |
 | `findMissingAccess` | `find-missing-access.tool.ts` | `JobsService.list` (`missingAccess: true`) |
 | `getSchedule` | `get-schedule.tool.ts` | `ScheduleService.getBoard` |
+| `proposeAction` | `propose-action.tool.ts` | `AiProposalService.create` (PENDING only) |
 
 See sections below for each tool’s arguments, visibility, and projections.
 
@@ -560,11 +562,11 @@ org/user context and from model args.
 4. Validation uses `JSON.parse`-compatible structures only — **never `eval`**.
 5. Failures return `INVALID_ARGUMENTS` with a short path/message list (no stacks).
 
-## Read-only restriction
+## Access restriction
 
-- Registered tools must declare `access: 'read'`.
-- Executor rejects any other classification as `NOT_READ_ONLY`.
-- Orchestration only attaches registry definitions (read-only tools).
+- Registered tools must declare `access: 'read' | 'propose'`.
+- Executor rejects any other classification.
+- Orchestration attaches registry definitions for both lookup and propose tools.
 - Propose tools create PENDING proposals; execution happens only on human Approve
   through `AiProposalService` + existing Jobs/Clients/Sites/Teams services.
 
@@ -639,4 +641,4 @@ transcripts.
 - Tool arguments are untrusted; every call is re-validated.
 - Authorization remains in NestJS business services, not the model.
 - Only NestJS executes tools under the existing AI usage reservation.
-- Only read-only tools are enabled at this stage.
+- Only `read` and `propose` tools are enabled; no direct auto-write tools.

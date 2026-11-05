@@ -41,11 +41,12 @@ export default async function SecurityPage() {
           FieldKeel. The assistant cannot open another organization&apos;s data.
         </p>
         <p>
-          In the current product, AI Workforce is read-only: it retrieves and
-          summarizes authorized operational information. It does not assign
-          technicians, reschedule jobs, change statuses, send customer messages,
-          or dispatch work on its own. Answers should be reviewed by users
-          before operational decisions.
+          AI Workforce retrieves and summarizes authorized operational
+          information. Allow-listed create or update requests become pending
+          proposals — they do not apply until an owner, admin, or operations
+          manager Approves them in FieldKeel. The assistant does not send
+          customer messages or change records without that human approval.
+          Answers and proposals should be reviewed before operational decisions.
         </p>
         <p>
           Generating an answer may involve configured AI service providers that

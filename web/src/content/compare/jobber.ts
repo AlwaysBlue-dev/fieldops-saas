@@ -4,7 +4,7 @@ export const jobberComparison = {
   id: "jobber",
   slug: "jobber",
   title: "FieldKeel vs Jobber: A Flat-Price Jobber Alternative for Crews | FieldKeel",
-  metaDescription: "Comparing FieldKeel and Jobber for field service teams. Dispatch, crews, time, and approvals in one workspace for $499/year with 10 users. Professional and Business include read-only AI Workforce. Start a 14-day free trial.",
+  metaDescription: "Comparing FieldKeel and Jobber for field service teams. Dispatch, crews, time, and approvals in one workspace for $499/year with 10 users. Professional and Business include AI Workforce with propose-then-approve changes. Start a 14-day free trial.",
   heading: "FieldKeel vs Jobber: A Jobber Alternative Built Around Dispatch, Crews, and Time",
   introduction: [
     "Jobber is one of the best-known names in home service software, and for good reason. It covers quoting, invoicing, payments, client communication, and marketing in one product. But if your daily headache is running crews, not sending invoices, you may be paying for a lot you don't use.",
@@ -165,7 +165,7 @@ export const jobberComparison = {
         },
         {
           type: "paragraph",
-          text: "**AI Workforce for operational questions (Professional and Business).** FieldKeel’s assistant answers natural-language questions about authorized jobs, schedules, and missing site access. It is read-only today — it does not assign technicians or change jobs. This comparison does not claim parity with Jobber’s AI features."
+          text: "**AI Workforce for operational questions and proposed changes (Professional and Business).** FieldKeel’s assistant answers natural-language questions about authorized jobs, schedules, and missing site access, and can propose allow-listed changes that need human Approve before they apply. This comparison does not claim parity with Jobber’s AI features."
         }
       ]
     },
@@ -228,7 +228,7 @@ export const jobberComparison = {
         },
         {
           question: "Does FieldKeel include AI?",
-          answer: "Professional and Business include AI Workforce: a read-only assistant for questions about authorized jobs, schedules, and missing site access. It does not assign technicians, reschedule work, or change job statuses. This page does not claim that FieldKeel AI matches Jobber’s AI product."
+          answer: "Professional and Business include AI Workforce: lookups for authorized jobs, schedules, and missing site access, plus propose-then-approve changes for allow-listed actions. Changes do not apply until an owner, admin, or operations manager Approves them. This page does not claim that FieldKeel AI matches Jobber’s AI product."
         }
       ]
     },

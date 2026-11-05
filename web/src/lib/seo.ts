@@ -52,7 +52,7 @@ export function softwareApplicationJsonLd(catalog: PublicCatalog | null) {
     "@type": "SoftwareApplication",
     name: "FieldKeel",
     description:
-      "Field service and operations management software for dispatch, crews, time, and approvals. Professional and Business plans include AI Workforce, a read-only assistant for authorized jobs, schedules, and missing site access.",
+      "Field service and operations management software for dispatch, crews, time, and approvals. Professional and Business plans include AI Workforce for authorized lookups and propose-then-approve changes to jobs, clients, sites, and teams.",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     url: SITE_URL,

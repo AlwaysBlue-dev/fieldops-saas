@@ -415,11 +415,30 @@ export function AiWorkforcePage() {
         organizationIdRef.current = orgId;
         setOrgRole(membership.role);
 
-        const [list] = await Promise.all([
-          refreshSessions(orgId),
-          refreshUsage(orgId),
-          refreshProposals(orgId),
-        ]);
+        let list: AiSessionSummary[] | undefined;
+        try {
+          const [sessions] = await Promise.all([
+            refreshSessions(orgId),
+            refreshUsage(orgId),
+            refreshProposals(orgId),
+          ]);
+          list = sessions;
+        } catch (inner) {
+          // Membership already resolved — do not block the whole page for a
+          // transient AI API failure. True expiry still surfaces clearly.
+          if (
+            inner instanceof SessionExpiredError ||
+            (inner instanceof ApiError && inner.status === 401)
+          ) {
+            throw inner;
+          }
+          if (!cancelled) {
+            setBanner({
+              tone: "error",
+              text: aiFriendlyError(inner),
+            });
+          }
+        }
         if (cancelled) return;
 
         const restored = findNewestPendingAiRequest(orgId);
@@ -447,6 +466,8 @@ export function AiWorkforcePage() {
       } catch (error) {
         if (!cancelled && !isAiAbortError(error)) {
           setBootError(aiFriendlyError(error));
+          setOrganizationId(null);
+          organizationIdRef.current = null;
         }
       } finally {
         if (!cancelled) setBootLoading(false);

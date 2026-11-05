@@ -28,7 +28,7 @@ const sections = [
   },
   {
     title: "AI Workforce",
-    copy: "Natural-language assistance stays within your organization membership and job visibility. The current assistant is read-only; review answers before acting.",
+    copy: "Natural-language assistance stays within your organization membership and job visibility. Lookups are live; mutations need human Approve before they apply.",
     href: "/docs/ai-workforce-limits-safety",
   },
   {

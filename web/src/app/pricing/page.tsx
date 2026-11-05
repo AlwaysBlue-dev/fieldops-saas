@@ -386,7 +386,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What is AI Workforce?",
-    a: "AI Workforce is FieldKeel’s natural-language assistant for understanding jobs, schedules, and missing site access information. It retrieves authorized operational data and can summarize what it finds. In the current product it is read-only — it does not assign technicians, reschedule jobs, change statuses, send customer messages, or dispatch work on its own.",
+    a: "AI Workforce is FieldKeel’s natural-language assistant for jobs, schedules, and missing site access. It retrieves authorized operational data, can summarize what it finds, and can propose allow-listed changes (jobs, clients, sites, teams). Proposals do not apply until an owner, admin, or operations manager Approves them.",
   },
   {
     q: "Which plans include AI Workforce?",
@@ -402,7 +402,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Can AI assign technicians or change jobs?",
-    a: "No. AI Workforce does not assign technicians, reschedule visits, update job statuses, send customer messages, or execute proposed actions. Changes still happen through the normal FieldKeel screens and permissions.",
+    a: "Not by itself. AI Workforce can create a pending proposal for allow-listed actions. An owner, admin, or operations manager must Approve before FieldKeel applies the change through the same services and permissions as the normal screens. It does not send customer messages or auto-dispatch without that approval.",
   },
 ] as const;
 

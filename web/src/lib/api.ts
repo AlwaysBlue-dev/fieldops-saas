@@ -110,9 +110,9 @@ async function refreshSession(): Promise<boolean> {
 }
 
 /**
- * Refresh the access cookie before a burst of authenticated calls so the
- * browser network log is not flooded with expected 401→retry pairs while the
- * user is still signed in.
+ * @deprecated Do not call proactively. Refresh-token rotation races with other
+ * requests and can revoke the session via reuse detection. Prefer the normal
+ * apiRequest 401 → refresh → retry path.
  */
 export async function ensureAuthSession(): Promise<boolean> {
   try {

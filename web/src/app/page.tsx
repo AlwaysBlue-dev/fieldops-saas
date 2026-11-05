@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export const metadata = publicPageMetadata({
   title: "Field service management software | FieldKeel",
-  description: `${APP_TAGLINE} FieldKeel keeps dispatch, crews, time, and approvals in one workspace. Professional and Business include read-only AI Workforce help for jobs, schedules, and missing site access.`,
+  description: `${APP_TAGLINE} FieldKeel keeps dispatch, crews, time, and approvals in one workspace. Professional and Business include AI Workforce for authorized lookups and propose-then-approve changes.`,
   path: "/",
 });
 
@@ -78,9 +78,9 @@ export default async function HomePage() {
         <h2 className="text-sm font-semibold">AI Workforce</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Ask questions in plain language about jobs, schedules, and missing
-          site access — then review the answer before you act. Included on
-          Professional and Business plans. Read-only today: it does not assign
-          crews or change jobs for you.
+          site access. It can also propose allow-listed changes (jobs, clients,
+          sites, teams) that stay pending until an owner, admin, or operations
+          manager Approves them. Included on Professional and Business plans.
         </p>
         <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
           <Link
