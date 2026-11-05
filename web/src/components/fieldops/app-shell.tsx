@@ -380,13 +380,19 @@ function AppShellContent({
           <main
             id="workspace-main"
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col",
+              "relative flex min-h-0 min-w-0 flex-1 flex-col",
               isAiWorkspace
                 ? "overflow-hidden p-0 pb-mobile-nav lg:pb-0"
                 : "overflow-x-hidden overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-5 pb-mobile-nav lg:pb-5",
             )}
           >
-            {children}
+            {isAiWorkspace ? (
+              <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col overflow-hidden">
+                {children}
+              </div>
+            ) : (
+              children
+            )}
           </main>
         </div>
         <MobileBottomNav

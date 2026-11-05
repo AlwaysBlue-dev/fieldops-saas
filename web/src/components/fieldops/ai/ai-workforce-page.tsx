@@ -1074,7 +1074,7 @@ export function AiWorkforcePage() {
 
   if (bootLoading) {
     return (
-      <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-card p-4 md:p-6">
+      <div className="flex size-full min-h-0 min-w-0 flex-col bg-card p-4 md:p-6">
         <SkeletonBlock rows={8} />
       </div>
     );
@@ -1082,7 +1082,7 @@ export function AiWorkforcePage() {
 
   if (bootError || !organizationId) {
     return (
-      <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-card p-4 md:p-6">
+      <div className="flex size-full min-h-0 min-w-0 flex-col bg-card p-4 md:p-6">
         <ErrorState
           title="Could not open AI Workforce"
           description={bootError ?? "Organization context is unavailable."}
@@ -1093,7 +1093,7 @@ export function AiWorkforcePage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-card">
+    <div className="flex size-full min-h-0 min-w-0 flex-col overflow-hidden bg-card">
       <AiChatHeader
         onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
         sidebarOpen={mobileSidebarOpen}
@@ -1178,8 +1178,8 @@ export function AiWorkforcePage() {
         </div>
       ) : null}
 
-      <div className="relative flex min-h-0 min-w-0 flex-1">
-        <div className="hidden w-64 shrink-0 border-r border-border lg:block xl:w-72">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="hidden h-full w-64 shrink-0 border-r border-border lg:block xl:w-72">
           <AiConversationSidebar
             conversations={sessions}
             activeId={activeId}
