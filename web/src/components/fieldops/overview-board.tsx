@@ -95,7 +95,7 @@ export function OverviewBoard({ orgSlug }: { orgSlug: string }) {
     kpis != null ? (kpis.totalLabourMinutes / 60).toFixed(1) : "—";
 
   return (
-    <div className="mx-auto flex max-w-350 flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <PageHeader
         title={`Good ${greeting()}, ${firstName || "there"}`}
         description={`${orgName} · ${dayLabel || "Operational day"}`}
@@ -146,8 +146,8 @@ export function OverviewBoard({ orgSlug }: { orgSlug: string }) {
             <Pane
               title="Today's work"
               action={
-                <Button asChild variant="outline" className="h-8">
-                  <Link href={`/app/${orgSlug}/schedule`}>Open schedule</Link>
+                <Button asChild variant="outline" className="h-8 px-2.5 text-xs sm:px-3 sm:text-sm">
+                  <Link href={`/app/${orgSlug}/schedule`}>Schedule</Link>
                 </Button>
               }
             >
@@ -193,8 +193,8 @@ export function OverviewBoard({ orgSlug }: { orgSlug: string }) {
             <Pane
               title="Needs attention"
               action={
-                <Button asChild variant="outline" className="h-8">
-                  <Link href={`/app/${orgSlug}/jobs`}>Open jobs</Link>
+                <Button asChild variant="outline" className="h-8 px-2.5 text-xs sm:px-3 sm:text-sm">
+                  <Link href={`/app/${orgSlug}/jobs`}>Jobs</Link>
                 </Button>
               }
             >
@@ -270,12 +270,12 @@ function Pane({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card px-4 py-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {action}
+    <section className="min-w-0 overflow-hidden rounded-lg border border-border bg-card px-3 py-3 sm:px-4">
+      <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate text-sm font-semibold">{title}</h2>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
-      {children}
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }

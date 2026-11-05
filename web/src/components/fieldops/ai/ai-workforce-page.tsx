@@ -1074,7 +1074,7 @@ export function AiWorkforcePage() {
 
   if (bootLoading) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-card p-4 md:p-6">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-card p-4 md:p-6">
         <SkeletonBlock rows={8} />
       </div>
     );
@@ -1082,7 +1082,7 @@ export function AiWorkforcePage() {
 
   if (bootError || !organizationId) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col bg-card p-4 md:p-6">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col bg-card p-4 md:p-6">
         <ErrorState
           title="Could not open AI Workforce"
           description={bootError ?? "Organization context is unavailable."}
@@ -1093,7 +1093,7 @@ export function AiWorkforcePage() {
   }
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-workspace lg:border-t lg:border-border">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-card">
       <AiChatHeader
         onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
         sidebarOpen={mobileSidebarOpen}
@@ -1178,8 +1178,8 @@ export function AiWorkforcePage() {
         </div>
       ) : null}
 
-      <div className="relative flex min-h-0 flex-1">
-        <div className="hidden w-72 shrink-0 border-r border-border xl:w-80 lg:block">
+      <div className="relative flex min-h-0 min-w-0 flex-1">
+        <div className="hidden w-64 shrink-0 border-r border-border lg:block xl:w-72">
           <AiConversationSidebar
             conversations={sessions}
             activeId={activeId}
@@ -1226,9 +1226,9 @@ export function AiWorkforcePage() {
         ) : null}
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-workspace">
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 sm:px-4 md:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 sm:px-4 md:px-5 lg:px-6">
             {!activeId ? (
-              <div className="mx-auto flex max-w-2xl flex-col gap-3 px-1 py-8 md:py-12">
+              <div className="flex h-full min-h-[12rem] w-full max-w-3xl flex-col justify-center gap-3 py-6">
                 <h2 className="text-lg font-semibold text-foreground">
                   Start a conversation
                 </h2>
@@ -1252,7 +1252,7 @@ export function AiWorkforcePage() {
                 </Button>
               </div>
             ) : messagesLoading ? (
-              <div className="mx-auto max-w-4xl py-6">
+              <div className="w-full py-6">
                 <SkeletonBlock rows={6} />
               </div>
             ) : showWelcome ? (

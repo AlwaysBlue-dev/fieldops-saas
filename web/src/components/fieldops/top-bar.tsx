@@ -72,12 +72,12 @@ export function TopBar({
 
   return (
     <header
-      className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-sm"
+      className="sticky top-0 z-20 min-w-0 border-b border-border bg-card/95 backdrop-blur-sm"
       style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <div className="flex h-12 items-center gap-2 px-3 md:h-12 md:px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
-          <BrandMark />
+      <div className="flex h-12 min-w-0 items-center gap-1 px-2 sm:gap-1.5 sm:px-3 md:h-12 md:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 md:hidden">
+          <BrandMark className="size-7 shrink-0" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{title}</p>
           </div>
@@ -89,7 +89,7 @@ export function TopBar({
           </h1>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <Button
             type="button"
             variant="ghost"
@@ -118,17 +118,17 @@ export function TopBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-11 lg:hidden md:size-8"
+            className="size-9 shrink-0 lg:hidden md:size-8"
             aria-label="Search workspace"
             onClick={onSearch}
           >
-            <Search />
+            <Search className="size-4" />
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="relative size-11 md:size-8"
+            className="relative size-9 shrink-0 md:size-8"
             aria-label={
               unreadCount > 0
                 ? `Notifications, ${unreadCount} unread`
@@ -136,7 +136,7 @@ export function TopBar({
             }
             onClick={onNotifications}
           >
-            <Bell />
+            <Bell className="size-4" />
             {unreadCount > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -148,7 +148,7 @@ export function TopBar({
               type="button"
               variant="ghost"
               size="icon"
-              className="relative size-11 md:size-8"
+              className="relative size-9 shrink-0 md:size-8"
               aria-label={
                 ownerInboxUnread > 0
                   ? `Inbox, ${ownerInboxUnread} unread`
@@ -156,7 +156,7 @@ export function TopBar({
               }
               onClick={() => router.push(`/app/${orgSlug}/inbox`)}
             >
-              <Inbox />
+              <Inbox className="size-4" />
               {ownerInboxUnread > 0 ? (
                 <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-md bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
                   {ownerInboxUnread > 99 ? "99+" : ownerInboxUnread}
@@ -176,18 +176,18 @@ export function TopBar({
           <MutationButton
             type="button"
             size="icon"
-            className="size-11 md:hidden"
+            className="size-9 shrink-0 md:hidden"
             aria-label="Create"
             onClick={onQuickCreate}
           >
-            <Plus />
+            <Plus className="size-4" />
           </MutationButton>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-11 rounded-md md:size-8"
+                className="size-9 shrink-0 rounded-md md:size-8"
                 aria-label="Account menu"
               >
                 <Avatar size="sm">
@@ -260,7 +260,7 @@ export function TopBar({
           </DropdownMenu>
         </div>
       </div>
-      <div className="border-t border-border px-3 py-1.5 md:hidden">
+      <div className="min-w-0 border-t border-border px-2 py-1.5 sm:px-3 md:hidden">
         <OrganizationSwitcher currentSlug={orgSlug} memberships={memberships} />
       </div>
     </header>

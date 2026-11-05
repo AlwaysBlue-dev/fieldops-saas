@@ -62,7 +62,7 @@ export function AiMessageComposer({
     >
       {limitReached ? (
         <div
-          className="mx-auto mb-2.5 w-full max-w-4xl rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-foreground"
+          className="mx-auto mb-2.5 w-full max-w-5xl rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-relaxed text-foreground"
           role="status"
         >
           Monthly AI task limit reached. New questions are blocked until next
@@ -70,7 +70,7 @@ export function AiMessageComposer({
         </div>
       ) : null}
       {showPromptChips && onPickPrompt && !limitReached ? (
-        <div className="mx-auto mb-2 w-full max-w-4xl overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto mb-2 hidden w-full max-w-5xl overflow-x-auto pb-0.5 sm:block [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <AiPromptChips
             layout="wrap"
             onPick={onPickPrompt}
@@ -78,7 +78,7 @@ export function AiMessageComposer({
           />
         </div>
       ) : null}
-      <div className="mx-auto flex w-full max-w-4xl items-end gap-2">
+      <div className="mx-auto flex w-full max-w-5xl items-end gap-2">
         <div className="relative min-w-0 flex-1">
           <Textarea
             ref={ref}
@@ -94,7 +94,7 @@ export function AiMessageComposer({
             disabled={submitting || blocked}
             aria-label="Message"
             className={cn(
-              "min-h-11 max-h-40 w-full resize-none bg-background py-2.5 text-base shadow-none sm:text-sm",
+              "min-h-11 max-h-40 w-full resize-none bg-background py-2.5 text-base shadow-none sm:text-[15px]",
               "focus-visible:border-primary/40",
             )}
           />
@@ -113,7 +113,7 @@ export function AiMessageComposer({
           )}
         </Button>
       </div>
-      <p className="mx-auto mt-1.5 hidden max-w-4xl text-[11px] text-muted-foreground sm:block">
+      <p className="mx-auto mt-1.5 hidden max-w-5xl text-[11px] text-muted-foreground sm:block">
         Enter to send · Shift+Enter for a new line
       </p>
     </form>
