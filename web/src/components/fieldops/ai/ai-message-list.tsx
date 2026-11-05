@@ -1,5 +1,7 @@
 import { AiFollowUpChips, suggestFollowUps } from "./ai-follow-up-chips";
 import { AiMessageBubble } from "./ai-message-bubble";
+import { AiProposalCard } from "./ai-proposal-card";
+import type { AiProposalDetail } from "@/lib/ai";
 import type { AiUiMessage } from "./types";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -11,6 +13,8 @@ export function AiMessageList({
   messageLimit,
   onPickFollowUp,
   followUpsDisabled,
+  sessionProposals,
+  onDecideProposal,
 }: {
   messages: AiUiMessage[];
   submitting?: boolean;
@@ -20,6 +24,11 @@ export function AiMessageList({
   messageLimit?: number;
   onPickFollowUp?: (prompt: string) => void;
   followUpsDisabled?: boolean;
+  sessionProposals?: AiProposalDetail[];
+  onDecideProposal?: (
+    proposalId: string,
+    decision: "APPROVE" | "REJECT",
+  ) => Promise<void>;
 }) {
   const endRef = useRef<HTMLDivElement | null>(null);
 
@@ -54,6 +63,15 @@ export function AiMessageList({
       {messages.map((message) => (
         <AiMessageBubble key={message.id} message={message} />
       ))}
+      {!submitting && sessionProposals && sessionProposals.length > 0
+        ? sessionProposals.map((proposal) => (
+            <AiProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              onDecide={onDecideProposal}
+            />
+          ))
+        : null}
       {submitting ? (
         <div
           className="flex max-w-[min(100%,42rem)] items-center gap-3 rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-3 text-sm text-muted-foreground shadow-raise"

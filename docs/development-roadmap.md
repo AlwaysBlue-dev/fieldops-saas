@@ -142,6 +142,11 @@ No jobs yet.
 
 **Exit criteria:** Dashboard is empty-safe (real zeros, not fake charts).
 
+### AI Workforce propose + approve (shipped alongside ops intelligence)
+
+- Read tools remain live. Mutations for jobs / clients / sites / teams go through `proposeAction` → `AiProposedAction` PENDING → human Approve/Reject.
+- Deciders: OWNER / ADMIN / OPERATIONS_MANAGER. Execution uses existing domain services as the decider; stale `expectedTargetUpdatedAt` fails safely.
+
 ---
 
 ## Phase 8 — Billing (explicitly later)

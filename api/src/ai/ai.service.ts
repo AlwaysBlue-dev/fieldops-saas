@@ -11,6 +11,7 @@ import {
 import {
   AiChatSessionStatus,
   AiMessageRole,
+  AiProposedActionStatus,
   AiUsageStatus,
   OrganizationRole,
   Prisma,
@@ -2139,10 +2140,57 @@ export class AiService {
     return this.usage.summaryForOrganization(organization.organizationId);
   }
 
-  async listProposals(organization: OrganizationContext, userId: string) {
+  async listProposals(
+    organization: OrganizationContext,
+    userId: string,
+    query: {
+      scope?: 'mine' | 'review';
+      status?: AiProposedActionStatus;
+    } = {},
+  ) {
     this.assertCanUseAi(organization);
     await this.assertFeatureEnabled(organization.organizationId);
-    return this.proposals.list(organization, userId);
+    const scope = query.scope ?? 'mine';
+    if (scope === 'review') {
+      const rows = await this.proposals.listForReview(organization, {
+        status: query.status,
+      });
+      return {
+        scope,
+        items: rows.map((row) => ({
+          ...row,
+          canDecide:
+            row.status === AiProposedActionStatus.PENDING &&
+            (organization.role === OrganizationRole.OWNER ||
+              organization.role === OrganizationRole.ADMIN ||
+              organization.role === OrganizationRole.OPERATIONS_MANAGER),
+        })),
+      };
+    }
+    const rows = await this.proposals.listMine(organization, userId, {
+      status: query.status,
+    });
+    return {
+      scope: 'mine' as const,
+      items: rows.map((row) => ({
+        ...row,
+        canDecide: false,
+      })),
+    };
+  }
+
+  async getProposal(
+    organization: OrganizationContext,
+    userId: string,
+    proposalId: string,
+  ) {
+    this.assertCanUseAi(organization);
+    await this.assertFeatureEnabled(organization.organizationId);
+    await this.proposals.getAuthorized(organization, userId, proposalId);
+    return this.proposals.presentWithRole(
+      await this.proposals.get(organization, proposalId),
+      organization,
+    );
   }
 
   async decideProposal(

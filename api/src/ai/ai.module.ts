@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { SubscriptionModule } from '../subscription/subscription.module.js';
 import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
+import { AiProposalExecutorService } from './proposals/ai-proposal-executor.service.js';
 import { AiProposalService } from './proposals/ai-proposal.service.js';
 import {
   AI_PROVIDER,
@@ -16,22 +18,25 @@ import { StubAiProvider } from './providers/stub-ai.provider.js';
 import { FindMissingAccessAiTool } from './tools/handlers/find-missing-access.tool.js';
 import { GetJobsAiTool } from './tools/handlers/get-jobs.tool.js';
 import { GetScheduleAiTool } from './tools/handlers/get-schedule.tool.js';
+import { ProposeActionAiTool } from './tools/handlers/propose-action.tool.js';
 import { AiToolExecutorService } from './tools/ai-tool-executor.service.js';
 import { AiToolRegistry } from './tools/ai-tool.registry.js';
 import { AiUsageService } from './usage/ai-usage.service.js';
 
 @Module({
-  imports: [SubscriptionModule, OrganizationsModule],
+  imports: [SubscriptionModule, OrganizationsModule, AuditModule],
   controllers: [AiController],
   providers: [
     AiService,
     AiUsageService,
     AiProposalService,
+    AiProposalExecutorService,
     AiToolRegistry,
     AiToolExecutorService,
     GetJobsAiTool,
     FindMissingAccessAiTool,
     GetScheduleAiTool,
+    ProposeActionAiTool,
     GroqAiProvider,
     GeminiAiProvider,
     OpenRouterAiProvider,

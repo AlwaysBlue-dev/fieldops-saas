@@ -6,10 +6,12 @@ import type {
 } from '../providers/ai-provider.types.js';
 
 /**
- * Explicit access classification. MVP allows only `read`.
+ * Explicit access classification.
+ * - `read`: lookup only
+ * - `propose`: create AiProposedAction rows (never mutates domain directly)
  * Unknown values must be rejected by the executor.
  */
-export type AiToolAccess = 'read';
+export type AiToolAccess = 'read' | 'propose';
 
 /**
  * Trusted server-resolved context for tool handlers.
@@ -68,6 +70,7 @@ export type AiToolErrorCode =
   | 'UNKNOWN_TOOL'
   | 'DISABLED'
   | 'NOT_READ_ONLY'
+  | 'NOT_ALLOWED_ACCESS'
   | 'INVALID_ARGUMENTS'
   | 'TIMEOUT'
   | 'RESULT_TOO_LARGE'

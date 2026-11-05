@@ -44,7 +44,7 @@ export const securityPrivacy: DocArticle = {
       id: "ai-workforce",
       heading: "AI Workforce boundaries",
       paragraphs: [
-        "AI Workforce is read-only in the current product. Answers are based on authorized operational lookups and should be reviewed by users before acting. Generating an answer may involve configured AI service providers that process the conversation and retrieved operational results. See AI Workforce limits and safety and the public Privacy Policy for customer-facing detail.",
+        "AI Workforce can look up authorized operational data and propose allow-listed changes (jobs, clients, sites, teams). Proposals do not apply until an owner, admin, or operations manager Approves them. Generating an answer may involve configured AI service providers that process the conversation and retrieved operational results. See AI Workforce limits and safety and the public Privacy Policy for customer-facing detail.",
         "This article does not invent AI provider retention periods, training policies, or compliance certifications.",
       ],
     },
