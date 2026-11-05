@@ -3,7 +3,11 @@ import { EntityStatus } from '../../../generated/prisma/client.js';
 import type { ListQueryDto } from '../../../organizations/dto/list-query.dto.js';
 import { TeamsService } from '../../../organizations/teams.service.js';
 import type { OrganizationContext } from '../../../tenancy/request-context.js';
-import type { AiJsonObject, AiToolDefinition } from '../../providers/ai-provider.types.js';
+import type {
+  AiJsonObject,
+  AiJsonValue,
+  AiToolDefinition,
+} from '../../providers/ai-provider.types.js';
 import { AiToolRegistry } from '../ai-tool.registry.js';
 import type {
   AiToolContext,
@@ -93,7 +97,7 @@ export class GetTeamsAiTool implements OnModuleInit {
     args: AiJsonObject,
     context: AiToolContext,
     execution: AiToolExecutionOptions,
-  ) {
+  ): Promise<AiJsonValue> {
     if (execution.signal.aborted) {
       throw new Error('getTeams cancelled before start');
     }

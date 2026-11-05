@@ -2,7 +2,11 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { EntityStatus } from '../../../generated/prisma/client.js';
 import type { ListQueryDto } from '../../../organizations/dto/list-query.dto.js';
 import { ClientsService } from '../../../organizations/clients.service.js';
-import type { AiJsonObject, AiToolDefinition } from '../../providers/ai-provider.types.js';
+import type {
+  AiJsonObject,
+  AiJsonValue,
+  AiToolDefinition,
+} from '../../providers/ai-provider.types.js';
 import { AiToolRegistry } from '../ai-tool.registry.js';
 import type {
   AiToolContext,
@@ -94,7 +98,7 @@ export class GetClientsAiTool implements OnModuleInit {
     args: AiJsonObject,
     context: AiToolContext,
     execution: AiToolExecutionOptions,
-  ) {
+  ): Promise<AiJsonValue> {
     if (execution.signal.aborted) {
       throw new Error('getClients cancelled before start');
     }
