@@ -80,10 +80,10 @@ export class AiToolExecutorService {
       });
     }
 
-    if (registered.access !== 'read') {
+    if (registered.access !== 'read' && registered.access !== 'propose') {
       return fail(toolName, {
-        code: 'NOT_READ_ONLY',
-        message: `Tool "${toolName}" is not classified as read-only.`,
+        code: 'NOT_ALLOWED_ACCESS',
+        message: `Tool "${toolName}" has an unsupported access class.`,
       });
     }
 

@@ -4,10 +4,11 @@ export const aiWorkforceLimitsSafety: DocArticle = {
   slug: "ai-workforce-limits-safety",
   title: "AI Workforce limits and safety",
   description:
-    "Read-only MVP: no assignments, reschedules, status changes, customer messages, or autonomous dispatch. Review answers before acting.",
+    "Lookups are live; mutations are propose-only and need human Approve. No autonomous dispatch or customer messaging.",
   categoryId: "ai-workforce",
   keywords: [
-    "read-only",
+    "propose",
+    "approve",
     "safety",
     "assign",
     "reschedule",
@@ -26,22 +27,22 @@ export const aiWorkforceLimitsSafety: DocArticle = {
   ],
   sections: [
     {
-      id: "read-only",
-      heading: "Read-only by design",
+      id: "propose-approve",
+      heading: "Propose, then approve",
       paragraphs: [
-        "AI Workforce in the current product is read-only. It can retrieve and explain authorized operational information. It does not change FieldKeel records on its own.",
+        "AI Workforce can look up authorized jobs, schedules, and missing access information. When you ask it to create or change jobs, clients, sites, or teams, it creates a pending proposal — it does not apply the change by itself.",
+        "An owner, admin, or operations manager must Approve or Reject each proposal in AI Workforce. Approval runs the same FieldKeel services and permission checks used by the normal screens.",
       ],
     },
     {
       id: "will-not",
       heading: "What AI Workforce does not do",
       paragraphs: [
-        "It does not assign technicians to jobs.",
-        "It does not reschedule visits or move jobs on the board.",
-        "It does not change job statuses (for example complete, cancel, or submit for approval).",
+        "It does not apply mutations without human Approve.",
         "It does not send messages to customers.",
-        "It does not autonomously dispatch work or run the board without a person.",
-        "Suggested or proposed actions that may appear in product concepts are not executed by AI Workforce today. Any change to jobs, schedule, or membership still happens through the normal FieldKeel screens and permissions.",
+        "It does not autonomously dispatch the board without a person reviewing the proposal.",
+        "It does not change memberships, billing, timesheets, overtime, or upload files in this stage.",
+        "Schedule answers are not proof that a technician is free or able to take more work.",
       ],
     },
     {
@@ -56,8 +57,8 @@ export const aiWorkforceLimitsSafety: DocArticle = {
       id: "review",
       heading: "Review before you act",
       paragraphs: [
-        "Treat AI answers as assistance, not as an automatic decision. Spot-check important counts or job lists in Jobs or Schedule when the stakes are high.",
-        "Data can change after an answer was generated. Ask again or open the live board when you need the latest state.",
+        "Treat AI answers and proposals as assistance, not as an automatic decision. Spot-check important counts or job lists in Jobs or Schedule when the stakes are high.",
+        "Data can change after a proposal was created. If Approve fails because the record changed, reject or recreate the proposal.",
       ],
     },
   ],

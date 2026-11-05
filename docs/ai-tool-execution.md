@@ -4,18 +4,18 @@ NestJS-owned boundary between model-requested tool calls and FieldKeel business
 services. Providers (Groq / Gemini / OpenRouter) may *request* tools; only this
 layer may *execute* them.
 
-**Status (Steps 4.3.3–4.4.4):** Registry + executor + three read-only operational
-tools (`getJobs`, `findMissingAccess`, `getSchedule`) are registered.
+**Status:** Registry + executor + three read-only operational tools
+(`getJobs`, `findMissingAccess`, `getSchedule`) plus **`proposeAction`**
+(`access: 'propose'`) are registered. Propose tools create `AiProposedAction`
+rows only; domain mutations run when an OWNER/ADMIN/OPERATIONS_MANAGER Approves
+via `POST .../ai/proposals/:id/decide`. Direct write tools are not registered.
+
 **`AiService.sendMessage` runs a bounded tool orchestration loop** under one
 usage reservation and persists provider-neutral tool-call history. Tool-call
 identity and round-persistence invariants are enforced before execute/append
-(Step 4.3.7.2). System prompt covers operational intelligence (4.4.1), contextual
-follow-ups / history windowing (4.4.2), operational summary quality (4.4.3), and
-error / incomplete-data communication (4.4.4). User-facing provider copy lives in
-`api/src/ai/ai-user-facing.ts`.
-
-**Only read-only tools are enabled.** No write / mutate / schedule-edit /
-customer-message tools.
+(Step 4.3.7.2). System prompt covers operational intelligence, contextual
+follow-ups, summary quality, propose-then-approve, and error communication.
+User-facing provider copy lives in `api/src/ai/ai-user-facing.ts`.
 
 ### HTTP guards (`AiController`)
 
@@ -46,6 +46,22 @@ contracts. They do not replace staging smoke tests.
 | System prompt | `api/src/ai/prompts/fieldkeel-system-prompt.ts` | Operational intelligence, follow-ups, freshness |
 | History window | `api/src/ai/tools/ai-conversation-history.ts` | Newest-first window; complete tool groups |
 | Orchestration | `api/src/ai/ai.service.ts` | Provider loop + tool rounds under lease |
+| Action allow-list | `api/src/ai/proposals/ai-action.constants.ts` | Typed `actionType` + role gates |
+| Propose tool | `api/src/ai/tools/handlers/propose-action.tool.ts` | Creates PENDING `AiProposedAction` only |
+| Proposal decide | `api/src/ai/proposals/ai-proposal.service.ts` | Approve/Reject + CAS + stale check |
+| Proposal execute | `api/src/ai/proposals/ai-proposal-executor.service.ts` | Domain services as decider |
+
+## Propose → Approve (CRUD)
+
+AI never mutates jobs/clients/sites/teams directly. Flow:
+
+1. Model calls `proposeAction` (`access: 'propose'`) with allow-listed `actionType` + payload.
+2. Nest validates requester role/visibility, snapshots `expectedTargetUpdatedAt`, inserts PENDING.
+3. OWNER / ADMIN / OPERATIONS_MANAGER calls `POST /api/v1/organizations/:orgId/ai/proposals/:id/decide`.
+4. On APPROVE: CAS claim PENDING→APPROVED, re-check stale target + decider role, run existing Jobs/Clients/Sites/Teams service, set EXECUTED or FAILED, audit.
+5. On REJECT: PENDING→REJECTED; domain services are not called.
+
+List scopes: `?scope=mine` (requester) or `?scope=review` (deciders). Wrong-tenant proposal ids → 404.
 
 ```
 User message
@@ -549,7 +565,8 @@ org/user context and from model args.
 - Registered tools must declare `access: 'read'`.
 - Executor rejects any other classification as `NOT_READ_ONLY`.
 - Orchestration only attaches registry definitions (read-only tools).
-- No write / mutate / proposal-execution handlers in this stage.
+- Propose tools create PENDING proposals; execution happens only on human Approve
+  through `AiProposalService` + existing Jobs/Clients/Sites/Teams services.
 
 ## Timeouts and payload limits
 

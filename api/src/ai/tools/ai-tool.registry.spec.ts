@@ -38,7 +38,7 @@ describe('AiToolRegistry read-only enforcement', () => {
     expect(registry.get('getJobs')?.access).toBe('read');
   });
 
-  it('rejects non-read access at registration', () => {
+  it('rejects unknown access at registration', () => {
     const registry = new AiToolRegistry();
     expect(() =>
       registry.register(
@@ -51,8 +51,23 @@ describe('AiToolRegistry read-only enforcement', () => {
           },
         }),
       ),
-    ).toThrow(/only access "read"/);
+    ).toThrow(/only access "read" or "propose"/);
     expect(registry.size()).toBe(0);
+  });
+
+  it('registers propose tools', () => {
+    const registry = new AiToolRegistry();
+    registry.register(
+      sampleTool({
+        access: 'propose',
+        definition: {
+          name: 'proposeAction',
+          description: 'Propose a mutation',
+          parameters: { type: 'object', properties: {} },
+        },
+      }),
+    );
+    expect(registry.get('proposeAction')?.access).toBe('propose');
   });
 
   it('rejects duplicate tool names', () => {

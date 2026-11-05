@@ -2,9 +2,11 @@ import { Injectable } from '@nestjs/common';
 import type { AiToolDefinition } from '../providers/ai-provider.types.js';
 import type { AiRegisteredTool, AiToolAccess } from './ai-tool.types.js';
 
+const ALLOWED_ACCESS: ReadonlySet<AiToolAccess> = new Set(['read', 'propose']);
+
 /**
  * In-process registry of NestJS-approved AI tools.
- * Read-only operational tools register on module init; AiService attaches
+ * Read and propose tools register on module init; AiService attaches
  * `listDefinitions()` to provider requests during orchestration.
  */
 @Injectable()
@@ -13,7 +15,7 @@ export class AiToolRegistry {
 
   /**
    * Register an approved tool. Duplicate names throw.
-   * Only `access: 'read'` is accepted for MVP registration.
+   * Only `access: 'read' | 'propose'` is accepted.
    */
   register(tool: AiRegisteredTool): void {
     const name = tool.definition.name?.trim();
@@ -25,9 +27,9 @@ export class AiToolRegistry {
         `AI tool name must be trimmed; received "${tool.definition.name}".`,
       );
     }
-    if (!this.isReadAccess(tool.access)) {
+    if (!this.isAllowedAccess(tool.access)) {
       throw new Error(
-        `AI tool "${name}" rejected: only access "read" may be registered.`,
+        `AI tool "${name}" rejected: only access "read" or "propose" may be registered.`,
       );
     }
     if (this.tools.has(name)) {
@@ -43,7 +45,7 @@ export class AiToolRegistry {
         description: tool.definition.description,
         parameters: tool.definition.parameters,
       },
-      access: 'read',
+      access: tool.access,
       enabled: tool.enabled !== false,
     });
   }
@@ -59,7 +61,7 @@ export class AiToolRegistry {
     return this.get(name) != null;
   }
 
-  /** Definitions for enabled tools only — safe to attach to future provider requests. */
+  /** Definitions for enabled tools only — safe to attach to provider requests. */
   listDefinitions(options?: { includeDisabled?: boolean }): AiToolDefinition[] {
     const includeDisabled = options?.includeDisabled === true;
     const defs: AiToolDefinition[] = [];
@@ -83,7 +85,7 @@ export class AiToolRegistry {
     return this.tools.size;
   }
 
-  private isReadAccess(access: AiToolAccess | string): access is 'read' {
-    return access === 'read';
+  private isAllowedAccess(access: AiToolAccess | string): access is AiToolAccess {
+    return ALLOWED_ACCESS.has(access as AiToolAccess);
   }
 }

@@ -4,6 +4,7 @@ import { AiChatHeader } from "./ai-chat-header";
 import { AiConversationSidebar } from "./ai-conversation-sidebar";
 import { AiMessageComposer } from "./ai-message-composer";
 import { AiMessageList } from "./ai-message-list";
+import { AiProposalsInboxPanel } from "./ai-proposals-inbox";
 import { AiWelcomeScreen } from "./ai-welcome-screen";
 import { mapApiMessage, type AiUiMessage } from "./types";
 import { ErrorState } from "@/components/fieldops/error-state";
@@ -17,12 +18,15 @@ import {
   aiFriendlyError,
   clearPendingAiRequest,
   createAiSession,
+  decideAiProposal,
   deleteAiSession,
   findNewestPendingAiRequest,
+  getAiProposal,
   getAiSession,
   getAiUsage,
   isAiAbortError,
   isAiPlanLimitError,
+  listAiProposals,
   listAiSessions,
   newAiClientRequestId,
   readPendingAiRequest,
@@ -30,6 +34,8 @@ import {
   sendAiMessageWithReconcile,
   transcriptHasUserContent,
   writePendingAiRequest,
+  type AiProposalDetail,
+  type AiProposalSummary,
   type AiSessionSummary,
   type AiUsageSummary,
 } from "@/lib/ai";
@@ -76,6 +82,16 @@ export function AiWorkforcePage() {
   const [usage, setUsage] = useState<AiUsageSummary | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageUnavailable, setUsageUnavailable] = useState(false);
+
+  const [orgRole, setOrgRole] = useState<string | null>(null);
+  const [proposalsOpen, setProposalsOpen] = useState(false);
+  const [proposalsLoading, setProposalsLoading] = useState(false);
+  const [reviewProposals, setReviewProposals] = useState<AiProposalSummary[]>(
+    [],
+  );
+  const [proposalDetails, setProposalDetails] = useState<
+    Record<string, AiProposalDetail>
+  >({});
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -174,6 +190,91 @@ export function AiWorkforcePage() {
       setUsageLoading(false);
     }
   }, []);
+
+  const canReviewProposals =
+    orgRole === "OWNER" ||
+    orgRole === "ADMIN" ||
+    orgRole === "OPERATIONS_MANAGER";
+
+  const refreshProposals = useCallback(async (orgId: string) => {
+    setProposalsLoading(true);
+    try {
+      if (canReviewProposals) {
+        const result = await listAiProposals(orgId, {
+          scope: "review",
+          status: "PENDING",
+        });
+        setReviewProposals(result.items);
+        const active = activeIdRef.current;
+        const forSession = result.items.filter((item) => item.sessionId === active);
+        await Promise.all(
+          forSession.map(async (item) => {
+            try {
+              const detail = await getAiProposal(orgId, item.id);
+              setProposalDetails((prev) => ({ ...prev, [item.id]: detail }));
+            } catch {
+              // ignore
+            }
+          }),
+        );
+      } else {
+        const mine = await listAiProposals(orgId, {
+          scope: "mine",
+          status: "PENDING",
+        });
+        setReviewProposals([]);
+        const active = activeIdRef.current;
+        const forSession = mine.items.filter((item) => item.sessionId === active);
+        await Promise.all(
+          forSession.map(async (item) => {
+            try {
+              const detail = await getAiProposal(orgId, item.id);
+              setProposalDetails((prev) => ({ ...prev, [item.id]: detail }));
+            } catch {
+              // ignore
+            }
+          }),
+        );
+      }
+    } catch {
+      // Non-fatal: inbox stays empty
+    } finally {
+      setProposalsLoading(false);
+    }
+  }, [canReviewProposals]);
+
+  const loadProposalDetail = useCallback(
+    async (proposalId: string) => {
+      if (!organizationId) return;
+      const detail = await getAiProposal(organizationId, proposalId);
+      setProposalDetails((prev) => ({ ...prev, [proposalId]: detail }));
+    },
+    [organizationId],
+  );
+
+  const handleDecideProposal = useCallback(
+    async (proposalId: string, decision: "APPROVE" | "REJECT") => {
+      if (!organizationId) return;
+      const updated = await decideAiProposal(organizationId, proposalId, {
+        decision,
+      });
+      setProposalDetails((prev) => ({ ...prev, [proposalId]: updated }));
+      await refreshProposals(organizationId);
+    },
+    [organizationId, refreshProposals],
+  );
+
+  useEffect(() => {
+    if (!organizationId) return;
+    void refreshProposals(organizationId);
+  }, [organizationId, activeId, refreshProposals]);
+
+  const sessionProposalDetails = useMemo(() => {
+    if (!activeId) return [];
+    return Object.values(proposalDetails).filter(
+      (p) => p.sessionId === activeId && p.status === "PENDING",
+    );
+  }, [activeId, proposalDetails]);
 
   const refreshSessions = useCallback(async (orgId: string) => {
     setSessionsLoading(true);
@@ -297,6 +398,10 @@ export function AiWorkforcePage() {
       setPendingLabel(undefined);
       setSessions([]);
       setUsage(null);
+      setOrgRole(null);
+      setProposalsOpen(false);
+      setReviewProposals([]);
+      setProposalDetails({});
       setMobileSidebarOpen(false);
 
       try {
@@ -308,10 +413,12 @@ export function AiWorkforcePage() {
         const orgId = membership.organization.id;
         setOrganizationId(orgId);
         organizationIdRef.current = orgId;
+        setOrgRole(membership.role);
 
         const [list] = await Promise.all([
           refreshSessions(orgId),
           refreshUsage(orgId),
+          refreshProposals(orgId),
         ]);
         if (cancelled) return;
 
@@ -355,6 +462,7 @@ export function AiWorkforcePage() {
     abortFrontendWait,
     loadSessionMessages,
     orgSlug,
+    refreshProposals,
     refreshSessions,
     refreshUsage,
     releaseActionLock,
@@ -730,6 +838,7 @@ export function AiWorkforcePage() {
         await applyIfViewing();
         await refreshSessions(organizationId);
         await refreshUsage(organizationId);
+        await refreshProposals(organizationId);
         if (viewingThisSession()) {
           setBanner(null);
         }
@@ -803,6 +912,7 @@ export function AiWorkforcePage() {
       loadSessionMessages,
       organizationId,
       refreshSessions,
+      refreshProposals,
       refreshUsage,
       releaseActionLock,
       setPending,
@@ -978,7 +1088,26 @@ export function AiWorkforcePage() {
         usage={usage}
         usageLoading={usageLoading}
         usageUnavailable={usageUnavailable}
+        canReviewProposals={canReviewProposals}
+        pendingProposalCount={reviewProposals.length}
+        proposalsLoading={proposalsLoading}
+        proposalsOpen={proposalsOpen}
+        onToggleProposals={() => setProposalsOpen((open) => !open)}
       />
+
+      {proposalsOpen && canReviewProposals ? (
+        <AiProposalsInboxPanel
+          items={reviewProposals}
+          details={proposalDetails}
+          loading={proposalsLoading}
+          onRefresh={() => {
+            if (organizationId) void refreshProposals(organizationId);
+          }}
+          onLoadDetail={loadProposalDetail}
+          onDecide={handleDecideProposal}
+          onClose={() => setProposalsOpen(false)}
+        />
+      ) : null}
 
       {banner ? (
         <div
@@ -1132,6 +1261,8 @@ export function AiWorkforcePage() {
                     typeof usage?.remaining === "number" &&
                     usage.remaining <= 0)
                 }
+                sessionProposals={sessionProposalDetails}
+                onDecideProposal={handleDecideProposal}
               />
             )}
           </div>

@@ -2,9 +2,9 @@ import type { DocArticle } from "../types";
 
 export const aiWorkforceCapabilities: DocArticle = {
   slug: "ai-workforce-capabilities",
-  title: "What AI Workforce can look up",
+  title: "What AI Workforce can do",
   description:
-    "Read-only lookups for jobs, schedules, and missing site access — plus how summaries relate to retrieved data.",
+    "Lookups for jobs, schedules, and missing site access, plus propose-only changes that need human Approve.",
   categoryId: "ai-workforce",
   keywords: [
     "jobs",
@@ -13,7 +13,8 @@ export const aiWorkforceCapabilities: DocArticle = {
     "unassigned",
     "high priority",
     "summarize",
-    "read-only",
+    "propose",
+    "approve",
     "job information",
     "site access",
   ],
@@ -29,7 +30,15 @@ export const aiWorkforceCapabilities: DocArticle = {
       id: "scope",
       heading: "What the assistant can retrieve today",
       paragraphs: [
-        "AI Workforce answers from three read-only lookups: job information you are authorized to see, schedule information for ranges you can view, and jobs that FieldKeel already flags for missing site access details. It can only use information those lookups return for your membership. It cannot invent jobs outside your access, open billing records, or change anything in FieldKeel.",
+        "AI Workforce answers from three lookups: job information you are authorized to see, schedule information for ranges you can view, and jobs that FieldKeel already flags for missing site access details. It can also propose allow-listed changes to jobs, clients, sites, and teams — those proposals stay pending until an owner, admin, or operations manager Approves them. It cannot invent jobs outside your access, open billing records, or apply changes without approval.",
+      ],
+    },
+    {
+      id: "proposals",
+      heading: "Propose changes for approval",
+      paragraphs: [
+        "When you ask to draft a job, assign a technician, reschedule, create a client or site, or similar allow-listed actions, the assistant can submit a proposal. FieldKeel does not apply that change until a permitted manager Approves it in AI Workforce.",
+        "Reject leaves records unchanged. If the underlying job or customer record changed since the proposal was created, Approve may fail safely so you can propose again.",
       ],
     },
     {

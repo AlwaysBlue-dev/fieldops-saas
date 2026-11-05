@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { OrganizationRole } from '../generated/prisma/client.js';
@@ -26,6 +27,7 @@ import type {
 import { AiService } from './ai.service.js';
 import { CreateAiSessionDto } from './dto/create-ai-session.dto.js';
 import { DecideAiProposalDto } from './dto/decide-ai-proposal.dto.js';
+import { ListAiProposalsQueryDto } from './dto/list-ai-proposals-query.dto.js';
 import { SendAiMessageDto } from './dto/send-ai-message.dto.js';
 import { UpdateAiSessionDto } from './dto/update-ai-session.dto.js';
 
@@ -119,8 +121,18 @@ export class AiController {
   listProposals(
     @CurrentOrganization() organization: OrganizationContext,
     @CurrentUser() user: AuthUser,
+    @Query() query: ListAiProposalsQueryDto,
   ) {
-    return this.ai.listProposals(organization, user.id);
+    return this.ai.listProposals(organization, user.id, query);
+  }
+
+  @Get('proposals/:proposalId')
+  getProposal(
+    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() user: AuthUser,
+    @Param('proposalId', ParseUUIDPipe) proposalId: string,
+  ) {
+    return this.ai.getProposal(organization, user.id, proposalId);
   }
 
   @Post('proposals/:proposalId/decide')

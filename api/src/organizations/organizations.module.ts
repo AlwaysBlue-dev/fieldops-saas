@@ -109,6 +109,12 @@ import { ReportsService } from './reports.service.js';
     JobReportPdfService,
     ReportsService,
   ],
-  exports: [JobsService, ScheduleService],
+  exports: [
+    JobsService,
+    ScheduleService,
+    ClientsService,
+    SitesService,
+    TeamsService,
+  ],
 })
 export class OrganizationsModule {}

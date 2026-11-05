@@ -380,6 +380,78 @@ export function getAiUsage(organizationId: string, signal?: AbortSignal) {
   });
 }
 
+export type AiProposalStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "EXPIRED"
+  | "EXECUTED"
+  | "FAILED";
+
+export type AiProposalSummary = {
+  id: string;
+  actionType: string;
+  status: AiProposalStatus;
+  targetEntityType: string | null;
+  targetEntityId: string | null;
+  createdAt: string;
+  expiresAt: string | null;
+  decidedAt: string | null;
+  decidedByUserId?: string | null;
+  userId?: string;
+  sessionId?: string | null;
+  executedAt?: string | null;
+  canDecide?: boolean;
+  summary?: string;
+};
+
+export type AiProposalDetail = AiProposalSummary & {
+  summary: string;
+  payload: Record<string, unknown>;
+  decisionComment: string | null;
+  executionResult: unknown;
+  updatedAt: string;
+  expectedTargetUpdatedAt: string | null;
+};
+
+export function listAiProposals(
+  organizationId: string,
+  query: { scope?: "mine" | "review"; status?: AiProposalStatus } = {},
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams();
+  if (query.scope) params.set("scope", query.scope);
+  if (query.status) params.set("status", query.status);
+  const qs = params.toString();
+  return apiRequest<{
+    scope: "mine" | "review";
+    items: AiProposalSummary[];
+  }>(`${aiBase(organizationId)}/proposals${qs ? `?${qs}` : ""}`, { signal });
+}
+
+export function getAiProposal(
+  organizationId: string,
+  proposalId: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<AiProposalDetail>(
+    `${aiBase(organizationId)}/proposals/${proposalId}`,
+    { signal },
+  );
+}
+
+export function decideAiProposal(
+  organizationId: string,
+  proposalId: string,
+  body: { decision: "APPROVE" | "REJECT"; comment?: string },
+  signal?: AbortSignal,
+) {
+  return apiRequest<AiProposalDetail>(
+    `${aiBase(organizationId)}/proposals/${proposalId}/decide`,
+    { method: "POST", body, signal },
+  );
+}
+
 export function newAiClientRequestId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
