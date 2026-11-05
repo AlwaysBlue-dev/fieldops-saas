@@ -1,6 +1,8 @@
+import { extractAiChoices } from "./ai-choices";
 import { AiMarkdown } from "./ai-markdown";
 import type { AiUiMessage } from "./types";
 import { cn } from "cn";
+import { useMemo } from "react";
 
 function formatTime(iso: string) {
   try {
@@ -16,6 +18,10 @@ function formatTime(iso: string) {
 export function AiMessageBubble({ message }: { message: AiUiMessage }) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+  const displayContent = useMemo(() => {
+    if (isUser || isSystem) return message.content;
+    return extractAiChoices(message.content).displayContent;
+  }, [isSystem, isUser, message.content]);
 
   if (isSystem) {
     return (
@@ -25,6 +31,10 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
         </p>
       </div>
     );
+  }
+
+  if (!displayContent.trim()) {
+    return null;
   }
 
   return (
@@ -47,7 +57,7 @@ export function AiMessageBubble({ message }: { message: AiUiMessage }) {
         {isUser ? (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         ) : (
-          <AiMarkdown content={message.content} />
+          <AiMarkdown content={displayContent} />
         )}
       </div>
       <time

@@ -1,6 +1,8 @@
+import { extractAiChoices } from "./ai-choices";
 import { AiFollowUpChips, suggestFollowUps } from "./ai-follow-up-chips";
 import { AiMessageBubble } from "./ai-message-bubble";
 import { AiProposalCard } from "./ai-proposal-card";
+import { AiSelectionChips } from "./ai-selection-chips";
 import type { AiProposalDetail } from "@/lib/ai";
 import type { AiUiMessage } from "./types";
 import { useEffect, useMemo, useRef } from "react";
@@ -36,21 +38,33 @@ export function AiMessageList({
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, submitting, pendingLabel]);
 
-  const followUps = useMemo(() => {
-    if (submitting || !onPickFollowUp) return [];
+  const lastAssistant = useMemo(() => {
     const visible = messages.filter(
       (m) => m.role === "user" || m.role === "assistant",
     );
     const last = visible[visible.length - 1];
-    if (!last || last.role !== "assistant" || last.optimistic) return [];
-    const lastUser = [...visible]
+    if (!last || last.role !== "assistant" || last.optimistic) return null;
+    return last;
+  }, [messages]);
+
+  const selectionChoices = useMemo(() => {
+    if (submitting || !onPickFollowUp || !lastAssistant) return [];
+    return extractAiChoices(lastAssistant.content).choices;
+  }, [lastAssistant, onPickFollowUp, submitting]);
+
+  const followUps = useMemo(() => {
+    if (submitting || !onPickFollowUp || !lastAssistant) return [];
+    // Prefer explicit entity picks over generic follow-ups.
+    if (selectionChoices.length > 0) return [];
+    const lastUser = [...messages]
       .reverse()
       .find((m) => m.role === "user");
     return suggestFollowUps({
       lastUserContent: lastUser?.content ?? null,
-      lastAssistantContent: last.content,
+      lastAssistantContent: extractAiChoices(lastAssistant.content)
+        .displayContent,
     });
-  }, [messages, onPickFollowUp, submitting]);
+  }, [lastAssistant, messages, onPickFollowUp, selectionChoices.length, submitting]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-0 py-3 sm:gap-4 sm:py-4 md:py-5">
@@ -85,6 +99,13 @@ export function AiMessageList({
           </span>
           <span>{pendingLabel ?? "Looking up operations data…"}</span>
         </div>
+      ) : null}
+      {!submitting && selectionChoices.length > 0 && onPickFollowUp ? (
+        <AiSelectionChips
+          choices={selectionChoices}
+          onPick={onPickFollowUp}
+          disabled={followUpsDisabled}
+        />
       ) : null}
       {!submitting && followUps.length > 0 ? (
         <AiFollowUpChips

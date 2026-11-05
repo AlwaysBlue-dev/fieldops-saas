@@ -5,7 +5,7 @@ services. Providers (Groq / Gemini / OpenRouter) may *request* tools; only this
 layer may *execute* them.
 
 **Status:** Registry + executor + three read-only operational tools
-(`getJobs`, `findMissingAccess`, `getSchedule`) plus **`proposeAction`**
+(`getJobs`, `getClients`, `getTeams`, `findMissingAccess`, `getSchedule`) plus **`proposeAction`**
 (`access: 'propose'`) are registered. Propose tools create `AiProposedAction`
 rows only; domain mutations run when an OWNER/ADMIN/OPERATIONS_MANAGER Approves
 via `POST .../ai/proposals/:id/decide`. Direct write tools are not registered.
@@ -401,6 +401,8 @@ Unchanged core policy (`docs/ai-provider-failover.md`), plus tool rules:
 | Name | Handler | Service |
 |------|---------|---------|
 | `getJobs` | `get-jobs.tool.ts` | `JobsService.list` |
+| `getClients` | `get-clients.tool.ts` | `ClientsService.list` / `get` |
+| `getTeams` | `get-teams.tool.ts` | `TeamsService.list` / `get` |
 | `findMissingAccess` | `find-missing-access.tool.ts` | `JobsService.list` (`missingAccess: true`) |
 | `getSchedule` | `get-schedule.tool.ts` | `ScheduleService.getBoard` |
 | `proposeAction` | `propose-action.tool.ts` | `AiProposalService.create` (PENDING only) |

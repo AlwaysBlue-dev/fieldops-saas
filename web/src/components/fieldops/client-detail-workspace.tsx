@@ -104,18 +104,20 @@ export function ClientDetailWorkspace() {
   );
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="flex w-full min-w-0 flex-col gap-4">
       <p className="text-sm">
         <Link href={`/app/${params.orgSlug}/clients`} className="text-primary">
-          All customers
+          All clients
         </Link>
       </p>
 
-      <header className="rounded-lg border border-border bg-card px-4 py-4">
+      <header className="rounded-lg border border-border bg-card px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight">{client.name}</h1>
+              <h1 className="text-xl font-semibold tracking-tight md:text-2xl">
+                {client.name}
+              </h1>
               <StatusPill
                 label={client.status === "ACTIVE" ? "Active" : "Inactive"}
                 tone={client.status === "ACTIVE" ? "emerald" : "muted"}
@@ -161,7 +163,10 @@ export function ClientDetailWorkspace() {
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4 flex flex-col gap-3">
+        <TabsContent
+          value="overview"
+          className="mt-4 grid gap-3 lg:grid-cols-2"
+        >
           <section className="rounded-lg border border-border bg-card px-4 py-4">
             <h2 className="type-label text-muted-foreground">Primary contact</h2>
             <p className="mt-2 text-sm font-medium">
@@ -184,7 +189,7 @@ export function ClientDetailWorkspace() {
             {client.activity.length === 0 && !client.lastJob ? (
               <EmptyState
                 title="No activity yet"
-                description="Jobs and account changes for this customer will appear here."
+                description="Jobs and account changes for this client will appear here."
               />
             ) : (
               <ul className="mt-3 flex flex-col gap-2">
