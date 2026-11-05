@@ -196,17 +196,24 @@ export function AiWorkforcePage() {
     orgRole === "ADMIN" ||
     orgRole === "OPERATIONS_MANAGER";
 
-  const refreshProposals = useCallback(async (orgId: string) => {
-    setProposalsLoading(true);
-    try {
-      if (canReviewProposals) {
+  /** Pass role explicitly so this callback stays stable (avoids boot-effect loops). */
+  const refreshProposals = useCallback(
+    async (orgId: string, role: string | null) => {
+      setProposalsLoading(true);
+      try {
+        const canReview =
+          role === "OWNER" ||
+          role === "ADMIN" ||
+          role === "OPERATIONS_MANAGER";
         const result = await listAiProposals(orgId, {
-          scope: "review",
+          scope: canReview ? "review" : "mine",
           status: "PENDING",
         });
-        setReviewProposals(result.items);
+        setReviewProposals(canReview ? result.items : []);
         const active = activeIdRef.current;
-        const forSession = result.items.filter((item) => item.sessionId === active);
+        const forSession = result.items.filter(
+          (item) => item.sessionId === active,
+        );
         await Promise.all(
           forSession.map(async (item) => {
             try {
@@ -217,31 +224,14 @@ export function AiWorkforcePage() {
             }
           }),
         );
-      } else {
-        const mine = await listAiProposals(orgId, {
-          scope: "mine",
-          status: "PENDING",
-        });
-        setReviewProposals([]);
-        const active = activeIdRef.current;
-        const forSession = mine.items.filter((item) => item.sessionId === active);
-        await Promise.all(
-          forSession.map(async (item) => {
-            try {
-              const detail = await getAiProposal(orgId, item.id);
-              setProposalDetails((prev) => ({ ...prev, [item.id]: detail }));
-            } catch {
-              // ignore
-            }
-          }),
-        );
+      } catch {
+        // Non-fatal: inbox stays empty
+      } finally {
+        setProposalsLoading(false);
       }
-    } catch {
-      // Non-fatal: inbox stays empty
-    } finally {
-      setProposalsLoading(false);
-    }
-  }, [canReviewProposals]);
+    },
+    [],
+  );
 
   const loadProposalDetail = useCallback(
     async (proposalId: string) => {
@@ -259,15 +249,15 @@ export function AiWorkforcePage() {
         decision,
       });
       setProposalDetails((prev) => ({ ...prev, [proposalId]: updated }));
-      await refreshProposals(organizationId);
+      await refreshProposals(organizationId, orgRole);
     },
-    [organizationId, refreshProposals],
+    [organizationId, orgRole, refreshProposals],
   );
 
   useEffect(() => {
-    if (!organizationId) return;
-    void refreshProposals(organizationId);
-  }, [organizationId, activeId, refreshProposals]);
+    if (!organizationId || !orgRole) return;
+    void refreshProposals(organizationId, orgRole);
+  }, [organizationId, activeId, orgRole, refreshProposals]);
 
   const sessionProposalDetails = useMemo(() => {
     if (!activeId) return [];
@@ -415,12 +405,14 @@ export function AiWorkforcePage() {
         organizationIdRef.current = orgId;
         setOrgRole(membership.role);
 
+        // Proposals are non-blocking — never hold the page skeleton open for inbox.
+        void refreshProposals(orgId, membership.role);
+
         let list: AiSessionSummary[] | undefined;
         try {
           const [sessions] = await Promise.all([
             refreshSessions(orgId),
             refreshUsage(orgId),
-            refreshProposals(orgId),
           ]);
           list = sessions;
         } catch (inner) {
@@ -440,6 +432,10 @@ export function AiWorkforcePage() {
           }
         }
         if (cancelled) return;
+
+        // Drop the skeleton as soon as membership + sessions are ready.
+        // Pending restore / message load must not keep the page blank.
+        if (!cancelled) setBootLoading(false);
 
         const restored = findNewestPendingAiRequest(orgId);
         if (restored) {
@@ -479,16 +475,10 @@ export function AiWorkforcePage() {
       loadAbortRef.current?.abort();
       sendAbortRef.current?.abort();
     };
-  }, [
-    abortFrontendWait,
-    loadSessionMessages,
-    orgSlug,
-    refreshProposals,
-    refreshSessions,
-    refreshUsage,
-    releaseActionLock,
-    showPendingBannerFor,
-  ]);
+    // Boot once per org slug — callback identities must not retrigger this
+    // (that left the page stuck on the skeleton forever).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boot once per org
+  }, [orgSlug]);
 
   const isSessionBusy = useCallback(
     (sessionId: string) => {
@@ -859,7 +849,7 @@ export function AiWorkforcePage() {
         await applyIfViewing();
         await refreshSessions(organizationId);
         await refreshUsage(organizationId);
-        await refreshProposals(organizationId);
+        await refreshProposals(organizationId, orgRole);
         if (viewingThisSession()) {
           setBanner(null);
         }
@@ -932,6 +922,7 @@ export function AiWorkforcePage() {
       abortFrontendWait,
       loadSessionMessages,
       organizationId,
+      orgRole,
       refreshSessions,
       refreshProposals,
       refreshUsage,
@@ -1122,7 +1113,7 @@ export function AiWorkforcePage() {
           details={proposalDetails}
           loading={proposalsLoading}
           onRefresh={() => {
-            if (organizationId) void refreshProposals(organizationId);
+            if (organizationId) void refreshProposals(organizationId, orgRole);
           }}
           onLoadDetail={loadProposalDetail}
           onDecide={handleDecideProposal}
